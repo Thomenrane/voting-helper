@@ -1,0 +1,531 @@
+---
+/**
+ * Results panel (#19) — slope chart skeleton + evidence audit drill-down.
+ *
+ * Everything data-independent of the user's answers is server-rendered here
+ * (party rows, citations, linked votes, contradiction badges), so Astro's
+ * scoped styles apply to all of it. The client (results-view.ts, driven by
+ * the wizard island) only fills scores, reorders rows and draws the lines.
+ */
+import { PARTIES, PARTY_POSITIONS, STATEMENTS } from '@voting-helper/data';
+import type { Locale } from '../i18n/locales.ts';
+import { UI } from '../i18n/ui.ts';
+import { buildPartyAudit, formatDateBE } from '../lib/results/results-presentation.ts';
+import { scoreParties } from '../lib/scoring/scoring.ts';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = UI[lang];
+
+// Contradiction flags are a property of the party data, independent of the
+// user's answers (see scoring.ts) — scoring an empty answer set at build time
+// yields them from the engine without any local recomputation.
+const contradictionsByParty = new Map(
+  scoreParties({}, PARTIES, PARTY_POSITIONS).map((s) => [s.partyId, s.contradictions]),
+);
+
+const columns = [
+  { dimension: 'promesses', heading: t.promessesColumnHeading },
+  { dimension: 'actes', heading: t.actesColumnHeading },
+] as const;
+
+const scaleLabel = (position: number): string =>
+  t.scaleOptions.find((option) => option.value === position)?.label ?? String(position);
+---
+
+<div class="results-panel" data-results-panel>
+  <div class="slope">
+    {
+      columns.map(({ dimension, heading }) => (
+        <section class:list={['slope-col', dimension]} aria-label={heading}>
+          <h3 class="slope-col-heading">{heading}</h3>
+          <ol class="slope-list" data-slope-list={dimension}>
+            {PARTIES.map((party) => (
+              <li class="slope-card" data-party={party.id}>
+                <span class="slope-rank" data-rank aria-hidden="true" />
+                <div class="slope-card-body">
+                  <span class="slope-party">{party.name}</span>
+                  <span class="slope-score" data-score />
+                  {/* On mobile the écart is a badge per party card; on desktop
+                      it turns visually-hidden (the accented line carries it) and
+                      only the actes copy stays exposed to screen readers. */}
+                  <span
+                    class="ecart-badge"
+                    data-ecart
+                    hidden
+                    aria-hidden={dimension === 'promesses' ? 'true' : undefined}
+                  />
+                  <span class="slope-denominator" data-denominator />
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))
+    }
+    <svg class="slope-svg" data-slope-svg aria-hidden="true" preserveAspectRatio="none">
+      {PARTIES.map((party) => <line class="slope-line" data-party={party.id} />)}
+    </svg>
+  </div>
+
+  <section class="audit" aria-labelledby="results-audit-heading">
+    <h3 class="audit-heading" id="results-audit-heading">{t.auditHeading}</h3>
+    <p class="audit-intro">{t.auditIntro}</p>
+    <div data-audit>
+      {
+        PARTIES.map((party) => {
+          const contradictions = contradictionsByParty.get(party.id) ?? [];
+          const themes = buildPartyAudit(party.id, STATEMENTS, PARTY_POSITIONS, contradictions);
+          return (
+            <details class="audit-party" data-audit-party={party.id}>
+              <summary class="audit-party-summary">
+                <span class="audit-party-name">{party.name}</span>
+                {contradictions.length > 0 && (
+                  <span class="audit-party-chip">{t.contradictionBadge(contradictions.length)}</span>
+                )}
+              </summary>
+              <div class="audit-party-body">
+                {themes.map((theme) => (
+                  <section class="audit-theme">
+                    <h4 class="audit-theme-heading">{t.themeLabel(theme.theme)}</h4>
+                    {theme.statements.map((item) => (
+                      <details class="audit-statement">
+                        <summary class="audit-statement-summary">
+                          <span class="audit-statement-text">
+                            {lang === 'fr' ? item.statement.texte_fr : item.statement.texte_nl}
+                          </span>
+                          {item.isContradiction && (
+                            <span class="tag contradiction">{t.contradictionTag}</span>
+                          )}
+                          {item.programme === null && (
+                            <span class="tag undocumented">{t.positionNotDocumented}</span>
+                          )}
+                        </summary>
+                        <div class="evidence">
+                          <div class="evidence-block">
+                            <p class="evidence-label">{t.programmeEvidenceLabel}</p>
+                            {item.programme !== null ? (
+                              <>
+                                <p class="evidence-position">
+                                  {t.positionLabel(scaleLabel(item.programme.position))}
+                                </p>
+                                <blockquote class="quote">
+                                  <p class="quote-text">{item.programme.citation.texte}</p>
+                                  <footer class="quote-ref">
+                                    {t.exactQuoteLabel} — {t.pageRef(item.programme.citation.page)} —{' '}
+                                    <a href={item.programme.citation.url_source} rel="noopener">
+                                      {t.sourceLinkLabel}
+                                    </a>
+                                  </footer>
+                                </blockquote>
+                              </>
+                            ) : (
+                              <p class="evidence-empty">{t.positionNotDocumentedHint}</p>
+                            )}
+                          </div>
+                          <div class="evidence-block">
+                            <p class="evidence-label">{t.votesEvidenceLabel}</p>
+                            {item.votes.length > 0 ? (
+                              <ul class="votes">
+                                {item.votes.map((vote) => (
+                                  <li class="vote">
+                                    <p class="vote-head">
+                                      <strong class="vote-direction">
+                                        {t.voteDirection[vote.position_groupe]}
+                                      </strong>{' '}
+                                      — {formatDateBE(vote.date)} — {vote.dossier}
+                                    </p>
+                                    <p class="vote-justification">{vote.justification}</p>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p class="evidence-empty">{t.noLinkedVotes}</p>
+                            )}
+                          </div>
+                        </div>
+                      </details>
+                    ))}
+                  </section>
+                ))}
+              </div>
+            </details>
+          );
+        })
+      }
+    </div>
+  </section>
+</div>
+
+<style>
+  /* ——— Slope chart — mobile first: the two rankings stack, no lines ——— */
+  .slope {
+    margin-top: 1.25rem;
+  }
+
+  .slope-col + .slope-col {
+    margin-top: 1.75rem;
+  }
+
+  .slope-svg {
+    display: none;
+  }
+
+  .slope-col-heading {
+    margin: 0 0 0.625rem;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.0625rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .slope-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .slope-card {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-height: 48px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0.625rem;
+    padding: 0.625rem 0.875rem;
+  }
+
+  .slope-rank {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.9375rem;
+    color: var(--ink-soft);
+    min-width: 1.125rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .slope-card-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'party score'
+      'badge denominator';
+    align-items: baseline;
+    column-gap: 0.625rem;
+    row-gap: 0.125rem;
+  }
+
+  .slope-party {
+    grid-area: party;
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+
+  .slope-score {
+    grid-area: score;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .slope-denominator {
+    grid-area: denominator;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    text-align: right;
+  }
+
+  .ecart-badge {
+    grid-area: badge;
+    justify-self: start;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-deep);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.125rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .ecart-badge.marquant {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper);
+    font-weight: 600;
+  }
+
+  /* ——— Desktop: two columns joined by the slope lines ——— */
+  @media (min-width: 40rem) {
+    .slope {
+      display: grid;
+      grid-template-columns: 1fr 3.5rem 1fr;
+    }
+
+    .slope-col + .slope-col {
+      margin-top: 0;
+    }
+
+    .slope-col.promesses {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .slope-col.actes {
+      grid-column: 3;
+      grid-row: 1;
+    }
+
+    .slope-svg {
+      display: block;
+      grid-column: 2;
+      grid-row: 1;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    /* The lines carry the écart visually; keep the badge text for screen
+       readers only (visually-hidden pattern). */
+    .ecart-badge {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      border: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+
+  .slope-line {
+    stroke: var(--ink-soft);
+    /* 0.7 over --paper ≈ 3.2:1 (WCAG 1.4.11 ≥ 3:1); hierarchy vs the
+       marquant lines is kept by hue (grey-violet vs accent) and width. */
+    stroke-opacity: 0.7;
+    stroke-width: 1.5;
+  }
+
+  .slope-line.marquant {
+    stroke: var(--accent);
+    stroke-opacity: 1;
+    stroke-width: 3;
+  }
+
+  /* ——— Audit drill-down: parti → thème → énoncé → preuves ——— */
+  .audit {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .audit-heading {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.25rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .audit-intro {
+    margin: 0.375rem 0 1rem;
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+  }
+
+  .audit-party {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+  }
+
+  .audit-party + .audit-party {
+    margin-top: 0.625rem;
+  }
+
+  .audit-party-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 48px; /* generous touch target */
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-radius: 0.75rem;
+  }
+
+  .audit-party-name {
+    font-weight: 600;
+  }
+
+  .audit-party-chip {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent-deep);
+    background: var(--accent-wash);
+    border-radius: 0.375rem;
+    padding: 0.125rem 0.5rem;
+  }
+
+  .audit-party-body {
+    padding: 0 1rem 1rem;
+  }
+
+  .audit-theme + .audit-theme {
+    margin-top: 1rem;
+  }
+
+  .audit-theme-heading {
+    margin: 0 0 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+  }
+
+  .audit-statement {
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+  }
+
+  .audit-statement + .audit-statement {
+    margin-top: 0.5rem;
+  }
+
+  .audit-statement-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.375rem 0.5rem;
+    min-height: 48px; /* generous touch target */
+    padding: 0.625rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.9375rem;
+    border-radius: 0.5rem;
+  }
+
+  .audit-statement-text {
+    flex: 1 1 12rem;
+  }
+
+  .tag {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 0.125rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .tag.contradiction {
+    background: var(--accent);
+    color: var(--paper);
+  }
+
+  .tag.undocumented {
+    border: 1px dashed var(--ink-soft);
+    color: var(--ink-soft);
+  }
+
+  .evidence {
+    padding: 0 0.75rem 0.75rem;
+    display: grid;
+    gap: 0.875rem;
+  }
+
+  .evidence-label {
+    margin: 0 0 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .evidence-position {
+    margin: 0 0 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .quote {
+    margin: 0;
+    padding: 0.625rem 0.875rem;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-wash);
+    border-radius: 0 0.5rem 0.5rem 0;
+  }
+
+  .quote-text {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+  }
+
+  .quote-ref {
+    margin-top: 0.375rem;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+
+  .quote-ref a {
+    color: var(--accent-deep);
+  }
+
+  .votes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .vote {
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .vote-head {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+  }
+
+  .vote-direction {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .vote-justification {
+    margin: 0.25rem 0 0;
+    font-size: 0.8125rem;
+  }
+
+  .evidence-empty {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+    border: 1px dashed var(--line);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  @media (min-width: 40rem) {
+    .evidence {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>

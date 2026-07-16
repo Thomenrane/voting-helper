@@ -3,7 +3,7 @@
  * route structure and strings are ready even though only /fr is built for
  * the tracer bullet (#16).
  */
-import type { PositionValue } from '@voting-helper/data';
+import type { GroupVotePosition, PositionValue } from '@voting-helper/data';
 import type { Locale } from './locales.ts';
 
 /** One degree of the 5-point answer scale, in display order. */
@@ -18,8 +18,6 @@ interface UiStrings {
   demoBanner: string;
   heading: string;
   intro: string;
-  promessesLabel: string;
-  actesLabel: string;
   /** e.g. « basé sur 7/8 énoncés » */
   basedOn: (included: number, total: number) => string;
   notAvailable: string;
@@ -45,6 +43,25 @@ interface UiStrings {
   resultsPrivacyNote: string;
   restartLabel: string;
   noscriptNotice: string;
+  // Results screen (#19)
+  promessesColumnHeading: string;
+  actesColumnHeading: string;
+  auditHeading: string;
+  auditIntro: string;
+  programmeEvidenceLabel: string;
+  votesEvidenceLabel: string;
+  /** e.g. « Position : Tout à fait d'accord » — label from scaleOptions. */
+  positionLabel: (scaleLabel: string) => string;
+  positionNotDocumented: string;
+  positionNotDocumentedHint: string;
+  noLinkedVotes: string;
+  /** Short badge on a statement where the party voted against its programme. */
+  contradictionTag: string;
+  /** How the party's group voted, relative to the statement's direction. */
+  voteDirection: Record<GroupVotePosition, string>;
+  exactQuoteLabel: string;
+  pageRef: (page: number) => string;
+  sourceLinkLabel: string;
 }
 
 const THEME_LABELS_FR: Record<string, string> = {
@@ -70,8 +87,6 @@ export const UI: Record<Locale, UiStrings> = {
     heading: 'Ce qu’ils promettent. Ce qu’ils votent.',
     intro:
       'Pour chaque parti, deux scores distincts — jamais fusionnés : votre alignement sur son programme (promesses) et sur ses votes à la Chambre (actes).',
-    promessesLabel: 'Promesses',
-    actesLabel: 'Actes',
     basedOn: (included, total) => `basé sur ${included}/${total} énoncés`,
     notAvailable: 'n.d.',
     ecartLabel: 'écart',
@@ -96,12 +111,33 @@ export const UI: Record<Locale, UiStrings> = {
     previousLabel: 'Précédent',
     nextLabel: 'Suivant',
     seeResultsLabel: 'Voir mes résultats',
-    resultsHeading: 'Vos résultats provisoires',
+    resultsHeading: 'Vos résultats',
     resultsPrivacyNote:
       'Calculés dans votre navigateur — vos réponses ne le quittent jamais.',
     restartLabel: 'Recommencer le test',
     noscriptNotice:
       'Le test se déroule entièrement dans votre navigateur et nécessite JavaScript. Activez-le pour répondre aux énoncés.',
+    promessesColumnHeading: 'Ce qu’ils promettent',
+    actesColumnHeading: 'Ce qu’ils ont voté',
+    auditHeading: 'Vérifier les preuves',
+    auditIntro:
+      'Chaque score se vérifie : ouvrez un parti, puis un énoncé, pour lire la citation exacte du programme et les votes liés.',
+    programmeEvidenceLabel: 'Programme',
+    votesEvidenceLabel: 'Votes liés',
+    positionLabel: (scaleLabel) => `Position : ${scaleLabel}`,
+    positionNotDocumented: 'Position non documentée',
+    positionNotDocumentedHint:
+      'Aucune position validée dans le programme de ce parti sur cet énoncé — exclu de son score promesses.',
+    noLinkedVotes: 'Aucun vote lié — énoncé exclu du score actes.',
+    contradictionTag: 'Promesse vs vote',
+    voteDirection: {
+      oui: 'A voté pour',
+      abstention: 'S’est abstenu',
+      non: 'A voté contre',
+    },
+    exactQuoteLabel: 'Citation exacte (langue source)',
+    pageRef: (page) => `p. ${page}`,
+    sourceLinkLabel: 'Source',
   },
   nl: {
     siteTitle: 'Federale stemtest — demonstratie',
@@ -111,8 +147,6 @@ export const UI: Record<Locale, UiStrings> = {
     heading: 'Wat ze beloven. Wat ze stemmen.',
     intro:
       'Per partij twee aparte scores — nooit samengevoegd: uw overeenstemming met het programma (beloften) en met de stemmingen in de Kamer (daden).',
-    promessesLabel: 'Beloften',
-    actesLabel: 'Daden',
     basedOn: (included, total) => `op basis van ${included}/${total} stellingen`,
     notAvailable: 'n.b.',
     ecartLabel: 'kloof',
@@ -137,10 +171,31 @@ export const UI: Record<Locale, UiStrings> = {
     previousLabel: 'Vorige',
     nextLabel: 'Volgende',
     seeResultsLabel: 'Bekijk mijn resultaten',
-    resultsHeading: 'Uw voorlopige resultaten',
+    resultsHeading: 'Uw resultaten',
     resultsPrivacyNote: 'Berekend in uw browser — uw antwoorden verlaten hem nooit.',
     restartLabel: 'De test opnieuw beginnen',
     noscriptNotice:
       'De test verloopt volledig in uw browser en vereist JavaScript. Schakel het in om de stellingen te beantwoorden.',
+    promessesColumnHeading: 'Wat ze beloven',
+    actesColumnHeading: 'Wat ze stemden',
+    auditHeading: 'Controleer het bewijs',
+    auditIntro:
+      'Elke score is controleerbaar: open een partij en daarna een stelling om het exacte programmacitaat en de gekoppelde stemmingen te lezen.',
+    programmeEvidenceLabel: 'Programma',
+    votesEvidenceLabel: 'Gekoppelde stemmingen',
+    positionLabel: (scaleLabel) => `Standpunt: ${scaleLabel}`,
+    positionNotDocumented: 'Geen gedocumenteerd standpunt',
+    positionNotDocumentedHint:
+      'Geen gevalideerd standpunt in het programma van deze partij over deze stelling — uitgesloten van haar score beloften.',
+    noLinkedVotes: 'Geen gekoppelde stemming — stelling uitgesloten van de score daden.',
+    contradictionTag: 'Belofte vs stem',
+    voteDirection: {
+      oui: 'Stemde voor',
+      abstention: 'Onthield zich',
+      non: 'Stemde tegen',
+    },
+    exactQuoteLabel: 'Exact citaat (brontaal)',
+    pageRef: (page) => `p. ${page}`,
+    sourceLinkLabel: 'Bron',
   },
 };
