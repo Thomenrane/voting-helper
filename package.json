@@ -10,6 +10,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspace site",
+    "snapshot:programmes": "node pipeline/src/commands/snapshot-programmes.ts",
+    "snapshot:votes": "node pipeline/src/commands/snapshot-votes.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p data && tsc --noEmit -p pipeline && npm run typecheck --workspace site"
   },
