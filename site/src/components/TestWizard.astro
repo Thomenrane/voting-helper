@@ -1,0 +1,754 @@
+---
+/**
+ * Test wizard island (#18) — one question at a time.
+ *
+ * The question cards are server-rendered (content lives in the HTML); the
+ * bundled client script only drives navigation, selection state, persistence
+ * (localStorage, never the network) and the provisional client-side results.
+ */
+import { STATEMENTS } from '@voting-helper/data';
+import type { Locale } from '../i18n/locales.ts';
+import { UI } from '../i18n/ui.ts';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = UI[lang];
+const total = STATEMENTS.length;
+---
+
+<section class="wizard" data-wizard data-lang={lang}>
+  <noscript>
+    <p class="noscript">{t.noscriptNotice}</p>
+  </noscript>
+
+  <div class="test" data-test>
+    <header class="progress">
+      <p class="progress-label" data-progress-label>{t.questionProgress(1, total)}</p>
+      <div class="progress-track" role="presentation">
+        <div class="progress-fill" data-progress-fill style={`width: ${(1 / total) * 100}%`}></div>
+      </div>
+    </header>
+
+    <div class="cards">
+      {
+        STATEMENTS.map((statement, index) => (
+          <article
+            class="question-card"
+            data-question
+            data-statement-id={statement.id}
+            hidden={index !== 0}
+          >
+            <p class="theme">{t.themeLabel(statement.theme)}</p>
+            <h2 class="statement" tabindex="-1" data-statement-heading>
+              {lang === 'fr' ? statement.texte_fr : statement.texte_nl}
+            </h2>
+            <p class="note">
+              <strong class="note-label">{t.noteLabel}</strong>
+              {lang === 'fr' ? statement.note_concrete_fr : statement.note_concrete_nl}
+            </p>
+
+            <div class="scale" role="group" aria-label={t.scaleGroupLabel}>
+              {t.scaleOptions.map((option) => (
+                <button
+                  type="button"
+                  class="scale-btn"
+                  data-answer
+                  data-value={String(option.value)}
+                  aria-pressed="false"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            <div class="no-opinion">
+              <button
+                type="button"
+                class="no-opinion-btn"
+                data-answer
+                data-value="sans_opinion"
+                aria-pressed="false"
+              >
+                {t.noOpinionLabel}
+              </button>
+              <p class="no-opinion-hint">{t.noOpinionHint}</p>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+
+    <nav class="wizard-nav">
+      <button type="button" class="nav-btn prev" data-prev disabled>{t.previousLabel}</button>
+      <button type="button" class="nav-btn next" data-next disabled>{t.nextLabel}</button>
+    </nav>
+  </div>
+
+  <section class="results" data-results hidden aria-labelledby="wizard-results-heading">
+    <h2 class="results-heading" id="wizard-results-heading" tabindex="-1">{t.resultsHeading}</h2>
+    <p class="privacy-note">{t.resultsPrivacyNote}</p>
+    <ol class="results-list" data-results-list></ol>
+    <p class="results-methodology">{t.methodologyNote}</p>
+    <div class="results-actions">
+      <button type="button" class="nav-btn prev" data-back-to-questions>{t.previousLabel}</button>
+      <button type="button" class="restart-btn" data-restart>{t.restartLabel}</button>
+    </div>
+  </section>
+</section>
+
+<script>
+  import { PARTIES, PARTY_POSITIONS, STATEMENTS } from '@voting-helper/data';
+  import type { PositionValue, UserAnswer } from '@voting-helper/data';
+  import type { Locale } from '../i18n/locales.ts';
+  import { UI } from '../i18n/ui.ts';
+  import { scoreParties } from '../lib/scoring/scoring.ts';
+  import type { PartyScore } from '../lib/scoring/scoring.ts';
+  import {
+    ANSWERS_STORAGE_KEY,
+    canGoNext,
+    canGoPrevious,
+    createWizard,
+    currentAnswer,
+    currentStatementId,
+    goNext,
+    goPrevious,
+    isOnResults,
+    parseStoredAnswers,
+    serializeAnswers,
+    setAnswer,
+    type WizardState,
+  } from '../lib/wizard/wizard-state.ts';
+
+  const AUTO_ADVANCE_DELAY_MS = 250;
+  const STATEMENT_IDS = STATEMENTS.map((s) => s.id);
+  const TOTAL = STATEMENT_IDS.length;
+
+  // localStorage is the only persistence boundary — answers never reach the
+  // network (#6). Storage failures (private mode, quota) degrade silently:
+  // the wizard still works for the session.
+  function readStoredAnswers(): string | null {
+    try {
+      return localStorage.getItem(ANSWERS_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  function persistAnswers(state: WizardState): void {
+    try {
+      localStorage.setItem(ANSWERS_STORAGE_KEY, serializeAnswers(state.answers));
+    } catch {
+      // Session-only fallback.
+    }
+  }
+
+  function clearStoredAnswers(): void {
+    try {
+      localStorage.removeItem(ANSWERS_STORAGE_KEY);
+    } catch {
+      // Nothing to clear.
+    }
+  }
+
+  function initWizard(root: HTMLElement): void {
+    const lang = (root.dataset.lang ?? 'fr') as Locale;
+    const t = UI[lang];
+
+    const testSection = root.querySelector<HTMLElement>('[data-test]');
+    const resultsSection = root.querySelector<HTMLElement>('[data-results]');
+    const resultsList = root.querySelector<HTMLOListElement>('[data-results-list]');
+    const resultsHeading = root.querySelector<HTMLElement>('#wizard-results-heading');
+    const progressLabel = root.querySelector<HTMLElement>('[data-progress-label]');
+    const progressFill = root.querySelector<HTMLElement>('[data-progress-fill]');
+    const prevButton = root.querySelector<HTMLButtonElement>('[data-prev]');
+    const nextButton = root.querySelector<HTMLButtonElement>('[data-next]');
+    const cards = [...root.querySelectorAll<HTMLElement>('[data-question]')];
+    if (
+      !testSection ||
+      !resultsSection ||
+      !resultsList ||
+      !resultsHeading ||
+      !progressLabel ||
+      !progressFill ||
+      !prevButton ||
+      !nextButton
+    ) {
+      return;
+    }
+
+    let state = createWizard(STATEMENT_IDS, parseStoredAnswers(readStoredAnswers(), STATEMENT_IDS));
+    let pendingAdvance: ReturnType<typeof setTimeout> | undefined;
+    let moveFocus = false;
+
+    function cancelPendingAdvance(): void {
+      if (pendingAdvance !== undefined) {
+        clearTimeout(pendingAdvance);
+        pendingAdvance = undefined;
+      }
+    }
+
+    function formatEcart(ecart: number): string {
+      return ecart > 0 ? `+${ecart}` : `${ecart}`;
+    }
+
+    function buildScoreRow(
+      label: string,
+      kind: 'promesses' | 'actes',
+      score: number | null,
+      denominator: number,
+    ): HTMLElement {
+      const row = document.createElement('div');
+      row.className = 'score-row';
+
+      const dt = document.createElement('dt');
+      dt.textContent = label;
+
+      const dd = document.createElement('dd');
+      const meter = document.createElement('div');
+      meter.className = 'meter';
+      if (score !== null) {
+        const fill = document.createElement('div');
+        fill.className = `meter-fill ${kind}`;
+        fill.style.width = `${score}%`;
+        meter.append(fill);
+      }
+      const value = document.createElement('span');
+      value.className = 'score-value';
+      value.textContent = score === null ? t.notAvailable : String(score);
+      const denominatorNote = document.createElement('span');
+      denominatorNote.className = 'denominator';
+      denominatorNote.textContent = t.basedOn(denominator, TOTAL);
+      dd.append(meter, value, denominatorNote);
+
+      row.append(dt, dd);
+      return row;
+    }
+
+    function buildResultItem(party: PartyScore, rank: number): HTMLLIElement {
+      const item = document.createElement('li');
+      item.className = 'party-card';
+
+      const head = document.createElement('div');
+      head.className = 'party-head';
+      const rankBadge = document.createElement('span');
+      rankBadge.className = 'rank';
+      rankBadge.setAttribute('aria-hidden', 'true');
+      rankBadge.textContent = String(rank);
+      const name = document.createElement('h3');
+      name.className = 'party-name';
+      name.textContent = PARTIES.find((p) => p.id === party.partyId)?.name ?? party.partyId;
+      head.append(rankBadge, name);
+      if (party.ecart !== null) {
+        const chip = document.createElement('span');
+        chip.className = party.ecartMarquant ? 'ecart-chip marquant' : 'ecart-chip';
+        chip.title = party.ecartMarquant ? t.ecartMarquantLabel : t.ecartLabel;
+        chip.textContent = `${t.ecartLabel} ${formatEcart(party.ecart)}`;
+        head.append(chip);
+      }
+
+      const scores = document.createElement('dl');
+      scores.className = 'scores';
+      scores.append(
+        buildScoreRow(t.promessesLabel, 'promesses', party.promesses.score, party.promesses.denominator),
+        buildScoreRow(t.actesLabel, 'actes', party.actes.score, party.actes.denominator),
+      );
+
+      item.append(head, scores);
+      return item;
+    }
+
+    function renderResults(): void {
+      // Provisional simple ranking — the slope chart is ticket #19.
+      const ranking = scoreParties(state.answers, PARTIES, PARTY_POSITIONS).sort(
+        (a, b) =>
+          (b.promesses.score ?? -1) - (a.promesses.score ?? -1) ||
+          (b.actes.score ?? -1) - (a.actes.score ?? -1),
+      );
+      resultsList.replaceChildren(...ranking.map((party, index) => buildResultItem(party, index + 1)));
+    }
+
+    function render(): void {
+      const onResults = isOnResults(state);
+      testSection.hidden = onResults;
+      resultsSection.hidden = !onResults;
+
+      if (onResults) {
+        renderResults();
+        if (moveFocus) resultsHeading.focus();
+        moveFocus = false;
+        return;
+      }
+
+      const activeId = currentStatementId(state);
+      const answer = currentAnswer(state);
+      let activeCard: HTMLElement | undefined;
+      for (const card of cards) {
+        const isActive = card.dataset.statementId === activeId;
+        card.hidden = !isActive;
+        if (isActive) activeCard = card;
+      }
+      if (activeCard) {
+        for (const button of activeCard.querySelectorAll<HTMLButtonElement>('[data-answer]')) {
+          const selected = answer !== undefined && button.dataset.value === String(answer);
+          button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        }
+        if (moveFocus) {
+          activeCard.querySelector<HTMLElement>('[data-statement-heading]')?.focus();
+        }
+      }
+      moveFocus = false;
+
+      const position = state.currentIndex + 1;
+      progressLabel.textContent = t.questionProgress(position, TOTAL);
+      progressFill.style.width = `${(position / TOTAL) * 100}%`;
+
+      prevButton.disabled = !canGoPrevious(state);
+      nextButton.disabled = !canGoNext(state);
+      nextButton.textContent = state.currentIndex === TOTAL - 1 ? t.seeResultsLabel : t.nextLabel;
+    }
+
+    function handleAnswerClick(button: HTMLButtonElement): void {
+      const raw = button.dataset.value;
+      if (raw === undefined) return;
+      // data-value is rendered from t.scaleOptions (PositionValue) or the
+      // literal 'sans_opinion', so the cast cannot widen beyond UserAnswer.
+      const value: UserAnswer =
+        raw === 'sans_opinion' ? 'sans_opinion' : (Number(raw) as PositionValue);
+      cancelPendingAdvance();
+      state = setAnswer(state, value);
+      persistAnswers(state);
+      render();
+      // Short confirmation beat before advancing, so the selection is seen.
+      pendingAdvance = setTimeout(() => {
+        pendingAdvance = undefined;
+        moveFocus = true;
+        state = goNext(state);
+        render();
+      }, AUTO_ADVANCE_DELAY_MS);
+    }
+
+    root.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target) return;
+      const answerButton = target.closest<HTMLButtonElement>('[data-answer]');
+      if (answerButton) {
+        handleAnswerClick(answerButton);
+        return;
+      }
+      if (target.closest('[data-prev]') || target.closest('[data-back-to-questions]')) {
+        cancelPendingAdvance();
+        moveFocus = true;
+        state = goPrevious(state);
+        render();
+        return;
+      }
+      if (target.closest('[data-next]')) {
+        cancelPendingAdvance();
+        moveFocus = true;
+        state = goNext(state);
+        render();
+        return;
+      }
+      if (target.closest('[data-restart]')) {
+        cancelPendingAdvance();
+        clearStoredAnswers();
+        moveFocus = true;
+        state = createWizard(STATEMENT_IDS);
+        render();
+      }
+    });
+
+    render();
+  }
+
+  const root = document.querySelector<HTMLElement>('[data-wizard]');
+  if (root) initWizard(root);
+</script>
+
+<style>
+  .wizard {
+    margin-top: 1.5rem;
+  }
+
+  .noscript {
+    margin: 0;
+    padding: 1rem;
+    background: var(--accent-wash);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    font-size: 0.9375rem;
+  }
+
+  /* Progress */
+  .progress {
+    margin-bottom: 1rem;
+  }
+
+  .progress-label {
+    margin: 0 0 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .progress-track {
+    height: 0.375rem;
+    background: var(--accent-wash);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 200ms ease;
+  }
+
+  /* Question card */
+  .question-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    padding: 1.25rem 1rem 1.5rem;
+  }
+
+  .theme {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+  }
+
+  .statement {
+    margin: 0.625rem 0 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.25rem, 5vw, 1.5rem);
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  .statement:focus-visible {
+    outline: none;
+  }
+
+  .note {
+    margin: 0.75rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+  }
+
+  .note-label {
+    font-weight: 600;
+  }
+
+  .note-label::after {
+    content: ' — ';
+  }
+
+  /* Answer scale */
+  .scale {
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .scale-btn {
+    min-height: 48px; /* generous touch target */
+    padding: 0.625rem 1rem;
+    font: inherit;
+    font-size: 0.9375rem;
+    text-align: left;
+    color: var(--ink);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition:
+      border-color 120ms ease,
+      background-color 120ms ease;
+  }
+
+  .scale-btn:hover {
+    border-color: var(--accent);
+  }
+
+  .scale-btn[aria-pressed='true'] {
+    background: var(--accent-wash);
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    font-weight: 600;
+  }
+
+  /* « Sans opinion » — deliberately a different shape from the scale:
+     detached below, dashed outline, muted ink. */
+  .no-opinion {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .no-opinion-btn {
+    min-height: 48px; /* generous touch target */
+    width: 100%;
+    padding: 0.625rem 1rem;
+    font: inherit;
+    font-size: 0.9375rem;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px dashed var(--ink-soft);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition:
+      border-color 120ms ease,
+      background-color 120ms ease;
+  }
+
+  .no-opinion-btn:hover {
+    border-color: var(--accent-deep);
+    color: var(--accent-deep);
+  }
+
+  .no-opinion-btn[aria-pressed='true'] {
+    background: var(--accent-wash);
+    border: 1px dashed var(--accent-deep);
+    color: var(--accent-deep);
+    font-weight: 600;
+  }
+
+  .no-opinion-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+
+  /* Navigation */
+  .wizard-nav {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .nav-btn {
+    min-height: 48px; /* generous touch target */
+    padding: 0.625rem 1.25rem;
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: opacity 120ms ease;
+  }
+
+  .nav-btn.prev {
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--line);
+  }
+
+  .nav-btn.next {
+    color: var(--paper);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    flex: 1;
+    max-width: 16rem;
+  }
+
+  .nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Results (provisional — slope chart is #19) */
+  .results-heading {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.375rem, 5vw, 1.75rem);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .results-heading:focus-visible {
+    outline: none;
+  }
+
+  .privacy-note {
+    margin: 0.5rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+  }
+
+  .results-list {
+    list-style: none;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .party-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    padding: 1rem;
+  }
+
+  .party-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.625rem;
+  }
+
+  .rank {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.9375rem;
+    color: var(--ink-soft);
+    min-width: 1.125rem;
+  }
+
+  .party-name {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .ecart-chip {
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-deep);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.125rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .ecart-chip.marquant {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper);
+    font-weight: 600;
+  }
+
+  .scores {
+    margin: 0.875rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .score-row {
+    display: grid;
+    grid-template-columns: 5.25rem 1fr;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .score-row dt {
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+  }
+
+  .score-row dd {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr 2.25rem;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 0.625rem;
+  }
+
+  .meter {
+    height: 0.375rem;
+    background: var(--accent-wash);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .meter-fill {
+    height: 100%;
+    border-radius: 999px;
+  }
+
+  .meter-fill.promesses {
+    background: var(--accent);
+  }
+
+  .meter-fill.actes {
+    background: var(--ink);
+  }
+
+  .score-value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .denominator {
+    grid-column: 1 / -1;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    margin-top: 0.125rem;
+  }
+
+  .results-methodology {
+    margin: 1.5rem 0 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+  }
+
+  .results-actions {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .restart-btn {
+    min-height: 48px; /* generous touch target */
+    padding: 0.625rem 1.25rem;
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--accent-deep);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+
+  .restart-btn:hover {
+    border-color: var(--accent-deep);
+  }
+
+  @media (min-width: 40rem) {
+    .question-card {
+      padding: 1.75rem 1.5rem 2rem;
+    }
+
+    .party-card {
+      padding: 1.25rem 1.5rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill,
+    .scale-btn,
+    .no-opinion-btn,
+    .nav-btn {
+      transition: none;
+    }
+  }
+</style>
