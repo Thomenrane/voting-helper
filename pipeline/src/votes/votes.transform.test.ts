@@ -121,6 +121,62 @@ describe('transformVotes — typed internal format', () => {
     ]);
   });
 
+  it('treats homonyms with DIFFERENT groups as ambiguous — never "last one wins"', () => {
+    const homonyms: MembersParquetRow[] = [
+      { first_name: 'Jean', last_name: 'Dupont', fraction: 'PS' },
+      { first_name: 'Jean', last_name: 'Dupont', fraction: 'MR' },
+    ];
+    const [vote] = transformVotes(
+      [voteRow({ yes: '1', members_yes: 'Jean Dupont', no: '0', members_no: '' })],
+      homonyms,
+      DOSSIERS,
+    );
+    expect(vote?.ballots).toEqual([{ name: 'Jean Dupont', group: null, position: 'oui' }]);
+    expect(vote?.groups).toEqual([]);
+    expect(vote?.warnings).toEqual([
+      "deputy 'Jean Dupont' (oui) matches several members with different groups — group ambiguous",
+    ]);
+  });
+
+  it('resolves homonyms sharing the SAME group without a warning', () => {
+    const homonyms: MembersParquetRow[] = [
+      { first_name: 'Jean', last_name: 'Dupont', fraction: 'PS' },
+      { first_name: 'Jean', last_name: 'Dupont', fraction: 'PS' },
+    ];
+    const [vote] = transformVotes(
+      [voteRow({ yes: '1', members_yes: 'Jean Dupont', no: '0', members_no: '' })],
+      homonyms,
+      DOSSIERS,
+    );
+    expect(vote?.ballots).toEqual([{ name: 'Jean Dupont', group: 'PS', position: 'oui' }]);
+    expect(vote?.warnings).toEqual([]);
+  });
+
+  it('treats token-key collisions across distinct members as ambiguous for reordered names', () => {
+    const collisions: MembersParquetRow[] = [
+      { first_name: 'Anne-Marie', last_name: 'Dupont', fraction: 'PS' },
+      { first_name: 'Marie-Anne', last_name: 'Dupont', fraction: 'MR' },
+    ];
+    // Exact printed names still resolve unambiguously…
+    const [exact] = transformVotes(
+      [voteRow({ yes: '1', members_yes: 'Anne-Marie Dupont', no: '0', members_no: '' })],
+      collisions,
+      DOSSIERS,
+    );
+    expect(exact?.ballots).toEqual([{ name: 'Anne-Marie Dupont', group: 'PS', position: 'oui' }]);
+    expect(exact?.warnings).toEqual([]);
+    // …but a reordered name that only token-matches cannot pick a side.
+    const [reordered] = transformVotes(
+      [voteRow({ yes: '1', members_yes: 'Dupont Anne-Marie', no: '0', members_no: '' })],
+      collisions,
+      DOSSIERS,
+    );
+    expect(reordered?.ballots).toEqual([{ name: 'Dupont Anne-Marie', group: null, position: 'oui' }]);
+    expect(reordered?.warnings).toEqual([
+      "deputy 'Dupont Anne-Marie' (oui) matches several members with different groups — group ambiguous",
+    ]);
+  });
+
   it('flags a count/list divergence as a warning, not an error (real-data behaviour)', () => {
     const [vote] = transformVotes([voteRow({ yes: '3' })], MEMBERS, DOSSIERS);
     expect(vote?.counts.oui).toBe(3);

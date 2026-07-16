@@ -117,24 +117,56 @@ function nameTokenKey(name: string): string {
     .join('|');
 }
 
+/** `null` marks an AMBIGUOUS key: several members with different groups. */
+type GroupByKey = Map<string, string | null>;
+
 interface MemberIndex {
-  exact: Map<string, string>;
-  byTokens: Map<string, string>;
+  exact: GroupByKey;
+  byTokens: GroupByKey;
+}
+
+/** Registers a key, degrading it to ambiguous on a divergent duplicate. */
+function registerKey(map: GroupByKey, key: string, group: string): void {
+  const existing = map.get(key);
+  if (existing === undefined) {
+    map.set(key, group);
+  } else if (existing !== group) {
+    map.set(key, null);
+  }
 }
 
 function indexMembers(members: MembersParquetRow[]): MemberIndex {
-  const exact = new Map<string, string>();
-  const byTokens = new Map<string, string>();
+  const exact: GroupByKey = new Map();
+  const byTokens: GroupByKey = new Map();
   for (const member of members) {
     const fullName = `${member.first_name} ${member.last_name}`;
-    exact.set(fullName, member.fraction);
-    byTokens.set(nameTokenKey(fullName), member.fraction);
+    registerKey(exact, fullName, member.fraction);
+    registerKey(byTokens, nameTokenKey(fullName), member.fraction);
   }
   return { exact, byTokens };
 }
 
-function resolveGroup(name: string, index: MemberIndex): string | null {
-  return index.exact.get(name) ?? index.byTokens.get(nameTokenKey(name)) ?? null;
+type GroupResolution =
+  | { outcome: 'resolved'; group: string }
+  | { outcome: 'ambiguous' }
+  | { outcome: 'not_found' };
+
+/**
+ * Exact match first, then order/diacritic-insensitive token match. A key
+ * shared by members of different groups NEVER resolves ("last one wins"
+ * would silently misattribute ballots) — it is reported as ambiguous.
+ */
+function resolveGroup(name: string, index: MemberIndex): GroupResolution {
+  for (const [map, key] of [
+    [index.exact, name],
+    [index.byTokens, nameTokenKey(name)],
+  ] as const) {
+    const group = map.get(key);
+    if (group !== undefined) {
+      return group === null ? { outcome: 'ambiguous' } : { outcome: 'resolved', group };
+    }
+  }
+  return { outcome: 'not_found' };
 }
 
 /** Splits a ', '-separated deputy list; the source encodes "none" as ''. */
@@ -162,11 +194,15 @@ function buildBallots(
   warnings: string[],
 ): MemberBallot[] {
   return names.map((name) => {
-    const group = resolveGroup(name, index);
-    if (group === null) {
+    const resolution = resolveGroup(name, index);
+    if (resolution.outcome === 'not_found') {
       warnings.push(`deputy '${name}' (${position}) not found in the members file — group unresolved`);
+    } else if (resolution.outcome === 'ambiguous') {
+      warnings.push(
+        `deputy '${name}' (${position}) matches several members with different groups — group ambiguous`,
+      );
     }
-    return { name, group, position };
+    return { name, group: resolution.outcome === 'resolved' ? resolution.group : null, position };
   });
 }
 
