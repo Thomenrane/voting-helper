@@ -10,9 +10,11 @@ import {
   goNext,
   goPrevious,
   isOnResults,
+  isUserAnswer,
   parseStoredAnswers,
   serializeAnswers,
   setAnswer,
+  shouldAutoAdvance,
 } from './wizard-state.ts';
 
 const IDS = ['s1', 's2', 's3', 's4'] as const;
@@ -126,6 +128,52 @@ describe('navigation', () => {
     state = goPrevious(state);
     expect(currentStatementId(state)).toBe('s4');
     expect(currentAnswer(state)).toBe(2);
+  });
+});
+
+describe('shouldAutoAdvance', () => {
+  it('is false while the current question is unanswered', () => {
+    expect(shouldAutoAdvance(createWizard(IDS))).toBe(false);
+  });
+
+  it('is true when the next question is unanswered (fresh forward flow)', () => {
+    const state = setAnswer(createWizard(IDS), 2);
+    expect(shouldAutoAdvance(state)).toBe(true);
+  });
+
+  it('is false when the next question is already answered (modification flow)', () => {
+    // User went back to s1 while s2 already holds an answer.
+    let state = createWizard(IDS, { s1: 0, s2: 1 });
+    state = goPrevious(goPrevious(state));
+    expect(state.currentIndex).toBe(0);
+    state = setAnswer(state, -2);
+    expect(shouldAutoAdvance(state)).toBe(false);
+  });
+
+  it('is false on the last question — results are reached explicitly only', () => {
+    let state = createWizard(IDS, { s1: 0, s2: 0, s3: 0 });
+    expect(state.currentIndex).toBe(3);
+    state = setAnswer(state, 2);
+    expect(canGoNext(state)).toBe(true);
+    expect(shouldAutoAdvance(state)).toBe(false);
+  });
+
+  it('is false on the results view', () => {
+    expect(shouldAutoAdvance(createWizard(IDS, { s1: 0, s2: 0, s3: 0, s4: 0 }))).toBe(false);
+  });
+});
+
+describe('isUserAnswer', () => {
+  it('accepts the five scale degrees and « sans opinion »', () => {
+    for (const value of [-2, -1, 0, 1, 2, 'sans_opinion']) {
+      expect(isUserAnswer(value)).toBe(true);
+    }
+  });
+
+  it('rejects anything else', () => {
+    for (const value of [3, -3, 0.5, NaN, '2', '', null, undefined, {}]) {
+      expect(isUserAnswer(value)).toBe(false);
+    }
   });
 });
 

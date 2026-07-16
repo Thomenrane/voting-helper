@@ -25,7 +25,8 @@ export interface WizardState {
 
 const SCALE: readonly number[] = [-2, -1, 0, 1, 2];
 
-function isUserAnswer(value: unknown): value is UserAnswer {
+/** True for the five scale degrees and « sans opinion » — anything else is not an answer. */
+export function isUserAnswer(value: unknown): value is UserAnswer {
   return value === 'sans_opinion' || (typeof value === 'number' && SCALE.includes(value));
 }
 
@@ -88,6 +89,18 @@ export function canGoNext(state: WizardState): boolean {
 
 export function goNext(state: WizardState): WizardState {
   return canGoNext(state) ? { ...state, currentIndex: state.currentIndex + 1 } : state;
+}
+
+/**
+ * Auto-advance policy: only towards an UNANSWERED next question. Modifying
+ * an already-answered question keeps the user in place, and the results view
+ * is never reached automatically — the last question always requires an
+ * explicit « see results » action.
+ */
+export function shouldAutoAdvance(state: WizardState): boolean {
+  if (!canGoNext(state)) return false;
+  const nextId = state.statementIds[state.currentIndex + 1];
+  return nextId !== undefined && !Object.hasOwn(state.answers, nextId);
 }
 
 export function canGoPrevious(state: WizardState): boolean {
