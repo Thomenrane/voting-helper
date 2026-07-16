@@ -111,7 +111,11 @@ function scoreParty(
       contradictions.push(record.statement_id);
     }
 
-    const answer = answers[record.statement_id];
+    // Own-property lookup only: an inherited key (e.g. 'constructor') must
+    // never be mistaken for an answer.
+    const answer = Object.hasOwn(answers, record.statement_id)
+      ? answers[record.statement_id]
+      : undefined;
     if (answer === undefined || answer === 'sans_opinion') continue;
     if (record.position !== undefined) {
       promessesDistances.push(Math.abs(answer - record.position) / MAX_DISTANCE);
