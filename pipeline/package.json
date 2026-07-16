@@ -5,6 +5,7 @@
   "type": "module",
   "license": "AGPL-3.0-only",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.1",
     "@voting-helper/data": "*",
     "hyparquet": "^1.26.2",
     "undici": "^8.7.0",
