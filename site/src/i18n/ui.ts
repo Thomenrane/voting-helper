@@ -12,7 +12,7 @@ interface ScaleOption {
   label: string;
 }
 
-export interface UiStrings {
+interface UiStrings {
   siteTitle: string;
   metaDescription: string;
   demoBanner: string;
