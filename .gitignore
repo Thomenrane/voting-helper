@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# Snapshot binaries (PDF, Parquet, derived JSON) — manifests in data/manifests/
+# are committed; integrity is guaranteed by their SHA-256 fingerprints (ticket #21).
+data/snapshots/
 .astro/
 *.log
 .DS_Store

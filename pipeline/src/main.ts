@@ -2,7 +2,9 @@
  * Batch pipeline — skeleton only (tracer bullet #16).
  *
  * Planned stages (decisions of ticket #10):
- *   1. Snapshot each source document (programme PDFs, CRIV, FLWB).
+ *   1. Snapshot each source document — IMPLEMENTED as the standalone
+ *      commands `npm run snapshot:programmes` and `npm run snapshot:votes`
+ *      (ticket #21, see src/commands/).
  *   2. LLM extraction of positions per statement, with the exact citation
  *      mechanically verified against the snapshot.
  *   3. Preselection of candidate votes (Eurovoc themes + similarity).
