@@ -16,6 +16,8 @@
  *   positions of opposite signs, one ≥ +1 and the other ≤ −1. This is a
  *   property of the party's data, independent of the user's answers.
  * - Only records with statut 'valide' enter any computation.
+ * - Two valid records for the same party × statement are refused (throw) —
+ *   inconsistent data must never be silently averaged.
  * - The two scores are NEVER fused into a single number.
  */
 import type {
@@ -91,8 +93,19 @@ function scoreParty(
   const promessesDistances: number[] = [];
   const actesDistances: number[] = [];
   const contradictions: string[] = [];
+  const seenStatements = new Set<string>();
 
   for (const record of records) {
+    // An electoral tool must refuse inconsistent data, not average it: two
+    // valid records for the same party × statement would silently inflate
+    // the denominator and could duplicate a contradiction flag.
+    if (seenStatements.has(record.statement_id)) {
+      throw new Error(
+        `Duplicate valid position for party "${partyId}" and statement "${record.statement_id}" — inconsistent dataset refused.`,
+      );
+    }
+    seenStatements.add(record.statement_id);
+
     const vote = votePosition(record);
     if (record.position !== undefined && vote !== null && isContradiction(record.position, vote)) {
       contradictions.push(record.statement_id);
@@ -125,6 +138,7 @@ function scoreParty(
 /**
  * Score every party against the user's answers.
  * Pure function — no I/O; parties are returned in input order.
+ * Throws when the dataset holds two valid records for one party × statement.
  */
 export function scoreParties(
   answers: UserAnswers,

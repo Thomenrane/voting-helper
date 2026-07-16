@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Party, PartyPosition, UserAnswers } from '@voting-helper/data';
-import { scoreParties } from './scoring.ts';
+import { ECART_MARQUANT_THRESHOLD, scoreParties } from './scoring.ts';
 
 /** Shorthand: a fully valid party × statement record. */
 function record(
@@ -211,6 +211,29 @@ describe('scoreParties — zero denominator → null, never 0', () => {
   });
 });
 
+describe('scoreParties — duplicate party × statement records', () => {
+  it('refuses two valid records for the same party and statement', () => {
+    const answers: UserAnswers = { s1: 2 };
+    const positions = [record('x', 's1', 2, ['oui']), record('x', 's1', -2, ['non'])];
+    expect(() => scoreParties(answers, [partyX], positions)).toThrowError(/s1/);
+  });
+
+  it('accepts the same statement id across different parties', () => {
+    const answers: UserAnswers = { s1: 2 };
+    const positions = [record('x', 's1', 2, ['oui']), record('y', 's1', -2, ['non'])];
+    const [x, y] = scoreParties(answers, [partyX, partyY], positions);
+    expect(x?.promesses).toEqual({ score: 100, denominator: 1 });
+    expect(y?.promesses).toEqual({ score: 0, denominator: 1 });
+  });
+
+  it('accepts a duplicate pair when only one record is valide', () => {
+    const answers: UserAnswers = { s1: 2 };
+    const positions = [record('x', 's1', 2, ['oui']), record('x', 's1', -2, ['non'], 'rejete')];
+    const [x] = scoreParties(answers, [partyX], positions);
+    expect(x?.promesses).toEqual({ score: 100, denominator: 1 });
+  });
+});
+
 describe('scoreParties — review status', () => {
   it('ignores en_attente and rejete records entirely (scores and contradictions)', () => {
     const answers: UserAnswers = { s1: 2, s2: 2, s3: 2 };
@@ -240,7 +263,24 @@ describe('scoreParties — écart marquant threshold', () => {
     expect(x?.promesses).toEqual({ score: 100, denominator: 5 });
     // actes mean dist = (0.25 + 0.5) / 5 = 0.15 → 85
     expect(x?.actes).toEqual({ score: 85, denominator: 5 });
-    expect(x?.ecart).toBe(15);
+    expect(x?.ecart).toBe(ECART_MARQUANT_THRESHOLD);
+    expect(x?.ecartMarquant).toBe(true);
+  });
+
+  it('flags a negative écart of −15 (actes above promesses)', () => {
+    const answers: UserAnswers = { s1: 2, s2: 2, s3: 2, s4: 2, s5: 2 };
+    const positions = [
+      record('x', 's1', 1, ['oui']), // promesses dist 0.25
+      record('x', 's2', 0, ['oui']), // promesses dist 0.5
+      record('x', 's3', 2, ['oui']),
+      record('x', 's4', 2, ['oui']),
+      record('x', 's5', 2, ['oui']),
+    ];
+    const [x] = scoreParties(answers, [partyX], positions);
+    // promesses mean dist = (0.25 + 0.5) / 5 = 0.15 → 85 ; actes → 100
+    expect(x?.promesses).toEqual({ score: 85, denominator: 5 });
+    expect(x?.actes).toEqual({ score: 100, denominator: 5 });
+    expect(x?.ecart).toBe(-ECART_MARQUANT_THRESHOLD);
     expect(x?.ecartMarquant).toBe(true);
   });
 
