@@ -151,7 +151,16 @@ interface ParsedItem {
   citation: { texte: string; page: number } | null;
 }
 
-/** Parses one LLM answer strictly — anything malformed raises a named error. */
+/**
+ * Parses one LLM answer strictly — anything malformed raises a named error.
+ *
+ * Completeness is part of the contract (review MAJOR 2 on #32): every
+ * requested statement must appear EXPLICITLY in the answer. An omitted
+ * statement — an empty array, a silent model failure, or an injection in the
+ * PDF text steering the model — must never masquerade as the editorially
+ * meaningful « pas de position documentée » : that outcome exists only as an
+ * explicit `position: null`.
+ */
 export function parseExtractionResponse(
   text: string,
   statements: readonly Statement[],
@@ -172,7 +181,7 @@ export function parseExtractionResponse(
   if (!Array.isArray(parsed)) {
     throw new Error('LLM answer is valid JSON but not an array.');
   }
-  return parsed.map((item: unknown, index: number): ParsedItem => {
+  const items = parsed.map((item: unknown, index: number): ParsedItem => {
     if (typeof item !== 'object' || item === null) {
       throw new Error(`LLM answer item ${index} is not an object.`);
     }
@@ -212,6 +221,15 @@ export function parseExtractionResponse(
       citation: { texte, page },
     };
   });
+  const answered = new Set(items.map((item) => item.statement_id));
+  const missing = statements.filter((statement) => !answered.has(statement.id));
+  if (missing.length > 0) {
+    throw new Error(
+      `LLM answer is incomplete: missing statement(s) ${missing.map((s) => s.id).join(', ')}. ` +
+        'Every requested statement must be answered explicitly (position or null).',
+    );
+  }
+  return items;
 }
 
 /**

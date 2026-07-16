@@ -109,6 +109,17 @@ describe('parseExtractionResponse', () => {
     }
   });
 
+  it('rejects an empty answer — omission must never pass for documented silence', () => {
+    expect(() => parseExtractionResponse('[]', STATEMENTS)).toThrow(
+      /missing statement\(s\) s1, s2/,
+    );
+  });
+
+  it('rejects an answer omitting a requested statement', () => {
+    const onlyS1 = JSON.stringify([{ statement_id: 's1', position: null, citation: null }]);
+    expect(() => parseExtractionResponse(onlyS1, STATEMENTS)).toThrow(/missing statement\(s\) s2/);
+  });
+
   it('rejects non-JSON, unknown statements and out-of-scale positions', () => {
     expect(() => parseExtractionResponse('je pense que…', STATEMENTS)).toThrow(/not valid JSON/);
     expect(() =>
