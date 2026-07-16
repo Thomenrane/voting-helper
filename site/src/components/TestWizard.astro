@@ -101,7 +101,6 @@ const total = STATEMENTS.length;
 
 <script>
   import { PARTIES, PARTY_POSITIONS, STATEMENTS } from '@voting-helper/data';
-  import type { PositionValue, UserAnswer } from '@voting-helper/data';
   import type { Locale } from '../i18n/locales.ts';
   import { UI } from '../i18n/ui.ts';
   import { scoreParties } from '../lib/scoring/scoring.ts';
@@ -116,9 +115,11 @@ const total = STATEMENTS.length;
     goNext,
     goPrevious,
     isOnResults,
+    isUserAnswer,
     parseStoredAnswers,
     serializeAnswers,
     setAnswer,
+    shouldAutoAdvance,
     type WizardState,
   } from '../lib/wizard/wizard-state.ts';
 
@@ -257,6 +258,14 @@ const total = STATEMENTS.length;
       );
 
       item.append(head, scores);
+
+      if (party.contradictions.length > 0) {
+        const badge = document.createElement('p');
+        badge.className = 'contradiction-badge';
+        badge.textContent = t.contradictionBadge(party.contradictions.length);
+        item.append(badge);
+      }
+
       return item;
     }
 
@@ -313,14 +322,14 @@ const total = STATEMENTS.length;
     function handleAnswerClick(button: HTMLButtonElement): void {
       const raw = button.dataset.value;
       if (raw === undefined) return;
-      // data-value is rendered from t.scaleOptions (PositionValue) or the
-      // literal 'sans_opinion', so the cast cannot widen beyond UserAnswer.
-      const value: UserAnswer =
-        raw === 'sans_opinion' ? 'sans_opinion' : (Number(raw) as PositionValue);
+      // Altered markup is ignored, never coerced into an answer.
+      const value = raw === 'sans_opinion' ? raw : Number(raw);
+      if (!isUserAnswer(value)) return;
       cancelPendingAdvance();
       state = setAnswer(state, value);
       persistAnswers(state);
       render();
+      if (!shouldAutoAdvance(state)) return;
       // Short confirmation beat before advancing, so the selection is seen.
       pendingAdvance = setTimeout(() => {
         pendingAdvance = undefined;
@@ -699,6 +708,17 @@ const total = STATEMENTS.length;
     font-size: 0.75rem;
     color: var(--ink-soft);
     margin-top: 0.125rem;
+  }
+
+  .contradiction-badge {
+    margin: 0.75rem 0 0;
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent-deep);
+    background: var(--accent-wash);
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem;
   }
 
   .results-methodology {
