@@ -1,10 +1,15 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildSnapshotEntry, emptyManifest, type SnapshotSource } from './manifest.ts';
+import {
+  buildSnapshotEntry,
+  emptyManifest,
+  SnapshotCorruptionError,
+  type SnapshotSource,
+} from './manifest.ts';
 import { loadManifest, saveManifest, sha256Hex, writeSnapshotFile } from './snapshot-store.ts';
 
 const SOURCE: SnapshotSource = {
@@ -76,17 +81,59 @@ describe('writeSnapshotFile — immutability on disk', () => {
     expect(await readFile(join(repoRoot, entry.file), 'utf8')).toBe('PDF!');
   });
 
-  it('skips writing for an unchanged-content entry sharing an existing file', async () => {
-    await writeSnapshotFile(repoRoot, entry, new TextEncoder().encode('PDF!'));
-    const shared = { ...entry, snapshot_id: 'demo-source@20260801T090000Z', content_unchanged_from: entry.snapshot_id };
-    await writeSnapshotFile(repoRoot, shared, new TextEncoder().encode('PDF!'));
+  it('verifies then keeps an existing shared file for an unchanged-content entry', async () => {
+    const bytes = new TextEncoder().encode('PDF!');
+    const attested = { ...entry, sha256: sha256Hex(bytes) };
+    await writeSnapshotFile(repoRoot, attested, bytes);
+    const shared = {
+      ...attested,
+      snapshot_id: 'demo-source@20260801T090000000Z',
+      content_unchanged_from: attested.snapshot_id,
+    };
+    await writeSnapshotFile(repoRoot, shared, bytes);
     expect(await readFile(join(repoRoot, entry.file), 'utf8')).toBe('PDF!');
   });
 
-  it('fails loudly when a shared file is missing', async () => {
-    const shared = { ...entry, snapshot_id: 'demo-source@20260801T090000Z', content_unchanged_from: entry.snapshot_id };
-    await expect(writeSnapshotFile(repoRoot, shared, new Uint8Array())).rejects.toThrow(
-      /shared file.*missing/,
+  it('detects a corrupted shared file before re-attesting an unchanged-content entry', async () => {
+    const bytes = new TextEncoder().encode('PDF!');
+    const attested = { ...entry, sha256: sha256Hex(bytes) };
+    await writeSnapshotFile(repoRoot, attested, bytes);
+    // Truncate the stored binary behind the manifest's back.
+    await writeFile(join(repoRoot, entry.file), 'PD');
+    const shared = {
+      ...attested,
+      snapshot_id: 'demo-source@20260801T090000000Z',
+      content_unchanged_from: attested.snapshot_id,
+    };
+    await expect(writeSnapshotFile(repoRoot, shared, bytes)).rejects.toThrow(
+      SnapshotCorruptionError,
+    );
+    await expect(writeSnapshotFile(repoRoot, shared, bytes)).rejects.toThrow(/corrupted/);
+    // The truncated file is untouched — no silent repair, no re-attestation.
+    expect(await readFile(join(repoRoot, entry.file), 'utf8')).toBe('PD');
+  });
+
+  it('re-materializes a missing shared file from the fetched bytes (fresh clone)', async () => {
+    const bytes = new TextEncoder().encode('PDF!');
+    const shared = {
+      ...entry,
+      sha256: sha256Hex(bytes),
+      snapshot_id: 'demo-source@20260801T090000000Z',
+      content_unchanged_from: entry.snapshot_id,
+    };
+    await writeSnapshotFile(repoRoot, shared, bytes);
+    expect(await readFile(join(repoRoot, entry.file), 'utf8')).toBe('PDF!');
+  });
+
+  it('refuses to re-materialize when the fetched bytes do not match the fingerprint', async () => {
+    const shared = {
+      ...entry,
+      sha256: 'a'.repeat(64),
+      snapshot_id: 'demo-source@20260801T090000000Z',
+      content_unchanged_from: entry.snapshot_id,
+    };
+    await expect(writeSnapshotFile(repoRoot, shared, new TextEncoder().encode('DIFFERENT'))).rejects.toThrow(
+      SnapshotCorruptionError,
     );
   });
 });

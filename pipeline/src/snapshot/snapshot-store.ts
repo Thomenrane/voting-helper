@@ -9,7 +9,11 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
-import type { SnapshotEntry, SnapshotManifest } from './manifest.ts';
+import {
+  verifySnapshotIntegrity,
+  type SnapshotEntry,
+  type SnapshotManifest,
+} from './manifest.ts';
 
 export function sha256Hex(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
@@ -38,8 +42,12 @@ export async function saveManifest(
 /**
  * Writes the snapshot bytes for a manifest entry.
  *
- * - An entry marked `content_unchanged_from` shares an existing file: nothing
- *   is written, but the shared file must exist.
+ * - An entry marked `content_unchanged_from` shares an existing file: the
+ *   stored bytes are hash-verified against the committed fingerprint BEFORE
+ *   the new dated version re-attests them — a divergence is a detected
+ *   corruption, never silently repaired. A locally missing shared file
+ *   (fresh clone: binaries are gitignored) is re-materialized from the
+ *   freshly fetched bytes, themselves verified against the fingerprint.
  * - Immutability guard: an existing snapshot file is NEVER overwritten.
  */
 export async function writeSnapshotFile(
@@ -49,12 +57,13 @@ export async function writeSnapshotFile(
 ): Promise<void> {
   const absPath = join(repoRoot, entry.file);
   if (entry.content_unchanged_from !== undefined) {
-    if (!existsSync(absPath)) {
-      throw new Error(
-        `Snapshot '${entry.snapshot_id}' references shared file '${entry.file}' ` +
-          `(unchanged since '${entry.content_unchanged_from}') but the file is missing.`,
-      );
+    if (existsSync(absPath)) {
+      verifySnapshotIntegrity(entry, sha256Hex(await readFile(absPath)));
+      return;
     }
+    verifySnapshotIntegrity(entry, sha256Hex(bytes));
+    await mkdir(dirname(absPath), { recursive: true });
+    await writeFile(absPath, bytes);
     return;
   }
   if (existsSync(absPath)) {
