@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   coerceRow,
+  summarizeVoteQuality,
   transformVotes,
   VOTES_PARQUET_FIELDS,
   VoteRowError,
@@ -220,10 +221,40 @@ describe('transformVotes — typed internal format', () => {
     );
   });
 
-  it('rejects a non-numeric count', () => {
-    expect(() => transformVotes([voteRow({ yes: 'twee' })], MEMBERS, DOSSIERS)).toThrow(
-      /'yes' is not a count: 'twee'/,
+  it('rejects non-plain-decimal counts, naming the actual row', () => {
+    for (const bad of ['twee', '', '1e2', '0x10', ' 2', '-1', '2.0']) {
+      expect(() =>
+        transformVotes([voteRow(), voteRow({ vote_id: '1', yes: bad })], MEMBERS, DOSSIERS),
+      ).toThrow(new RegExp(`row 1 in votes\\.parquet.*'yes' is not a plain decimal count: '${bad}'`));
+    }
+  });
+
+  it('summarizes data quality for the committed manifest entry', () => {
+    const homonyms: MembersParquetRow[] = [
+      ...MEMBERS,
+      { first_name: 'Jean', last_name: 'Dupont', fraction: 'PS' },
+      { first_name: 'Jean', last_name: 'Dupont', fraction: 'MR' },
+    ];
+    const votes = transformVotes(
+      [
+        voteRow(), // clean
+        voteRow({
+          vote_id: '1',
+          yes: '3', // divergence: 2 listed
+          members_yes: 'Unknown Person, Jean Dupont',
+          no: '1',
+          members_no: 'Sophie De Wit',
+        }),
+      ],
+      homonyms,
+      DOSSIERS,
     );
+    expect(summarizeVoteQuality(votes)).toEqual({
+      votes_with_warnings: 1,
+      total_warnings: 3,
+      unresolved_deputy_ballots: 1,
+      ambiguous_deputy_ballots: 1,
+    });
   });
 
   it('sorts votes by date, meeting, then vote number', () => {

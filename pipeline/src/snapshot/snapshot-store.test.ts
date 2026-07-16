@@ -56,6 +56,44 @@ describe('manifest persistence', () => {
     expect(loaded).toEqual(manifest);
     expect(await readFile(path, 'utf8')).toMatch(/\n$/);
   });
+
+  it('names the manifest file when its JSON is corrupted', async () => {
+    const path = join(repoRoot, 'broken.manifest.json');
+    await writeFile(path, '{"description": "truncat');
+    await expect(loadManifest(path, emptyManifest('x', 'y'))).rejects.toThrow(
+      /broken\.manifest\.json.*not valid JSON/,
+    );
+  });
+
+  it('names the manifest file when its structure is invalid', async () => {
+    const path = join(repoRoot, 'invalid.manifest.json');
+    await writeFile(path, JSON.stringify({ description: 'd', snapshots: 'not-an-array' }));
+    await expect(loadManifest(path, emptyManifest('x', 'y'))).rejects.toThrow(
+      /invalid\.manifest\.json.*invalid manifest/,
+    );
+  });
+
+  it('rejects a manifest whose entries are missing required fields', async () => {
+    const path = join(repoRoot, 'bad-entry.manifest.json');
+    await writeFile(
+      path,
+      JSON.stringify({
+        description: 'd',
+        research_note: 'n',
+        snapshots: [{ snapshot_id: 'x@1' }],
+      }),
+    );
+    await expect(loadManifest(path, emptyManifest('x', 'y'))).rejects.toThrow(
+      /bad-entry\.manifest\.json.*snapshot entry 0/,
+    );
+  });
+
+  it('leaves no temporary file behind after saving', async () => {
+    const path = join(repoRoot, 'data/manifests/clean.manifest.json');
+    await saveManifest(path, emptyManifest('d', 'n'));
+    const { readdir } = await import('node:fs/promises');
+    expect(await readdir(join(repoRoot, 'data/manifests'))).toEqual(['clean.manifest.json']);
+  });
 });
 
 describe('writeSnapshotFile — immutability on disk', () => {

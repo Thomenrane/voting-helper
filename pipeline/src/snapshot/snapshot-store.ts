@@ -6,7 +6,7 @@
  */
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import {
@@ -19,6 +19,57 @@ export function sha256Hex(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
+/** Write-then-rename: a crash mid-write never leaves a truncated file. */
+async function atomicWriteFile(absPath: string, data: Uint8Array | string): Promise<void> {
+  await mkdir(dirname(absPath), { recursive: true });
+  const tmpPath = `${absPath}.tmp-${process.pid}`;
+  await writeFile(tmpPath, data);
+  await rename(tmpPath, absPath);
+}
+
+function assertString(value: unknown, what: string, path: string): asserts value is string {
+  if (typeof value !== 'string') {
+    throw new Error(`'${path}' is an invalid manifest: ${what} is missing or not a string.`);
+  }
+}
+
+const REQUIRED_ENTRY_FIELDS = [
+  'snapshot_id',
+  'source_id',
+  'kind',
+  'origin_url',
+  'fetch_url',
+  'retrieved_at',
+  'sha256',
+  'file',
+] as const;
+
+/** Structural validation — a corrupted manifest raises a named error. */
+function assertManifest(value: unknown, path: string): asserts value is SnapshotManifest {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error(`'${path}' is an invalid manifest: not a JSON object.`);
+  }
+  const manifest = value as Record<string, unknown>;
+  assertString(manifest['description'], 'description', path);
+  assertString(manifest['research_note'], 'research_note', path);
+  if (!Array.isArray(manifest['snapshots'])) {
+    throw new Error(`'${path}' is an invalid manifest: 'snapshots' is not an array.`);
+  }
+  manifest['snapshots'].forEach((entry: unknown, index: number) => {
+    if (typeof entry !== 'object' || entry === null) {
+      throw new Error(`'${path}' is an invalid manifest: snapshot entry ${index} is not an object.`);
+    }
+    for (const field of REQUIRED_ENTRY_FIELDS) {
+      assertString((entry as Record<string, unknown>)[field], `snapshot entry ${index} '${field}'`, path);
+    }
+    if (typeof (entry as Record<string, unknown>)['bytes'] !== 'number') {
+      throw new Error(
+        `'${path}' is an invalid manifest: snapshot entry ${index} 'bytes' is missing or not a number.`,
+      );
+    }
+  });
+}
+
 /** Loads a committed manifest; a missing file yields the provided empty manifest. */
 export async function loadManifest(
   manifestAbsPath: string,
@@ -28,15 +79,24 @@ export async function loadManifest(
     return fallback;
   }
   const raw = await readFile(manifestAbsPath, 'utf8');
-  return JSON.parse(raw) as SnapshotManifest;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (cause) {
+    throw new Error(
+      `'${manifestAbsPath}' is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
+      { cause },
+    );
+  }
+  assertManifest(parsed, manifestAbsPath);
+  return parsed;
 }
 
 export async function saveManifest(
   manifestAbsPath: string,
   manifest: SnapshotManifest,
 ): Promise<void> {
-  await mkdir(dirname(manifestAbsPath), { recursive: true });
-  await writeFile(manifestAbsPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  await atomicWriteFile(manifestAbsPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
 /**
@@ -62,8 +122,7 @@ export async function writeSnapshotFile(
       return;
     }
     verifySnapshotIntegrity(entry, sha256Hex(bytes));
-    await mkdir(dirname(absPath), { recursive: true });
-    await writeFile(absPath, bytes);
+    await atomicWriteFile(absPath, bytes);
     return;
   }
   if (existsSync(absPath)) {
@@ -71,6 +130,5 @@ export async function writeSnapshotFile(
       `Refusing to overwrite existing snapshot file '${entry.file}' — snapshots are immutable.`,
     );
   }
-  await mkdir(dirname(absPath), { recursive: true });
-  await writeFile(absPath, bytes);
+  await atomicWriteFile(absPath, bytes);
 }

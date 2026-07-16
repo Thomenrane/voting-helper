@@ -177,12 +177,16 @@ function splitMemberList(list: string): string[] {
   return list.split(', ').filter((name) => name.trim() !== '');
 }
 
-function parseCount(value: string, field: string, voteRef: string): number {
-  const count = Number(value);
-  if (!Number.isInteger(count) || count < 0) {
-    throw new VoteRowError('votes.parquet', -1, `vote ${voteRef}: '${field}' is not a count: '${value}'.`);
+/** Strict: plain decimal digits only — '', '1e2', '0x10', ' 2' are defects. */
+function parseCount(value: string, field: string, voteRef: string, rowIndex: number): number {
+  if (!/^\d+$/.test(value)) {
+    throw new VoteRowError(
+      'votes.parquet',
+      rowIndex,
+      `vote ${voteRef}: '${field}' is not a plain decimal count: '${value}'.`,
+    );
   }
-  return count;
+  return Number(value);
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -250,9 +254,9 @@ export function transformVotes(
     }
 
     const counts = {
-      oui: parseCount(row.yes, 'yes', id),
-      non: parseCount(row.no, 'no', id),
-      abstention: parseCount(row.abstain, 'abstain', id),
+      oui: parseCount(row.yes, 'yes', id, rowIndex),
+      non: parseCount(row.no, 'no', id, rowIndex),
+      abstention: parseCount(row.abstain, 'abstain', id, rowIndex),
     };
 
     const warnings: string[] = [];
@@ -311,4 +315,39 @@ export function transformVotes(
       Number(a.meeting_id) - Number(b.meeting_id) ||
       Number(a.vote_number) - Number(b.vote_number),
   );
+}
+
+/** Data-quality summary of a transformed dataset — committed in the manifest
+ * entry so a quality regression is visible in git review. */
+export interface VoteQualitySummary {
+  votes_with_warnings: number;
+  total_warnings: number;
+  unresolved_deputy_ballots: number;
+  ambiguous_deputy_ballots: number;
+}
+
+const UNRESOLVED_WARNING_MARK = 'not found in the members file';
+const AMBIGUOUS_WARNING_MARK = 'matches several members with different groups';
+
+export function summarizeVoteQuality(votes: PlenaryVote[]): VoteQualitySummary {
+  const summary: VoteQualitySummary = {
+    votes_with_warnings: 0,
+    total_warnings: 0,
+    unresolved_deputy_ballots: 0,
+    ambiguous_deputy_ballots: 0,
+  };
+  for (const vote of votes) {
+    if (vote.warnings.length > 0) {
+      summary.votes_with_warnings += 1;
+    }
+    summary.total_warnings += vote.warnings.length;
+    for (const warning of vote.warnings) {
+      if (warning.includes(UNRESOLVED_WARNING_MARK)) {
+        summary.unresolved_deputy_ballots += 1;
+      } else if (warning.includes(AMBIGUOUS_WARNING_MARK)) {
+        summary.ambiguous_deputy_ballots += 1;
+      }
+    }
+  }
+  return summary;
 }

@@ -23,6 +23,7 @@ import {
   writeSnapshotFile,
 } from '../snapshot/snapshot-store.ts';
 import { DERIVED_VOTES_SOURCE, ZIJWERKENVOORU_VOTES_SOURCE } from '../sources/votes.sources.ts';
+import { summarizeVoteQuality } from '../votes/votes.transform.ts';
 import { describeEntry, fail, reportRun, resolveRepoRoot } from './command-support.ts';
 
 const MANIFEST_RELATIVE_PATH = 'data/manifests/votes.manifest.json';
@@ -61,27 +62,33 @@ async function main(): Promise<void> {
 
   if (rawResult.failed.length > 0) {
     // Raw successes are recorded above; the derived dataset is NOT produced
-    // from an incomplete set of inputs.
+    // from an incomplete set of inputs. reportRun raises, naming each source.
     reportRun(rawResult, MANIFEST_RELATIVE_PATH);
-    return;
   }
 
-  const generatedAt = new Date().toISOString();
-  const dataset = await source.toDataset(rawBySourceId, generatedAt);
-  const voteWarnings = dataset.votes.filter((vote) => vote.warnings.length > 0).length;
+  const dataset = await source.toDataset(rawBySourceId);
+  const quality = summarizeVoteQuality(dataset.votes);
   console.log(
     `Typed ${dataset.vote_count} plenary votes (legislature ${dataset.legislature}, ` +
-      `${voteWarnings} vote(s) carrying data-quality warnings).`,
+      `${quality.votes_with_warnings} vote(s) carrying data-quality warnings).`,
   );
+  for (const vote of dataset.votes) {
+    for (const warning of vote.warnings) {
+      console.log(`  ! ${vote.id} (${vote.date}): ${warning}`);
+    }
+  }
 
+  // The dataset payload is timestamp-free (deterministic for identical
+  // inputs); the generation datetime lives in the manifest entry only.
   const bytes = new TextEncoder().encode(JSON.stringify(dataset));
   const derivedEntry = buildSnapshotEntry({
     source: DERIVED_VOTES_SOURCE,
     kind: 'derived',
-    retrievedAt: generatedAt,
+    retrievedAt: new Date().toISOString(),
     sha256: sha256Hex(bytes),
     bytes: bytes.byteLength,
     snapshotsDir: SNAPSHOTS_DIR,
+    quality: { ...quality },
   });
   manifest = appendSnapshot(manifest, derivedEntry);
   const appended = manifest.snapshots[manifest.snapshots.length - 1];

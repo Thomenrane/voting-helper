@@ -34,8 +34,8 @@ function entryAt(retrievedAt: string, sha256 = 'a'.repeat(64)) {
 }
 
 describe('compactTimestamp', () => {
-  it('produces a filename-safe, sortable UTC stamp', () => {
-    expect(compactTimestamp('2026-07-16T13:07:42.123Z')).toBe('20260716T130742Z');
+  it('produces a filename-safe, sortable, millisecond-precision UTC stamp', () => {
+    expect(compactTimestamp('2026-07-16T13:07:42.123Z')).toBe('20260716T130742123Z');
   });
 
   it('rejects an invalid timestamp', () => {
@@ -46,8 +46,23 @@ describe('compactTimestamp', () => {
 describe('buildSnapshotEntry', () => {
   it('dates the snapshot id and file path from the retrieval time', () => {
     const entry = entryAt('2026-07-16T13:07:42.000Z');
-    expect(entry.snapshot_id).toBe('ps-programme-2024@20260716T130742Z');
-    expect(entry.file).toBe('data/snapshots/programmes/ps-programme-2024/20260716T130742Z.pdf');
+    expect(entry.snapshot_id).toBe('ps-programme-2024@20260716T130742000Z');
+    expect(entry.file).toBe('data/snapshots/programmes/ps-programme-2024/20260716T130742000Z.pdf');
+  });
+
+  it('rejects a source id unsafe for file paths', () => {
+    for (const id of ['../escape', 'UPPER', 'a b', 'dot.dot', '']) {
+      expect(() =>
+        buildSnapshotEntry({
+          source: { ...SOURCE, id },
+          kind: 'raw',
+          retrievedAt: '2026-07-16T13:07:42.000Z',
+          sha256: 'a'.repeat(64),
+          bytes: 1,
+          snapshotsDir: 'data/snapshots/programmes',
+        }),
+      ).toThrow(/source id/i);
+    }
   });
 
   it('derives the file extension from the media type', () => {
@@ -59,7 +74,7 @@ describe('buildSnapshotEntry', () => {
       bytes: 99,
       snapshotsDir: 'data/snapshots/votes',
     });
-    expect(entry.file).toBe('data/snapshots/votes/votes-parquet/20260716T130742Z.parquet');
+    expect(entry.file).toBe('data/snapshots/votes/votes-parquet/20260716T130742000Z.parquet');
   });
 
   it('carries provenance and both URLs (origin vs fetched)', () => {
@@ -96,7 +111,9 @@ describe('appendSnapshot — immutability', () => {
     const entry = entryAt('2026-07-16T13:07:42.000Z');
     const manifest = appendSnapshot(emptyManifest('test', 'note'), entry);
     expect(() => appendSnapshot(manifest, entry)).toThrow(DuplicateSnapshotError);
-    expect(() => appendSnapshot(manifest, entry)).toThrow(/immutable/);
+    expect(() => appendSnapshot(manifest, entry)).toThrow(
+      /already snapshotted at this exact timestamp.*immutable/,
+    );
   });
 
   it('re-snapshotting dates a NEW version instead of overwriting', () => {
@@ -105,8 +122,8 @@ describe('appendSnapshot — immutability', () => {
     manifest = appendSnapshot(manifest, entryAt('2026-08-01T09:00:00.000Z', 'b'.repeat(64)));
     expect(manifest.snapshots).toHaveLength(2);
     expect(manifest.snapshots.map((s) => s.snapshot_id)).toEqual([
-      'ps-programme-2024@20260716T130742Z',
-      'ps-programme-2024@20260801T090000Z',
+      'ps-programme-2024@20260716T130742000Z',
+      'ps-programme-2024@20260801T090000000Z',
     ]);
     expect(latestSnapshot(manifest, 'ps-programme-2024')?.sha256).toBe('b'.repeat(64));
   });
@@ -139,7 +156,7 @@ describe('verifySnapshotIntegrity — corruption detection', () => {
     const entry = entryAt('2026-07-16T13:07:42.000Z', 'e'.repeat(64));
     expect(() => verifySnapshotIntegrity(entry, 'f'.repeat(64))).toThrow(SnapshotCorruptionError);
     expect(() => verifySnapshotIntegrity(entry, 'f'.repeat(64))).toThrow(
-      /ps-programme-2024@20260716T130742Z.*ps-programme-2024.*corrupted/,
+      /ps-programme-2024@20260716T130742000Z.*ps-programme-2024.*corrupted/,
     );
   });
 });

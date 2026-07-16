@@ -36,8 +36,8 @@ describe('snapshotSources', () => {
     expect(result.succeeded.map((e) => e.source_id)).toEqual(['alpha', 'beta']);
     expect(result.manifest.snapshots).toHaveLength(2);
     expect(persisted.map((e) => e.snapshot_id)).toEqual([
-      'alpha@20260716T130742Z',
-      'beta@20260716T130742Z',
+      'alpha@20260716T130742000Z',
+      'beta@20260716T130742000Z',
     ]);
     expect(result.succeeded[0]?.sha256).toMatch(/^[0-9a-f]{64}$/);
   });

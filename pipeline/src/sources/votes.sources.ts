@@ -43,9 +43,10 @@ export interface ChamberVotesSource {
   /**
    * Parses previously snapshotted raw bytes (keyed by source id) into the
    * typed internal dataset. Must throw an explicit error on structural
-   * defects — never produce a silently truncated dataset.
+   * defects — never produce a silently truncated dataset. The result must
+   * be deterministic for identical inputs (no embedded timestamps).
    */
-  toDataset(rawBySourceId: ReadonlyMap<string, Uint8Array>, generatedAt: string): Promise<VotesDataset>;
+  toDataset(rawBySourceId: ReadonlyMap<string, Uint8Array>): Promise<VotesDataset>;
 }
 
 const ZIJWERKENVOORU_BASE =
@@ -107,7 +108,7 @@ export const ZIJWERKENVOORU_VOTES_SOURCE: ChamberVotesSource = {
       'zijwerkenvooru — dossiers.parquet (dossiers législatifs votés)',
     ),
   ],
-  async toDataset(rawBySourceId, generatedAt) {
+  async toDataset(rawBySourceId) {
     const [voteRows, memberRows, dossierRows] = await Promise.all([
       readRowsAs<VotesParquetRow>(
         requireRaw(rawBySourceId, VOTES_PARQUET_SOURCE_ID),
@@ -129,7 +130,6 @@ export const ZIJWERKENVOORU_VOTES_SOURCE: ChamberVotesSource = {
     return {
       source_id: this.id,
       legislature: this.legislature,
-      generated_at: generatedAt,
       vote_count: votes.length,
       votes,
     };

@@ -10,6 +10,13 @@ const USER_AGENT = 'voting-helper-pipeline/0.1 (+https://github.com/Thomenrane/v
 const DEFAULT_TIMEOUT_MS = 180_000;
 
 /**
+ * Hard cap on a single download. The largest known source is ~29 MB
+ * (Vlaams Belang PDF); anything near this cap is a broken or hostile
+ * source, not a programme — refuse instead of buffering towards OOM.
+ */
+const MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024;
+
+/**
  * Honours HTTP(S)_PROXY / NO_PROXY (Node 22's fetch ignores them natively);
  * behaves as the default agent when no proxy is configured.
  */
@@ -46,9 +53,20 @@ export async function fetchBytes(
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} ${response.statusText}`);
   }
+  const contentLength = Number(response.headers.get('content-length') ?? '0');
+  if (contentLength > MAX_DOWNLOAD_BYTES) {
+    throw new Error(
+      `response advertises ${contentLength} bytes — exceeds the ${MAX_DOWNLOAD_BYTES}-byte download cap`,
+    );
+  }
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength === 0) {
     throw new Error('empty response body');
+  }
+  if (bytes.byteLength > MAX_DOWNLOAD_BYTES) {
+    throw new Error(
+      `response body is ${bytes.byteLength} bytes — exceeds the ${MAX_DOWNLOAD_BYTES}-byte download cap`,
+    );
   }
   return bytes;
 }

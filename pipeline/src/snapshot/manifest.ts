@@ -63,6 +63,12 @@ export interface SnapshotEntry {
    * of duplicating the bytes on disk.
    */
   content_unchanged_from?: string;
+  /**
+   * Data-quality counters for derived snapshots (warnings, unresolved or
+   * ambiguous deputies, …). Committed so a quality regression between two
+   * ingestion runs is visible in git review.
+   */
+  quality?: Record<string, number>;
   provenance: string;
 }
 
@@ -78,7 +84,9 @@ export interface SnapshotManifest {
 export class DuplicateSnapshotError extends Error {
   constructor(snapshotId: string) {
     super(
-      `Snapshot '${snapshotId}' already exists in the manifest — snapshots are immutable and may never be replaced.`,
+      `A snapshot with id '${snapshotId}' is already recorded: this source was already ` +
+        `snapshotted at this exact timestamp. Snapshots are immutable and never replaced — ` +
+        `re-run later to date a new version.`,
     );
     this.name = 'DuplicateSnapshotError';
   }
@@ -106,14 +114,21 @@ export function emptyManifest(description: string, researchNote: string): Snapsh
   return { description, research_note: researchNote, snapshots: [] };
 }
 
-/** `2026-07-16T13:07:42.123Z` → `20260716T130742Z` (filename-safe, sortable). */
+/**
+ * `2026-07-16T13:07:42.123Z` → `20260716T130742123Z` (filename-safe,
+ * sortable). Millisecond precision keeps two runs within the same second
+ * from colliding on the snapshot id.
+ */
 export function compactTimestamp(retrievedAt: string): string {
   const parsed = new Date(retrievedAt);
   if (Number.isNaN(parsed.getTime())) {
     throw new Error(`Invalid snapshot timestamp: '${retrievedAt}'.`);
   }
-  return parsed.toISOString().replace(/\.\d{3}Z$/, 'Z').replaceAll('-', '').replaceAll(':', '');
+  return parsed.toISOString().replace(/[-:.]/g, '');
 }
+
+/** Source ids end up in committed file paths — keep them strictly path-safe. */
+const SAFE_SOURCE_ID = /^[a-z0-9-]+$/;
 
 export interface BuildSnapshotEntryOptions {
   source: SnapshotSource;
@@ -124,11 +139,18 @@ export interface BuildSnapshotEntryOptions {
   bytes: number;
   /** Snapshot directory relative to the repo root, e.g. 'data/snapshots/programmes'. */
   snapshotsDir: string;
+  /** Optional data-quality counters (derived snapshots). */
+  quality?: Record<string, number>;
 }
 
 /** Builds a dated snapshot entry. Pure — file layout is derived, never probed. */
 export function buildSnapshotEntry(options: BuildSnapshotEntryOptions): SnapshotEntry {
-  const { source, kind, retrievedAt, sha256, bytes, snapshotsDir } = options;
+  const { source, kind, retrievedAt, sha256, bytes, snapshotsDir, quality } = options;
+  if (!SAFE_SOURCE_ID.test(source.id)) {
+    throw new Error(
+      `Unsafe source id '${source.id}': ids are used in snapshot file paths and must match ${String(SAFE_SOURCE_ID)}.`,
+    );
+  }
   const stamp = compactTimestamp(retrievedAt);
   const extension = MEDIA_TYPE_EXTENSION[source.mediaType];
   return {
@@ -144,6 +166,7 @@ export function buildSnapshotEntry(options: BuildSnapshotEntryOptions): Snapshot
     sha256,
     bytes,
     file: `${snapshotsDir}/${source.id}/${stamp}.${extension}`,
+    ...(quality !== undefined ? { quality } : {}),
     provenance: source.provenance,
   };
 }

@@ -59,13 +59,18 @@ export interface PlenaryVote {
   warnings: string[];
 }
 
-/** The complete typed dataset produced by one vote-ingestion run. */
+/**
+ * The complete typed dataset produced by one vote-ingestion run.
+ *
+ * Deliberately timestamp-free: the serialized dataset is content-addressed
+ * (SHA-256) in the manifest, so identical inputs must produce identical
+ * bytes for the unchanged-content dedup to work. The generation datetime
+ * lives in the manifest entry (`retrieved_at`), not in the payload.
+ */
 export interface VotesDataset {
   /** Ingestion source id (e.g. 'zijwerkenvooru-parquet'). */
   source_id: string;
   legislature: string;
-  /** ISO 8601 UTC datetime at which the dataset was generated. */
-  generated_at: string;
   vote_count: number;
   votes: PlenaryVote[];
 }
