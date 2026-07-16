@@ -39,7 +39,7 @@ function renderColumn(
   const scoreById = new Map(scores.map((s) => [s.partyId, s]));
 
   for (const ranked of rankByDimension(scores, dimension)) {
-    const item = list.querySelector<HTMLElement>(`[data-party="${ranked.partyId}"]`);
+    const item = list.querySelector<HTMLElement>(`[data-party="${CSS.escape(ranked.partyId)}"]`);
     const party = scoreById.get(ranked.partyId);
     if (!item || !party) continue;
 
@@ -70,7 +70,9 @@ function reorderAudit(panel: HTMLElement, scores: readonly PartyScore[]): void {
   const audit = panel.querySelector<HTMLElement>('[data-audit]');
   if (!audit) return;
   for (const ranked of rankByDimension(scores, 'promesses')) {
-    const section = audit.querySelector<HTMLElement>(`[data-audit-party="${ranked.partyId}"]`);
+    const section = audit.querySelector<HTMLElement>(
+      `[data-audit-party="${CSS.escape(ranked.partyId)}"]`,
+    );
     if (section) audit.append(section);
   }
 }
@@ -98,7 +100,9 @@ function positionSlopeLines(panel: HTMLElement, scores: readonly PartyScore[]): 
   };
 
   for (const line of slopeLines(scores)) {
-    const element = svg.querySelector<SVGLineElement>(`line[data-party="${line.partyId}"]`);
+    const element = svg.querySelector<SVGLineElement>(
+      `line[data-party="${CSS.escape(line.partyId)}"]`,
+    );
     const y1 = rowCenter(left, line.fromIndex);
     const y2 = rowCenter(right, line.toIndex);
     if (!element || y1 === null || y2 === null) continue;
