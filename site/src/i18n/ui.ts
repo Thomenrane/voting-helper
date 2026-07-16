@@ -18,8 +18,6 @@ interface UiStrings {
   demoBanner: string;
   heading: string;
   intro: string;
-  promessesLabel: string;
-  actesLabel: string;
   /** e.g. « basé sur 7/8 énoncés » */
   basedOn: (included: number, total: number) => string;
   notAvailable: string;
@@ -89,8 +87,6 @@ export const UI: Record<Locale, UiStrings> = {
     heading: 'Ce qu’ils promettent. Ce qu’ils votent.',
     intro:
       'Pour chaque parti, deux scores distincts — jamais fusionnés : votre alignement sur son programme (promesses) et sur ses votes à la Chambre (actes).',
-    promessesLabel: 'Promesses',
-    actesLabel: 'Actes',
     basedOn: (included, total) => `basé sur ${included}/${total} énoncés`,
     notAvailable: 'n.d.',
     ecartLabel: 'écart',
@@ -151,8 +147,6 @@ export const UI: Record<Locale, UiStrings> = {
     heading: 'Wat ze beloven. Wat ze stemmen.',
     intro:
       'Per partij twee aparte scores — nooit samengevoegd: uw overeenstemming met het programma (beloften) en met de stemmingen in de Kamer (daden).',
-    promessesLabel: 'Beloften',
-    actesLabel: 'Daden',
     basedOn: (included, total) => `op basis van ${included}/${total} stellingen`,
     notAvailable: 'n.b.',
     ecartLabel: 'kloof',
