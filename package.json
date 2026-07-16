@@ -11,7 +11,7 @@
   "scripts": {
     "build": "npm run build --workspace site",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p data && tsc --noEmit -p pipeline && tsc --noEmit -p site"
+    "typecheck": "tsc --noEmit -p data && tsc --noEmit -p pipeline && npm run typecheck --workspace site"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
