@@ -138,9 +138,15 @@ export function buildPartyAudit(
   const contradictions = new Set(contradictionIds);
   const recordByStatement = new Map<string, PartyPosition>();
   for (const record of positions) {
-    if (record.party_id === partyId && record.statut === 'valide') {
-      recordByStatement.set(record.statement_id, record);
+    if (record.party_id !== partyId || record.statut !== 'valide') continue;
+    // Same refusal as the engine (scoring.ts): two valid records for one
+    // party × statement is inconsistent data — never silently collapsed.
+    if (recordByStatement.has(record.statement_id)) {
+      throw new Error(
+        `Duplicate valid position for party "${partyId}" and statement "${record.statement_id}" — inconsistent dataset refused.`,
+      );
     }
+    recordByStatement.set(record.statement_id, record);
   }
 
   const themes: AuditTheme[] = [];

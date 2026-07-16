@@ -257,4 +257,15 @@ describe('buildPartyAudit', () => {
     expect(audit[0]?.statements[0]?.isContradiction).toBe(true);
     expect(audit[0]?.statements[1]?.isContradiction).toBe(false);
   });
+
+  it('refuses two valid records for the same statement, like the engine does', () => {
+    expect(() =>
+      buildPartyAudit(
+        'p',
+        statements,
+        [record('p', 's1', { position: 2 }), record('p', 's1', { position: -2 })],
+        [],
+      ),
+    ).toThrow(/Duplicate valid position/);
+  });
 });
