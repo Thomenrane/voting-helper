@@ -559,6 +559,326 @@
       "file": "data/snapshots/programmes/pvda-programme-2024/20260716T132545Z.html",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § PVDA (parti unitaire PTB-PVDA, miroir de langue)",
       "content_unchanged_from": "pvda-programme-2024@20260716T132545Z"
+    },
+    {
+      "snapshot_id": "ps-programme-2024-text@20260716T215306146Z",
+      "source_id": "ps-programme-2024-text",
+      "label": "PS — Programme 2024 (PDF complet, 1220 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://assets.nationbuilder.com/psbe/pages/2953/attachments/original/1709026101/Programme_PS_2024.pdf",
+      "fetch_url": "https://assets.nationbuilder.com/psbe/pages/2953/attachments/original/1709026101/Programme_PS_2024.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:06.146Z",
+      "sha256": "e46044a2d79ce93907be0ca2fbe7b47946f776cb59f6037b82bf26b450e6e90c",
+      "bytes": 3820520,
+      "file": "data/snapshots/programmes/ps-programme-2024-text/20260716T215306146Z.json",
+      "quality": {
+        "pages": 1220,
+        "characters": 3566011,
+        "empty_pages": 0
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'ps-programme-2024')"
+    },
+    {
+      "snapshot_id": "mr-programme-2024-text@20260716T215321104Z",
+      "source_id": "mr-programme-2024-text",
+      "label": "MR — Programme 2024 (PDF complet, 311 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://www.mr.be/wp-content/uploads/2024/02/PROGRAMME-GEN-2024-1.pdf",
+      "fetch_url": "https://www.mr.be/wp-content/uploads/2024/02/PROGRAMME-GEN-2024-1.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:21.104Z",
+      "sha256": "c2ea8c426d5474ae068d78bcb87f06037bef5bc9c4991701b48de4fe2066bfab",
+      "bytes": 1160574,
+      "file": "data/snapshots/programmes/mr-programme-2024-text/20260716T215321104Z.json",
+      "quality": {
+        "pages": 311,
+        "characters": 1089896,
+        "empty_pages": 0
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'mr-programme-2024')"
+    },
+    {
+      "snapshot_id": "les-engages-programme-2024-text@20260716T215327092Z",
+      "source_id": "les-engages-programme-2024-text",
+      "label": "Les Engagés — Programme 2024 (PDF complet, 355 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://www.lesengages.be/wp-content/uploads/2024/02/lesengages_programme2024_complet_2_v2.pdf",
+      "fetch_url": "https://www.lesengages.be/wp-content/uploads/2024/02/lesengages_programme2024_complet_2_v2.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:27.092Z",
+      "sha256": "e019c8b4750cd5fe4ff0b71aecebf3f9b974a9b9365b7a3a84fab18405f88267",
+      "bytes": 2143296,
+      "file": "data/snapshots/programmes/les-engages-programme-2024-text/20260716T215327092Z.json",
+      "quality": {
+        "pages": 355,
+        "characters": 1995377,
+        "empty_pages": 3
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'les-engages-programme-2024')"
+    },
+    {
+      "snapshot_id": "ecolo-programme-2024-text@20260716T215330351Z",
+      "source_id": "ecolo-programme-2024-text",
+      "label": "Ecolo — Programme 2024 consolidé (PDF, 338 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://ecolo.be/wp-content/uploads/2024/02/2024-Programme-consolide-final.pdf",
+      "fetch_url": "https://ecolo.be/wp-content/uploads/2024/02/2024-Programme-consolide-final.pdf",
+      "channel": "wayback",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:30.351Z",
+      "sha256": "7be6b270f240eecb435c088a4767ae8b41164a0737b5750ad0186cc1912fbbdc",
+      "bytes": 904162,
+      "file": "data/snapshots/programmes/ecolo-programme-2024-text/20260716T215330351Z.json",
+      "quality": {
+        "pages": 338,
+        "characters": 847635,
+        "empty_pages": 7
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'ecolo-programme-2024')"
+    },
+    {
+      "snapshot_id": "defi-axe-1-2024-text@20260716T215331465Z",
+      "source_id": "defi-axe-1-2024-text",
+      "label": "DéFI — Axe 1 : Remettre la Belgique en état de fonctionner (PDF, 44 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://www.defi.be/wp-content/uploads/livret-axe-1-corr-0324-bd.pdf",
+      "fetch_url": "https://www.defi.be/wp-content/uploads/livret-axe-1-corr-0324-bd.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:31.465Z",
+      "sha256": "239913af554a57a0bf91840fd42e47b4966a0e05d1984fc4b478dc5a1b457868",
+      "bytes": 93106,
+      "file": "data/snapshots/programmes/defi-axe-1-2024-text/20260716T215331465Z.json",
+      "quality": {
+        "pages": 44,
+        "characters": 85405,
+        "empty_pages": 1
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'defi-axe-1-2024')"
+    },
+    {
+      "snapshot_id": "defi-axe-2-2024-text@20260716T215331714Z",
+      "source_id": "defi-axe-2-2024-text",
+      "label": "DéFI — Axe 2 : Laïcité politique (PDF, 28 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://www.defi.be/wp-content/uploads/livret-axe-2-corr-0324-bd.pdf",
+      "fetch_url": "https://www.defi.be/wp-content/uploads/livret-axe-2-corr-0324-bd.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:31.714Z",
+      "sha256": "5769b418a6db5ac29bf7962ffd84961ad5ecaedbb83a740e7b7ae8e3d04d7b28",
+      "bytes": 56803,
+      "file": "data/snapshots/programmes/defi-axe-2-2024-text/20260716T215331714Z.json",
+      "quality": {
+        "pages": 28,
+        "characters": 52128,
+        "empty_pages": 1
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'defi-axe-2-2024')"
+    },
+    {
+      "snapshot_id": "defi-axe-3-2024-text@20260716T215331984Z",
+      "source_id": "defi-axe-3-2024-text",
+      "label": "DéFI — Axe 3 : Libérer l'esprit d'entreprendre (PDF, 36 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://www.defi.be/wp-content/uploads/0523_livret_axe_3_bd.pdf",
+      "fetch_url": "https://www.defi.be/wp-content/uploads/0523_livret_axe_3_bd.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:31.984Z",
+      "sha256": "b977e5b177dd7be3dbc3d8b31159850dc3ad822e548f0ff5ce07c190fae5e390",
+      "bytes": 77573,
+      "file": "data/snapshots/programmes/defi-axe-3-2024-text/20260716T215331984Z.json",
+      "quality": {
+        "pages": 36,
+        "characters": 71344,
+        "empty_pages": 1
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'defi-axe-3-2024')"
+    },
+    {
+      "snapshot_id": "defi-axe-4-2024-text@20260716T215332513Z",
+      "source_id": "defi-axe-4-2024-text",
+      "label": "DéFI — Axe 4 : Rendre le contrat social plus juste (PDF, 84 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://www.defi.be/wp-content/uploads/livret_axe-_4_corr2024_bd.pdf",
+      "fetch_url": "https://www.defi.be/wp-content/uploads/livret_axe-_4_corr2024_bd.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:32.513Z",
+      "sha256": "52276971f1d180cda70d693b37604d4b8b0ab1e3d2c6bcac29acb336c1cdfdff",
+      "bytes": 179573,
+      "file": "data/snapshots/programmes/defi-axe-4-2024-text/20260716T215332513Z.json",
+      "quality": {
+        "pages": 84,
+        "characters": 165126,
+        "empty_pages": 0
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'defi-axe-4-2024')"
+    },
+    {
+      "snapshot_id": "defi-axe-5-2024-text@20260716T215333135Z",
+      "source_id": "defi-axe-5-2024-text",
+      "label": "DéFI — Axe 5 : Développement durable, économie et libertés (PDF, 100 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://www.defi.be/wp-content/uploads/0624_livret_axe_5_bd.pdf",
+      "fetch_url": "https://www.defi.be/wp-content/uploads/0624_livret_axe_5_bd.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:33.135Z",
+      "sha256": "295d6f9c2d74b09afb0d6210adc542cc0ecb2cdac87ebfa1f293d47f2eb7418d",
+      "bytes": 213159,
+      "file": "data/snapshots/programmes/defi-axe-5-2024-text/20260716T215333135Z.json",
+      "quality": {
+        "pages": 100,
+        "characters": 196286,
+        "empty_pages": 2
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'defi-axe-5-2024')"
+    },
+    {
+      "snapshot_id": "nva-programme-2024-text@20260716T215335009Z",
+      "source_id": "nva-programme-2024-text",
+      "label": "N-VA — « Voor Vlaamse Welvaart » (PDF, 120 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://www.n-va.be/sites/n-va.be/files/2024-04/Verkiezingsprogramma.pdf",
+      "fetch_url": "https://www.n-va.be/sites/n-va.be/files/2024-04/Verkiezingsprogramma.pdf",
+      "channel": "wayback",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:35.009Z",
+      "sha256": "172d4ad8c4e84a0f6c62bb85b97fc1867e209c4e1097f663d77c789cee0800a4",
+      "bytes": 421882,
+      "file": "data/snapshots/programmes/nva-programme-2024-text/20260716T215335009Z.json",
+      "quality": {
+        "pages": 120,
+        "characters": 407452,
+        "empty_pages": 3
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'nva-programme-2024')"
+    },
+    {
+      "snapshot_id": "vlaams-belang-programme-2024-text@20260716T215336676Z",
+      "source_id": "vlaams-belang-programme-2024-text",
+      "label": "Vlaams Belang — « Vlaanderen weer van ons » (PDF, 100 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://www.vlaamsbelang.org/sites/default/files/2024-03/202403_Verkiezingsprogramma_DEF_Web.pdf",
+      "fetch_url": "https://www.vlaamsbelang.org/sites/default/files/2024-03/202403_Verkiezingsprogramma_DEF_Web.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:36.676Z",
+      "sha256": "d2ff32110736aadd0d1a01ed5531dad70650e3d4bf4a219cd6f39bad445b8cbd",
+      "bytes": 240710,
+      "file": "data/snapshots/programmes/vlaams-belang-programme-2024-text/20260716T215336676Z.json",
+      "quality": {
+        "pages": 100,
+        "characters": 232255,
+        "empty_pages": 6
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'vlaams-belang-programme-2024')"
+    },
+    {
+      "snapshot_id": "vooruit-programme-2024-text@20260716T215339350Z",
+      "source_id": "vooruit-programme-2024-text",
+      "label": "Vooruit — Verkiezingsprogramma 2024 (PDF, 288 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://assets.nationbuilder.com/vooruit/pages/11936/attachments/original/1709800485/Verkiezingsprogramma_2024.pdf",
+      "fetch_url": "https://assets.nationbuilder.com/vooruit/pages/11936/attachments/original/1709800485/Verkiezingsprogramma_2024.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:39.350Z",
+      "sha256": "287ffd3a4c74eb1ad7f41ab9fb33628e71cc9a5ae0607cf0918852f8bb2e40cf",
+      "bytes": 665922,
+      "file": "data/snapshots/programmes/vooruit-programme-2024-text/20260716T215339350Z.json",
+      "quality": {
+        "pages": 288,
+        "characters": 648738,
+        "empty_pages": 1
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'vooruit-programme-2024')"
+    },
+    {
+      "snapshot_id": "cdv-programme-2024-text@20260716T215349005Z",
+      "source_id": "cdv-programme-2024-text",
+      "label": "CD&V — « Kies zekerheid » (PDF congrès 21/04/2024, 442 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://assets.nationbuilder.com/cdenv/pages/8534/attachments/original/1713685808/VKprog_vcongresapril.pdf",
+      "fetch_url": "https://assets.nationbuilder.com/cdenv/pages/8534/attachments/original/1713685808/VKprog_vcongresapril.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:49.005Z",
+      "sha256": "ef69f588bf8ad0d07b70d62987425cc924ac368c5c8961f94b1e4347b29448a9",
+      "bytes": 1595181,
+      "file": "data/snapshots/programmes/cdv-programme-2024-text/20260716T215349005Z.json",
+      "quality": {
+        "pages": 442,
+        "characters": 1560734,
+        "empty_pages": 2
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'cdv-programme-2024')"
+    },
+    {
+      "snapshot_id": "open-vld-partijprogramma-2024-text@20260716T215351418Z",
+      "source_id": "open-vld-partijprogramma-2024-text",
+      "label": "Open Vld (→ Anders.) — Partijprogramma v1.0.9 (PDF, 156 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://assets.nationbuilder.com/openvld/pages/29787/attachments/original/1716445819/Partijprogramma_1.0.9.pdf",
+      "fetch_url": "https://assets.nationbuilder.com/openvld/pages/29787/attachments/original/1716445819/Partijprogramma_1.0.9.pdf",
+      "channel": "wayback",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:51.418Z",
+      "sha256": "517b1d7ef8296bd0a57812164e419a8ac9889ff8e10ee0afc224bb8c3e0fc7eb",
+      "bytes": 404270,
+      "file": "data/snapshots/programmes/open-vld-partijprogramma-2024-text/20260716T215351418Z.json",
+      "quality": {
+        "pages": 156,
+        "characters": 393731,
+        "empty_pages": 0
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'open-vld-partijprogramma-2024')"
+    },
+    {
+      "snapshot_id": "open-vld-becijferd-groeiplan-2024-text@20260716T215351645Z",
+      "source_id": "open-vld-becijferd-groeiplan-2024-text",
+      "label": "Open Vld (→ Anders.) — Becijferd groeiplan (PDF, 30 p.) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://assets.nationbuilder.com/openvld/pages/29661/attachments/original/1711725852/Becijferd_groeiplan.pdf",
+      "fetch_url": "https://assets.nationbuilder.com/openvld/pages/29661/attachments/original/1711725852/Becijferd_groeiplan.pdf",
+      "channel": "wayback",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:51.645Z",
+      "sha256": "94289f5b4c6fc5882f9a45e0c656bed9ef389cede5ece92e7da395a9690a2494",
+      "bytes": 79077,
+      "file": "data/snapshots/programmes/open-vld-becijferd-groeiplan-2024-text/20260716T215351645Z.json",
+      "quality": {
+        "pages": 30,
+        "characters": 77010,
+        "empty_pages": 2
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'open-vld-becijferd-groeiplan-2024')"
+    },
+    {
+      "snapshot_id": "groen-programme-2024-text@20260716T215352728Z",
+      "source_id": "groen-programme-2024-text",
+      "label": "Groen — « Groen voor verandering » (PDF, 45 planches doubles) — couche texte par page (dérivée, unpdf)",
+      "kind": "derived",
+      "origin_url": "https://assets.nationbuilder.com/groen/pages/16938/attachments/original/1710591090/Programma_Groen.pdf",
+      "fetch_url": "https://assets.nationbuilder.com/groen/pages/16938/attachments/original/1710591090/Programma_Groen.pdf",
+      "channel": "live",
+      "media_type": "application/json",
+      "retrieved_at": "2026-07-16T21:53:52.728Z",
+      "sha256": "281051bd678bc6e701e019356d141906083f8c4088f5002dc4228489cdd3ee26",
+      "bytes": 131769,
+      "file": "data/snapshots/programmes/groen-programme-2024-text/20260716T215352728Z.json",
+      "quality": {
+        "pages": 45,
+        "characters": 127536,
+        "empty_pages": 0
+      },
+      "provenance": "docs/spikes/extraction-couche-texte.md (dérivé localement du snapshot brut 'groen-programme-2024')"
     }
   ]
 }
