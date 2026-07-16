@@ -310,7 +310,9 @@ const scaleLabel = (position: number): string =>
 
   .slope-line {
     stroke: var(--ink-soft);
-    stroke-opacity: 0.35;
+    /* 0.7 over --paper ≈ 3.2:1 (WCAG 1.4.11 ≥ 3:1); hierarchy vs the
+       marquant lines is kept by hue (grey-violet vs accent) and width. */
+    stroke-opacity: 0.7;
     stroke-width: 1.5;
   }
 
