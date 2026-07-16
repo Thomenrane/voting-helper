@@ -1,0 +1,16 @@
+{
+  "name": "@voting-helper/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@voting-helper/data": "*",
+    "astro": "^5.12.0"
+  }
+}

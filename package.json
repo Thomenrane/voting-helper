@@ -1,0 +1,21 @@
+{
+  "name": "voting-helper",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "workspaces": [
+    "data",
+    "pipeline",
+    "site"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace site",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p data && tsc --noEmit -p pipeline && tsc --noEmit -p site"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
