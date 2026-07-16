@@ -42,7 +42,7 @@ describe('toPartyPositions', () => {
       statement_id: 's1',
       position: 2,
       citation: {
-        texte: 'Nous réduirons les cotations.'.replace('cotations', 'cotisations'),
+        texte: 'Nous réduirons les cotisations.',
         url_source: 'https://example.org/demo.pdf',
         ref_snapshot: 'demo-doc@20260716T000000000Z',
         page: 12,
