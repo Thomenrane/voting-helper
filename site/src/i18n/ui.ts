@@ -3,8 +3,7 @@
  * route structure and strings are ready even though only /fr is built for
  * the tracer bullet (#16).
  */
-export const LOCALES = ['fr', 'nl'] as const;
-export type Locale = (typeof LOCALES)[number];
+import type { Locale } from './locales.ts';
 
 interface UiStrings {
   siteTitle: string;
