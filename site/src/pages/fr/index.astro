@@ -1,0 +1,270 @@
+---
+import { DEMO_ANSWERS, PARTIES, PARTY_POSITIONS, STATEMENTS } from '@voting-helper/data';
+import { UI } from '../../i18n/ui.ts';
+import Base from '../../layouts/Base.astro';
+import { scoreParties } from '../../lib/scoring/scoring.ts';
+
+const t = UI.fr;
+const totalStatements = STATEMENTS.length;
+const partyNames = new Map(PARTIES.map((p) => [p.id, p.name]));
+
+// Ranking sorted by the promesses score, « n.d. » (null) last.
+const ranking = scoreParties(DEMO_ANSWERS, PARTIES, PARTY_POSITIONS).sort(
+  (a, b) =>
+    (b.promesses.score ?? -1) - (a.promesses.score ?? -1) ||
+    (b.actes.score ?? -1) - (a.actes.score ?? -1),
+);
+
+function formatEcart(ecart: number): string {
+  return ecart > 0 ? `+${ecart}` : `${ecart}`;
+}
+---
+
+<Base lang="fr" title={t.siteTitle} description={t.metaDescription}>
+  <p class="demo-banner">{t.demoBanner}</p>
+
+  <main>
+    <header class="masthead">
+      <h1>{t.heading}</h1>
+      <p class="intro">{t.intro}</p>
+    </header>
+
+    <ol class="ranking">
+      {
+        ranking.map((party, index) => (
+          <li class="party-card">
+            <div class="party-head">
+              <span class="rank" aria-hidden="true">
+                {index + 1}
+              </span>
+              <h2 class="party-name">{partyNames.get(party.partyId)}</h2>
+              {party.ecart !== null && (
+                <span
+                  class:list={['ecart-chip', { marquant: party.ecartMarquant }]}
+                  title={party.ecartMarquant ? t.ecartMarquantLabel : t.ecartLabel}
+                >
+                  {t.ecartLabel} {formatEcart(party.ecart)}
+                </span>
+              )}
+            </div>
+
+            <dl class="scores">
+              {[
+                { label: t.promessesLabel, dim: party.promesses, kind: 'promesses' },
+                { label: t.actesLabel, dim: party.actes, kind: 'actes' },
+              ].map(({ label, dim, kind }) => (
+                <div class="score-row">
+                  <dt>{label}</dt>
+                  <dd>
+                    <div class="meter" role="presentation">
+                      {dim.score !== null && (
+                        <div class:list={['meter-fill', kind]} style={`width: ${dim.score}%`} />
+                      )}
+                    </div>
+                    <span class="score-value">{dim.score ?? t.notAvailable}</span>
+                    <span class="denominator">{t.basedOn(dim.denominator, totalStatements)}</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+
+            {party.contradictions.length > 0 && (
+              <p class="contradiction-badge">{t.contradictionBadge(party.contradictions.length)}</p>
+            )}
+          </li>
+        ))
+      }
+    </ol>
+
+    <footer class="methodology">
+      <p>{t.methodologyNote}</p>
+    </footer>
+  </main>
+</Base>
+
+<style>
+  .demo-banner {
+    margin: 0;
+    padding: 0.5rem 1rem;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 0.8125rem;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  main {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .masthead {
+    padding: 1.5rem 0 2rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.75rem, 6vw, 2.5rem);
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+
+  .intro {
+    margin: 0.75rem 0 0;
+    color: var(--ink-soft);
+    font-size: 0.9375rem;
+    max-width: 34rem;
+  }
+
+  .ranking {
+    list-style: none;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .party-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    padding: 1rem;
+  }
+
+  .party-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.625rem;
+  }
+
+  .rank {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.9375rem;
+    color: var(--ink-soft);
+    min-width: 1.125rem;
+  }
+
+  .party-name {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .ecart-chip {
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-deep);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.125rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .ecart-chip.marquant {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper);
+    font-weight: 600;
+  }
+
+  .scores {
+    margin: 0.875rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .score-row {
+    display: grid;
+    grid-template-columns: 5.25rem 1fr;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  dt {
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+  }
+
+  dd {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr 2.25rem;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 0.625rem;
+  }
+
+  .meter {
+    height: 0.375rem;
+    background: var(--accent-wash);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .meter-fill {
+    height: 100%;
+    border-radius: 999px;
+  }
+
+  .meter-fill.promesses {
+    background: var(--accent);
+  }
+
+  .meter-fill.actes {
+    background: var(--ink);
+  }
+
+  .score-value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .denominator {
+    grid-column: 1 / -1;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    margin-top: 0.125rem;
+  }
+
+  .contradiction-badge {
+    margin: 0.75rem 0 0;
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent-deep);
+    background: var(--accent-wash);
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .methodology {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .methodology p {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+  }
+
+  @media (min-width: 40rem) {
+    main {
+      padding-top: 2.5rem;
+    }
+
+    .party-card {
+      padding: 1.25rem 1.5rem;
+    }
+  }
+</style>

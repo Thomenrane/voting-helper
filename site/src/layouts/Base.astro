@@ -1,0 +1,65 @@
+---
+import type { Locale } from '../i18n/ui.ts';
+
+interface Props {
+  lang: Locale;
+  title: string;
+  description: string;
+}
+
+const { lang, title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    /* Placeholder palette — « violet ardoise », no Belgian party color. */
+    --ink: #211c33;
+    --ink-soft: #605a75;
+    --paper: #fbfafd;
+    --card: #ffffff;
+    --line: #e5e2ee;
+    --accent: #5b54a8;
+    --accent-deep: #423c85;
+    --accent-wash: #edebf7;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family:
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+</style>
