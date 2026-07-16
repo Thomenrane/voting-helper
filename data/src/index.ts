@@ -15,4 +15,3 @@ export type {
 export { PARTIES } from './fixtures/parties.fixture.ts';
 export { STATEMENTS } from './fixtures/statements.fixture.ts';
 export { PARTY_POSITIONS } from './fixtures/positions.fixture.ts';
-export { DEMO_ANSWERS } from './fixtures/demo-answers.fixture.ts';

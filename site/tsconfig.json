@@ -1,4 +1,8 @@
 {
   "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // The site is the only workspace shipping client-side code (wizard island, #18).
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
   "include": ["src/**/*.ts"]
 }
