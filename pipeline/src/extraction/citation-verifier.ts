@@ -10,6 +10,13 @@
  * The citation's `page` is by convention the page where the citation STARTS;
  * a citation may straddle the stated page and the next one (justified PDF
  * text flows across pages), which is reported explicitly.
+ *
+ * Page-join rule (complements the normalization rules of normalize.ts): when
+ * a page ends with a HARD hyphen — an end-of-line hyphenation the PDF carries
+ * as '-' rather than U+00AD — the boundary is searched under three healings:
+ * plain join ('… fis- cale …'), dehyphenated join ('… fiscale …'), and
+ * hyphen-kept join without a space ('… long-terme …', for compounds broken
+ * after their own hyphen). Matching ANY variant verifies the citation.
  */
 import { normalizeForSearch } from './normalize.ts';
 import type { ProgrammeTextLayer } from './text-layer.ts';
@@ -21,6 +28,20 @@ export type CitationVerdict =
   | { status: 'found_elsewhere'; pages: number[] }
   /** Not present in the layer at all — hallucinated or altered. */
   | { status: 'not_found' };
+
+/**
+ * Healings of the (page, next page) boundary — see the page-join rule above.
+ * Inputs are already normalized, so an end-of-page hyphenation is exactly a
+ * trailing '-' followed by a word at the head of the next page.
+ */
+function pageJoinVariants(current: string, next: string): string[] {
+  const variants = [`${current} ${next}`];
+  if (current.endsWith('-') && /^[\p{L}\p{N}]/u.test(next)) {
+    variants.push(`${current.slice(0, -1)}${next}`); // 'fis-' + 'cale' → 'fiscale'
+    variants.push(`${current}${next}`); // 'long-' + 'terme' → 'long-terme'
+  }
+  return variants;
+}
 
 export function verifyCitation(
   texte: string,
@@ -43,11 +64,15 @@ export function verifyCitation(
       continue;
     }
     const next = pages[i + 1];
-    // Start-of-span detection: present in the (page, next page) concatenation
+    // Start-of-span detection: present in a (page, next page) join variant
     // but not in either page alone → the citation starts on page i+1 and
     // flows onto the next page. A match fully on the next page is recorded by
     // the next iteration instead.
-    if (next !== undefined && !next.includes(needle) && `${current} ${next}`.includes(needle)) {
+    if (
+      next !== undefined &&
+      !next.includes(needle) &&
+      pageJoinVariants(current, next).some((joined) => joined.includes(needle))
+    ) {
       matches.push({ page: i + 1, spans: true });
     }
   }

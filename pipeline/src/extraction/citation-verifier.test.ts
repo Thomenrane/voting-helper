@@ -105,6 +105,29 @@ describe('verifyCitation — pagination', () => {
     ).toEqual({ status: 'verified', page: 1, spans_next_page: true });
   });
 
+  it('verifies a word hyphenated by a hard hyphen at the page break', () => {
+    // Real PDF case: 'fis-' ends page 1, 'cale' starts page 2 — the LLM
+    // legitimately quotes the healed word 'fiscale'.
+    const layer = layerOf(
+      'Le programme prévoit une réforme fis-',
+      'cale ambitieuse pour la législature.',
+    );
+    expect(
+      verifyCitation('une réforme fiscale ambitieuse pour la législature.', 1, layer),
+    ).toEqual({ status: 'verified', page: 1, spans_next_page: true });
+  });
+
+  it('verifies a hyphenated compound split at the page break keeping its hyphen', () => {
+    // 'long-terme' broken after its OWN hyphen: dehyphenation must not be
+    // forced — both healed forms are tried at the boundary.
+    const layer = layerOf('Un projet long-', 'terme ambitieux pour le pays.');
+    expect(verifyCitation('Un projet long-terme ambitieux pour le pays.', 1, layer)).toEqual({
+      status: 'verified',
+      page: 1,
+      spans_next_page: true,
+    });
+  });
+
   it('reports the real start page when the stated page is the tail of the span', () => {
     expect(
       verifyCitation('une réforme fiscale juste et progressive pour tous les revenus.', 2, SPLIT),
