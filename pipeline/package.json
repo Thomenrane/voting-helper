@@ -5,6 +5,10 @@
   "type": "module",
   "license": "AGPL-3.0-only",
   "dependencies": {
-    "@voting-helper/data": "*"
+    "@voting-helper/data": "*",
+    "hyparquet": "^1.26.2"
+  },
+  "devDependencies": {
+    "hyparquet-writer": "^0.16.1"
   }
 }
