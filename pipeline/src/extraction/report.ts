@@ -22,7 +22,11 @@ function describeOutcome(outcome: StatementOutcome): string {
       const where =
         first === undefined ? '' : ` | ${first.source_id} p. ${first.citation_page}`;
       const texte = first === undefined ? '' : ` | « ${truncate(first.citation_texte)} »`;
-      return `rejetée${texte}${where} | ❌ citation non retrouvée — position REJETÉE (statut rejete)`;
+      const reason =
+        first !== undefined && first.verdict.status === 'found_elsewhere'
+          ? `citation retrouvée p. ${first.verdict.pages.join(', ')} mais pas p. ${first.citation_page} (page à corriger ?)`
+          : 'citation introuvable dans la couche texte';
+      return `rejetée${texte}${where} | ❌ ${reason} — position REJETÉE (statut rejete)`;
     }
     case 'conflict': {
       const detail = outcome.candidates

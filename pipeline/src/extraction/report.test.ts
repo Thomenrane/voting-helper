@@ -76,7 +76,36 @@ describe('renderReviewSummary', () => {
     expect(summary).toContain('demo-doc p. 12');
     expect(summary).toContain('1/2 citations proposées vérifiées mécaniquement');
     expect(summary).toContain('position REJETÉE');
+    expect(summary).toContain('citation introuvable');
     expect(summary).toContain('pas de position documentée');
+  });
+
+  it('tells the reviewer where a wrongly-paginated citation was really found', () => {
+    const withElsewhere = renderReviewSummary({
+      partyName: 'Parti Démo',
+      model: 'claude-sonnet-5',
+      runDate: '16/07/2026',
+      statements: STATEMENTS,
+      result: {
+        ...RESULT,
+        outcomes: [
+          {
+            kind: 'rejected',
+            statement_id: 's2',
+            candidates: [
+              {
+                ...CANDIDATE,
+                statement_id: 's2',
+                citation_page: 40,
+                verdict: { status: 'found_elsewhere', pages: [12, 87] },
+              },
+            ],
+          },
+        ],
+      },
+      cost: { input_tokens: 1, output_tokens: 1 },
+    });
+    expect(withElsewhere).toContain('retrouvée p. 12, 87 mais pas p. 40');
   });
 
   it('states that human PR review is the validation and shows the cost', () => {
