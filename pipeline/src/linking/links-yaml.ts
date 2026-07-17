@@ -76,15 +76,32 @@ export function buildPartyLinks(
   return { links, absences };
 }
 
+/** Order-insensitive full-field equality of two linked-vote sets. */
+function sameVotes(a: readonly LinkedVote[], b: readonly LinkedVote[]): boolean {
+  if (a.length !== b.length) return false;
+  const key = (v: LinkedVote): string =>
+    JSON.stringify([v.id, v.date, v.dossier, v.vote_groupe, v.direction_dossier, v.justification]);
+  const sorted = (votes: readonly LinkedVote[]): string => votes.map(key).sort().join('\n');
+  return sorted(a) === sorted(b);
+}
+
 /**
  * Merges one party's proposed vote links into its positions proposals.
  *
- * - An existing record gets its votes_lies REPLACED (re-runs are idempotent,
- *   never accumulating duplicates) and its revision date refreshed.
- * - A 'valide' record receiving new votes returns to 'en_attente': new
- *   material always goes through review again. A 'rejete' record stays
- *   'rejete' — the rejected citation still bars publication.
- * - A statement without a record gets a votes-only 'en_attente' record
+ * Human decisions survive routine runs (M4 of the #34 review):
+ * - a vote whose id is listed in the record's `votes_ecartes` (deleted by a
+ *   reviewer) is NEVER re-proposed;
+ * - when the (filtered) proposal equals the existing votes_lies — or nothing
+ *   remains to propose — the record is returned UNTOUCHED: statut and
+ *   derniere_revision are preserved, a re-run without new information is a
+ *   strict no-op.
+ * Otherwise:
+ * - an existing record gets its votes_lies REPLACED (re-runs never
+ *   accumulate duplicates) and its revision date refreshed;
+ * - a 'valide' record receiving genuinely new votes returns to 'en_attente':
+ *   new material always goes through review again. A 'rejete' record stays
+ *   'rejete' — the rejected citation still bars publication;
+ * - a statement without a record gets a votes-only 'en_attente' record
  *   (the shared schema allows programme-less records).
  * Statements absent from `votesByStatement` pass through untouched.
  */
@@ -100,9 +117,14 @@ export function mergeStatementVotes(
     const votes = remaining.get(record.statement_id);
     if (votes === undefined) return record;
     remaining.delete(record.statement_id);
+    const excluded = new Set(record.votes_ecartes ?? []);
+    const proposed = votes.filter((vote) => !excluded.has(vote.id));
+    if (proposed.length === 0 || sameVotes(record.votes_lies, proposed)) {
+      return record;
+    }
     return {
       ...record,
-      votes_lies: votes,
+      votes_lies: proposed,
       statut: record.statut === 'rejete' ? 'rejete' : 'en_attente',
       derniere_revision: revisionDate,
     };

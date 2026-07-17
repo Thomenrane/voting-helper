@@ -136,6 +136,17 @@ export function parsePositionsYaml(text: string, file: string): PartyPosition[] 
     r['votes_lies'].forEach((vote: unknown, voteIndex: number) => {
       assertLinkedVote(vote, file, index, voteIndex);
     });
+    const ecartes = r['votes_ecartes'];
+    if (ecartes !== undefined && ecartes !== null) {
+      if (
+        !Array.isArray(ecartes) ||
+        ecartes.some((id: unknown) => typeof id !== 'string' || id.trim().length === 0)
+      ) {
+        throw new Error(
+          `'${file}' position ${index} has an invalid votes_ecartes (expected an array of vote ids).`,
+        );
+      }
+    }
     const hasPosition = r['position'] !== undefined && r['position'] !== null;
     const hasCitation = r['citation'] !== undefined && r['citation'] !== null;
     if (hasPosition !== hasCitation) {

@@ -18,6 +18,12 @@ Un énoncé sans vote validé est **exclu du score « actes »** du parti — il
 n'est jamais compté comme neutre, et le dénominateur affiché le rend
 visible (« actes : basé sur N/35 énoncés »).
 
+Les décisions humaines priment sur les runs : un lien **supprimé en
+review** est consigné sur le record (champ `votes_ecartes`) et n'est
+**jamais re-proposé** par les runs suivants ; un run qui n'apporte aucune
+information nouvelle ne modifie ni le statut ni la date de révision d'un
+record existant.
+
 ## Critères d'inclusion
 
 Un vote est liable à un énoncé si et seulement si :

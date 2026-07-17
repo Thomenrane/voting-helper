@@ -124,6 +124,24 @@ describe('renderPositionsYaml / parsePositionsYaml round-trip', () => {
     );
   });
 
+  it('round-trips the votes_ecartes reviewer memory and rejects malformed ones', () => {
+    const withEcartes: PartyPosition[] = [
+      {
+        party_id: 'demo',
+        statement_id: 's1',
+        votes_lies: [],
+        votes_ecartes: ['56-m10-v3'],
+        statut: 'valide',
+        derniere_revision: '2026-07-17',
+      },
+    ];
+    expect(parsePositionsYaml(renderPositionsYaml(withEcartes, 'h'), 'demo.yaml')).toEqual(
+      withEcartes,
+    );
+    const bad = `positions:\n  - party_id: demo\n    statement_id: s1\n    votes_lies: []\n    votes_ecartes: [""]\n    statut: valide\n    derniere_revision: "2026-07-16"\n`;
+    expect(() => parsePositionsYaml(bad, 'x.yaml')).toThrow(/votes_ecartes/);
+  });
+
   it('rejects a linked vote missing its justification or date', () => {
     const noJustification = `positions:\n  - party_id: demo\n    statement_id: s1\n    votes_lies:\n      - id: v1\n        date: "2025-03-15"\n        dossier: DOC 56 0228\n        vote_groupe: oui\n        direction_dossier: soutient\n        justification: ""\n    statut: en_attente\n    derniere_revision: "2026-07-16"\n`;
     expect(() => parsePositionsYaml(noJustification, 'x.yaml')).toThrow(/justification/);

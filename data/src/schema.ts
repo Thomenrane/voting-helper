@@ -104,6 +104,12 @@ export type PartyPosition = ProgrammePosition & {
   party_id: string;
   statement_id: string;
   votes_lies: LinkedVote[];
+  /**
+   * Ids of linked votes REMOVED by a human reviewer. The vote-linking
+   * pipeline never re-proposes a vote listed here — a link deleted in
+   * review stays deleted across runs. Absent = none.
+   */
+  votes_ecartes?: string[];
   statut: PositionStatus;
   /** ISO date (YYYY-MM-DD) of the last human review of this record. */
   derniere_revision: string;

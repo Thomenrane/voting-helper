@@ -165,4 +165,46 @@ describe('mergeStatementVotes', () => {
     const second = mergeStatementVotes(first, 'ps', new Map([['s1', [vote]]]), '2026-07-18');
     expect(second[0]?.votes_lies).toHaveLength(1);
   });
+
+  it('is a strict no-op when the proposed votes equal the existing ones (M4a)', () => {
+    // A re-run bringing no new information must touch NEITHER the statut
+    // NOR derniere_revision — human decisions survive routine runs.
+    const first = mergeStatementVotes(existing, 'ps', new Map([['s1', [vote]]]), '2026-07-17');
+    const second = mergeStatementVotes(first, 'ps', new Map([['s1', [{ ...vote }]]]), '2026-09-01');
+    expect(second).toEqual(first);
+  });
+
+  it('keeps a valide record valide when the proposal is identical (M4a)', () => {
+    const validated: PartyPosition[] = [
+      { ...existing[0]!, statut: 'valide', votes_lies: [vote] },
+    ];
+    const merged = mergeStatementVotes(validated, 'ps', new Map([['s1', [{ ...vote }]]]), '2026-09-01');
+    expect(merged[0]).toEqual(validated[0]);
+  });
+
+  it('never re-proposes a vote the reviewer removed (votes_ecartes, M4b)', () => {
+    const reviewed: PartyPosition[] = [
+      { ...existing[0]!, statut: 'valide', votes_lies: [], votes_ecartes: [vote.id] },
+    ];
+    const merged = mergeStatementVotes(reviewed, 'ps', new Map([['s1', [vote]]]), '2026-09-01');
+    // The only proposed vote is excluded: the record is untouched.
+    expect(merged[0]).toEqual(reviewed[0]);
+  });
+
+  it('filters excluded votes but still proposes the genuinely new ones (M4b)', () => {
+    const other = { ...vote, id: '56-m12-v7', justification: 'Amendement direct.' };
+    const reviewed: PartyPosition[] = [
+      { ...existing[0]!, votes_lies: [], votes_ecartes: [vote.id] },
+    ];
+    const merged = mergeStatementVotes(
+      reviewed,
+      'ps',
+      new Map([['s1', [vote, other]]]),
+      '2026-09-01',
+    );
+    expect(merged[0]?.votes_lies).toEqual([other]);
+    expect(merged[0]?.statut).toBe('en_attente');
+    // The reviewer's exclusion memory is preserved on the record.
+    expect(merged[0]?.votes_ecartes).toEqual([vote.id]);
+  });
 });
