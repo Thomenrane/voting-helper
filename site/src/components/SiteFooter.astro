@@ -1,0 +1,92 @@
+---
+/**
+ * Site footer (#26) — the sober transparency nav present on every page:
+ * links to /methodologie, /equilibre and /changelog plus the double
+ * versioning line (methodology version + derived data date). Rendered by
+ * the Base layout so no page can ship without it.
+ */
+import { CHANGELOG, PARTY_POSITIONS } from '@voting-helper/data';
+import type { Locale } from '../i18n/locales.ts';
+import { localizePath } from '../i18n/paths.ts';
+import { UI } from '../i18n/ui.ts';
+import { formatDateBE } from '../lib/results/results-presentation.ts';
+import { deriveDataDate, METHODOLOGY_VERSION } from '../lib/transparency/versioning.ts';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = UI[lang];
+
+const links = [
+  { path: '/methodologie', label: t.methodologyPageName },
+  { path: '/equilibre', label: t.balancePageName },
+  { path: '/changelog', label: t.changelogPageName },
+];
+
+const dataDate = deriveDataDate(PARTY_POSITIONS, CHANGELOG);
+const versionLine = t.versionLine(
+  METHODOLOGY_VERSION,
+  dataDate === null ? t.notAvailable : formatDateBE(dataDate),
+);
+---
+
+<footer class="site-footer">
+  <nav class="footer-nav" aria-label={t.footerNavLabel}>
+    <span class="footer-nav-label" aria-hidden="true">{t.footerNavLabel}</span>
+    <ul class="footer-links">
+      {links.map(({ path, label }) => (
+        <li>
+          <a class="footer-link" href={localizePath(path, lang)}>{label}</a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+  <p class="footer-version">{versionLine}</p>
+</footer>
+
+<style>
+  .site-footer {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 2rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .footer-nav {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.375rem 1rem;
+  }
+
+  .footer-nav-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .footer-links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+  }
+
+  .footer-link {
+    font-size: 0.8125rem;
+    color: var(--accent-deep);
+  }
+
+  .footer-version {
+    margin: 0.625rem 0 0;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

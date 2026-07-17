@@ -1,0 +1,139 @@
+---
+/**
+ * Methodology page (#26) — the complete published formula, in exact
+ * agreement with the tested engine (scoring.ts): scale, vote mapping,
+ * city-block distance, exclusions, denominators, écart threshold and the
+ * contradiction badge. Plus: vote-selection criteria (summary + repo
+ * reference), the statement writing guide and the update cadence.
+ */
+import type { GetStaticPaths, InferGetStaticParamsType } from 'astro';
+import { CHANGELOG, PARTY_POSITIONS } from '@voting-helper/data';
+import { LOCALES } from '../../i18n/locales.ts';
+import { TRANSPARENCY } from '../../i18n/transparency.ts';
+import { UI } from '../../i18n/ui.ts';
+import TransparencyPage from '../../layouts/TransparencyPage.astro';
+import { formatDateBE } from '../../lib/results/results-presentation.ts';
+import { deriveDataDate, METHODOLOGY_VERSION } from '../../lib/transparency/versioning.ts';
+
+export const getStaticPaths = (() =>
+  LOCALES.map((lang) => ({ params: { lang } }))) satisfies GetStaticPaths;
+
+const { lang } = Astro.params as InferGetStaticParamsType<typeof getStaticPaths>;
+const t = UI[lang];
+const m = TRANSPARENCY[lang].methodology;
+
+// The full criteria document lives in the repository; linking the repo root
+// keeps the reference valid whatever the docs tree looks like.
+const REPO_URL = 'https://github.com/Thomenrane/voting-helper';
+
+const dataDate = deriveDataDate(PARTY_POSITIONS, CHANGELOG);
+const versionLine = t.versionLine(
+  METHODOLOGY_VERSION,
+  dataDate === null ? t.notAvailable : formatDateBE(dataDate),
+);
+---
+
+<TransparencyPage
+  lang={lang}
+  title={m.pageTitle}
+  description={m.metaDescription}
+  heading={m.heading}
+  intro={m.intro}
+>
+  <section>
+    <h2>{m.twoScores.heading}</h2>
+    {m.twoScores.body.map((paragraph) => <p>{paragraph}</p>)}
+  </section>
+
+  <section>
+    <h2>{m.scale.heading}</h2>
+    {m.scale.body.map((paragraph) => <p>{paragraph}</p>)}
+  </section>
+
+  <section>
+    <h2>{m.formula.heading}</h2>
+    <p>{m.formula.intro}</p>
+    <p class="formula">{m.formula.formulaLine}</p>
+    <ol>
+      {m.formula.steps.map((step) => <li>{step}</li>)}
+    </ol>
+    <h3>{m.formula.exclusionsHeading}</h3>
+    <ul>
+      {m.formula.exclusions.map((exclusion) => <li>{exclusion}</li>)}
+    </ul>
+    <h3>{m.formula.exampleHeading}</h3>
+    <p class="example">{m.formula.example}</p>
+  </section>
+
+  <section>
+    <h2>{m.ecart.heading}</h2>
+    {m.ecart.body.map((paragraph) => <p>{paragraph}</p>)}
+  </section>
+
+  <section>
+    <h2>{m.contradiction.heading}</h2>
+    {m.contradiction.body.map((paragraph) => <p>{paragraph}</p>)}
+  </section>
+
+  <section>
+    <h2>{m.votesSelection.heading}</h2>
+    {m.votesSelection.body.map((paragraph) => <p>{paragraph}</p>)}
+    <p>
+      <a href={REPO_URL} rel="noopener">{m.votesSelection.repoLinkLabel}</a>
+    </p>
+  </section>
+
+  <section>
+    <h2>{m.writingGuide.heading}</h2>
+    <p>{m.writingGuide.intro}</p>
+    <ul class="rules">
+      {m.writingGuide.rules.map((rule) => (
+        <li>
+          <strong class="rule-name">{rule.name}</strong> — {rule.description}
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section>
+    <h2>{m.cadence.heading}</h2>
+    {m.cadence.body.map((paragraph) => <p>{paragraph}</p>)}
+  </section>
+
+  <section>
+    <h2>{m.versioning.heading}</h2>
+    {m.versioning.body.map((paragraph) => <p>{paragraph}</p>)}
+    <p class="current-version">{versionLine}</p>
+  </section>
+</TransparencyPage>
+
+<style>
+  /* The formula is the page's centrepiece — the citation treatment (accent
+     bar + wash) already means « exact, verifiable » across the site. */
+  .formula {
+    padding: 0.625rem 0.875rem;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-wash);
+    border-radius: 0 0.5rem 0.5rem 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.0625rem;
+    line-height: 1.45;
+  }
+
+  .example {
+    color: var(--ink-soft);
+    border: 1px dashed var(--line);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+  }
+
+  .rule-name {
+    font-weight: 600;
+  }
+
+  .current-version {
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
