@@ -46,7 +46,7 @@ import {
   rankCandidatesLexically,
   type EligibleVote,
 } from '../linking/vote-preselection.ts';
-import { fail, resolveRepoRoot, VOTES_REVIEW_FILE } from './command-support.ts';
+import { fail, resolveRepoRoot, VOTES_FILES_MANIFEST, VOTES_REVIEW_FILE } from './command-support.ts';
 
 const MANIFEST_RELATIVE_PATH = 'data/manifests/votes.manifest.json';
 const PROPOSALS_DIR = 'data/positions/proposals';
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
   await mkdir(proposalsDir, { recursive: true });
 
   const partyNameById = new Map(PARTY_PROGRAMMES.map((p) => [p.party_id, p.name]));
-  let updatedFiles = 0;
+  const updatedRelatives: string[] = [];
   for (const [partyId, byStatement] of votesByPartyStatement) {
     const yamlPath = join(proposalsDir, `${partyId}.positions.yaml`);
     const yamlRelative = `${PROPOSALS_DIR}/${partyId}.positions.yaml`;
@@ -200,9 +200,15 @@ async function main(): Promise<void> {
       `(modèle ${model}, dataset ${snapshotId}). Statut en_attente : la review humaine\n` +
       `de la PR de lot est la validation. Généré — ne pas éditer à la main hors review.`;
     await writeFile(yamlPath, renderPositionsYaml(merged, header));
-    updatedFiles += 1;
+    updatedRelatives.push(yamlRelative);
     console.log(`  ~ ${yamlRelative} (${byStatement.size} statement(s) linked)`);
   }
+  updatedRelatives.sort();
+  // Sidecar manifest: positions:pr --votes commits exactly this run's files.
+  await writeFile(
+    join(proposalsDir, VOTES_FILES_MANIFEST),
+    `${JSON.stringify({ updated: updatedRelatives }, null, 2)}\n`,
+  );
 
   const cost = computeRunCost(usage, model);
   const review = renderLinkingReview({
@@ -220,7 +226,7 @@ async function main(): Promise<void> {
   console.log(
     `\nDone: ${retainedTotal} vote link(s) retained across ${STATEMENTS.length} statements ` +
       `(${withoutVotes} statement(s) without retained vote — excluded from the actes score), ` +
-      `${updatedFiles} party file(s) updated.`,
+      `${updatedRelatives.length} party file(s) updated.`,
   );
   console.log(`  ${PROPOSALS_DIR}/${VOTES_REVIEW_FILE}`);
   console.log(`\n${formatRunCost(cost, model)}`);

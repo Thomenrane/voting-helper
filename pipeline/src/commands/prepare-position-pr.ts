@@ -14,13 +14,12 @@
  * flow (the human review of that PR IS the validation — spec #15).
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { getPartyProgramme } from '../sources/party-programmes.ts';
-import { fail, resolveRepoRoot, VOTES_REVIEW_FILE } from './command-support.ts';
+import { fail, resolveRepoRoot, VOTES_FILES_MANIFEST, VOTES_REVIEW_FILE } from './command-support.ts';
 
 const PROPOSALS_DIR = 'data/positions/proposals';
 
@@ -60,21 +59,45 @@ function partyBatch(repoRoot: string, partyId: string, stamp: string): Batch {
   };
 }
 
+/** Reads the sidecar manifest listing the YAML files the run updated. */
+function readUpdatedFiles(repoRoot: string, manifestRelative: string): string[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(join(repoRoot, manifestRelative), 'utf8'));
+  } catch (cause) {
+    throw new Error(`'${manifestRelative}' is not valid JSON — re-run 'npm run link:votes'.`, {
+      cause,
+    });
+  }
+  const updated = (parsed as { updated?: unknown }).updated;
+  if (!Array.isArray(updated) || updated.some((file) => typeof file !== 'string')) {
+    throw new Error(`'${manifestRelative}' is malformed ('updated' must be a string array).`);
+  }
+  return updated as string[];
+}
+
 function votesBatch(repoRoot: string, stamp: string): Batch {
   const reviewRelative = `${PROPOSALS_DIR}/${VOTES_REVIEW_FILE}`;
-  if (!existsSync(join(repoRoot, reviewRelative))) {
-    throw new Error(`'${reviewRelative}' is missing — run 'npm run link:votes' first.`);
+  const filesManifestRelative = `${PROPOSALS_DIR}/${VOTES_FILES_MANIFEST}`;
+  for (const relative of [reviewRelative, filesManifestRelative]) {
+    if (!existsSync(join(repoRoot, relative))) {
+      throw new Error(`'${relative}' is missing — run 'npm run link:votes' first.`);
+    }
   }
-  const yamlFiles = readdirSync(join(repoRoot, PROPOSALS_DIR))
-    .filter((file) => file.endsWith('.positions.yaml'))
-    .sort()
-    .map((file) => `${PROPOSALS_DIR}/${file}`);
+  // Only the files THIS run touched (m3 of the #34 review): never a
+  // directory glob that could sweep unrelated proposals into the batch.
+  const yamlFiles = readUpdatedFiles(repoRoot, filesManifestRelative);
   if (yamlFiles.length === 0) {
-    throw new Error(`No positions proposals found in ${PROPOSALS_DIR} — run 'npm run link:votes' first.`);
+    throw new Error(`The last link:votes run updated no positions file — nothing to commit.`);
+  }
+  for (const relative of yamlFiles) {
+    if (!existsSync(join(repoRoot, relative))) {
+      throw new Error(`'${relative}' (listed by ${filesManifestRelative}) is missing on disk.`);
+    }
   }
   return {
     branch: `votes/liaison-${stamp}`,
-    files: [...yamlFiles, reviewRelative],
+    files: [...yamlFiles, reviewRelative, filesManifestRelative],
     commitMessage:
       `Liaison des votes aux énoncés — lot de review (statut en_attente)\n\n` +
       `Liens proposés par link:votes selon les critères publiés\n` +

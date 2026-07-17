@@ -21,6 +21,14 @@ export function resolveRepoRoot(): string {
  */
 export const VOTES_REVIEW_FILE = 'votes-liaison.review.md';
 
+/**
+ * Sidecar manifest of the latest vote-linking run: the repo-relative YAML
+ * files the run actually updated. prepare-position-pr --votes commits
+ * exactly these files — never a directory glob that could sweep unrelated
+ * proposals into the batch.
+ */
+export const VOTES_FILES_MANIFEST = 'votes-liaison.files.json';
+
 export function describeEntry(entry: SnapshotEntry): string {
   const unchanged =
     entry.content_unchanged_from === undefined
