@@ -100,4 +100,17 @@ describe('renderSelectionReport', () => {
     expect(report).toContain('la sélection et la réécriture sont humaines');
     expect(report).toContain('guide-redaction-enonces.md');
   });
+
+  it('escapes pipes and newlines in candidate text so the table never breaks', () => {
+    const tricky = candidate('a-c001', 'fiscalite');
+    tricky.texte_fr = 'Choisir A | B\nsur deux lignes.';
+    const report = renderSelectionReport({
+      runDate: '17/07/2026',
+      poolFiles: ['data/statements/pool/x.candidates.yaml'],
+      ranked: rankCandidates([tricky]),
+      coverage: assessPoolCoverage([tricky]),
+    });
+    expect(report).toContain('Choisir A \\| B sur deux lignes.');
+    expect(report).not.toContain('Choisir A | B');
+  });
 });

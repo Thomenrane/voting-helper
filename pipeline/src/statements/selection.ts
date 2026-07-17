@@ -71,6 +71,14 @@ export function assessPoolCoverage(candidates: readonly CandidateStatement[]): T
   );
 }
 
+/**
+ * Makes free text safe inside a markdown table cell: pipes would open a
+ * new column, newlines would break the row.
+ */
+function escapeCell(text: string): string {
+  return text.replace(/\r?\n/gu, ' ').replace(/\|/gu, '\\|');
+}
+
 function formatScore(discriminance: DiscriminanceResult): string {
   return discriminance.score === null
     ? 'non codé'
@@ -143,8 +151,8 @@ export function renderSelectionReport(options: SelectionReportOptions): string {
     ...ranked.map(
       (entry, index) =>
         `| ${index + 1} | ${entry.candidate.id} | ${entry.candidate.theme} | ` +
-        `${formatScore(entry.discriminance)} | ${entry.candidate.texte_fr} | ` +
-        `${describeOrigin(entry.candidate)} |`,
+        `${formatScore(entry.discriminance)} | ${escapeCell(entry.candidate.texte_fr)} | ` +
+        `${escapeCell(describeOrigin(entry.candidate))} |`,
     ),
   );
   return lines.join('\n');
