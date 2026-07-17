@@ -89,6 +89,23 @@ interface UiStrings {
   backToTestLabel: string;
   /** e.g. « Méthodologie v1 — données au 16/07/2026 » (date pre-formatted). */
   versionLine: (version: string, dataDate: string) => string;
+  // Share image (#27)
+  shareButtonLabel: string;
+  /** Reassurance under the share button — generation is 100 % local. */
+  shareHint: string;
+  /** Announced (role=status) after the native share sheet completes. */
+  shareSharedStatus: string;
+  /** Announced (role=status) after the download fallback fires. */
+  shareDownloadedStatus: string;
+  /** Announced (role=status) when generation or sharing fails. */
+  shareErrorStatus: string;
+  /** File name of the generated PNG. */
+  shareFileName: string;
+  /** Short column headings on the share image (space is tight there). */
+  shareImagePromessesHeading: string;
+  shareImageActesHeading: string;
+  /** Legend explaining the per-score denominators on the image. */
+  shareImageDenominatorLegend: (total: number) => string;
 }
 
 const THEME_LABELS_FR: Record<string, string> = {
@@ -186,6 +203,16 @@ export const UI: Record<Locale, UiStrings> = {
     footerNavLabel: 'Transparence',
     backToTestLabel: 'Retour au test',
     versionLine: (version, dataDate) => `Méthodologie ${version} — données au ${dataDate}`,
+    shareButtonLabel: 'Partager mon résultat',
+    shareHint: 'Image générée dans votre navigateur — vos réponses ne le quittent pas.',
+    shareSharedStatus: 'Image partagée.',
+    shareDownloadedStatus: 'Image téléchargée.',
+    shareErrorStatus: 'La génération de l’image a échoué. Réessayez.',
+    shareFileName: 'mes-resultats.png',
+    shareImagePromessesHeading: 'Promesses',
+    shareImageActesHeading: 'Actes',
+    shareImageDenominatorLegend: (total) =>
+      `x/${total} : énoncés inclus dans le calcul du score`,
   },
   nl: {
     siteTitle: 'Federale stemtest — demonstratie',
@@ -266,5 +293,14 @@ export const UI: Record<Locale, UiStrings> = {
     footerNavLabel: 'Transparantie',
     backToTestLabel: 'Terug naar de test',
     versionLine: (version, dataDate) => `Methodologie ${version} — gegevens per ${dataDate}`,
+    shareButtonLabel: 'Mijn resultaat delen',
+    shareHint: 'Afbeelding gemaakt in uw browser — uw antwoorden verlaten hem niet.',
+    shareSharedStatus: 'Afbeelding gedeeld.',
+    shareDownloadedStatus: 'Afbeelding gedownload.',
+    shareErrorStatus: 'Het maken van de afbeelding is mislukt. Probeer opnieuw.',
+    shareFileName: 'mijn-resultaten.png',
+    shareImagePromessesHeading: 'Beloften',
+    shareImageActesHeading: 'Daden',
+    shareImageDenominatorLegend: (total) => `x/${total}: stellingen meegeteld in de score`,
   },
 };
