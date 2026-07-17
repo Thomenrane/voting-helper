@@ -242,8 +242,8 @@ Les 35 énoncés finaux sont des enregistrements conformes au type
 }
 ```
 
-- Les ids `e01`…`e35` sont définitifs : ils clés les positions, les votes
-  liés et les réponses sauvegardées des utilisateurs.
+- Les ids `e01`…`e35` sont définitifs : ils indexent les positions, les
+  votes liés et les réponses sauvegardées des utilisateurs.
 - Le statut brouillon des versions NL est porté par la PR de sélection
   (checklist « relecture NL native en attente », bloquante pour le
   lancement, décision #7) — le schéma ne porte pas de drapeau : aucune
