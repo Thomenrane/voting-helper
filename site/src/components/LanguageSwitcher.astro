@@ -1,0 +1,66 @@
+---
+/**
+ * Language switcher (#20) — links to the same path in every locale. A plain
+ * navigation, no client script: the wizard's answers live in a shared,
+ * locale-independent localStorage key (keyed by statement id), so switching
+ * language reloads the page in the other locale and the test resumes where
+ * it stood — nothing is lost.
+ */
+import { LOCALE_LABELS, LOCALES, type Locale } from '../i18n/locales.ts';
+import { localizePath } from '../i18n/paths.ts';
+import { UI } from '../i18n/ui.ts';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = UI[lang];
+const pathname = Astro.url.pathname;
+---
+
+<nav class="lang-switcher" aria-label={t.languageSwitcherLabel}>
+  {
+    LOCALES.map((locale) => (
+      <a
+        href={localizePath(pathname, locale)}
+        lang={locale}
+        hreflang={locale}
+        aria-current={locale === lang ? 'page' : undefined}
+      >
+        {LOCALE_LABELS[locale]}
+      </a>
+    ))
+  }
+</nav>
+
+<style>
+  .lang-switcher {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    padding-top: 0.75rem;
+  }
+
+  a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--ink-soft);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--accent-deep);
+    background: var(--accent-wash);
+  }
+
+  a[aria-current='page'] {
+    color: var(--accent-deep);
+    font-weight: 600;
+    background: var(--accent-wash);
+  }
+</style>

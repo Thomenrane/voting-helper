@@ -1,5 +1,6 @@
 ---
-import type { Locale } from '../i18n/locales.ts';
+import { DEFAULT_LOCALE, LOCALES, type Locale } from '../i18n/locales.ts';
+import { localizePath } from '../i18n/paths.ts';
 
 interface Props {
   lang: Locale;
@@ -8,6 +9,17 @@ interface Props {
 }
 
 const { lang, title, description } = Astro.props;
+
+// Every page exists in every locale at the same path — announce the
+// alternates (x-default → the default locale, matching the / redirect).
+// hreflang URLs must be absolute (Google ignores relative ones), hence the
+// hard requirement on the configured site origin.
+if (Astro.site === undefined) {
+  throw new Error('astro.config.ts must define `site` — required for absolute hreflang URLs.');
+}
+const site = Astro.site;
+const pathname = Astro.url.pathname;
+const alternateUrl = (locale: Locale): string => new URL(localizePath(pathname, locale), site).href;
 ---
 
 <!doctype html>
@@ -17,6 +29,10 @@ const { lang, title, description } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <title>{title}</title>
+    {LOCALES.map((locale) => (
+      <link rel="alternate" hreflang={locale} href={alternateUrl(locale)} />
+    ))}
+    <link rel="alternate" hreflang="x-default" href={alternateUrl(DEFAULT_LOCALE)} />
   </head>
   <body>
     <slot />

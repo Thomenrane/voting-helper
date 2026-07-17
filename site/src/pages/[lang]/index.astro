@@ -1,0 +1,93 @@
+---
+/**
+ * The full test journey, one page per locale (#20): /fr and /nl are built
+ * from this single route — the locale flows down as a prop, the components
+ * resolve every string through UI[lang] and the bilingual helpers.
+ */
+import type { GetStaticPaths, InferGetStaticParamsType } from 'astro';
+import LanguageSwitcher from '../../components/LanguageSwitcher.astro';
+import TestWizard from '../../components/TestWizard.astro';
+import { LOCALES } from '../../i18n/locales.ts';
+import { UI } from '../../i18n/ui.ts';
+import Base from '../../layouts/Base.astro';
+
+export const getStaticPaths = (() =>
+  LOCALES.map((lang) => ({ params: { lang } }))) satisfies GetStaticPaths;
+
+const { lang } = Astro.params as InferGetStaticParamsType<typeof getStaticPaths>;
+const t = UI[lang];
+---
+
+<Base lang={lang} title={t.siteTitle} description={t.metaDescription}>
+  <p class="demo-banner">{t.demoBanner}</p>
+  {t.draftNotice !== null && <p class="draft-banner">{t.draftNotice}</p>}
+
+  <main>
+    <LanguageSwitcher lang={lang} />
+
+    <header class="masthead">
+      <h1>{t.heading}</h1>
+      <p class="intro">{t.intro}</p>
+    </header>
+
+    <TestWizard lang={lang} />
+  </main>
+</Base>
+
+<style>
+  .demo-banner {
+    margin: 0;
+    padding: 0.5rem 1rem;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 0.8125rem;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  /* Draft-quality strip (#7) — discreet but visible, distinct from the
+     demo banner so the two caveats read separately. */
+  .draft-banner {
+    margin: 0;
+    padding: 0.375rem 1rem;
+    background: var(--accent-wash);
+    color: var(--accent-deep);
+    border-bottom: 1px dashed var(--accent);
+    font-size: 0.75rem;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  main {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .masthead {
+    padding: 1.5rem 0 2rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.75rem, 6vw, 2.5rem);
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+
+  .intro {
+    margin: 0.75rem 0 0;
+    color: var(--ink-soft);
+    font-size: 0.9375rem;
+    max-width: 34rem;
+  }
+
+  @media (min-width: 40rem) {
+    main {
+      padding-top: 2.5rem;
+    }
+  }
+</style>
