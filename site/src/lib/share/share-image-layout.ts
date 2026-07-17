@@ -166,6 +166,73 @@ const LEGEND_FONT: FontSpec = { px: 22, weight: 400, family: 'sans' };
 const ACTES_RIGHT = SHARE_IMAGE_WIDTH - MARGIN - 36;
 const PROMESSES_RIGHT = ACTES_RIGHT - 210;
 
+/** Row height at which the base type scale applies unscaled. */
+const REFERENCE_ROW_HEIGHT = 116;
+
+/** Below this row height, rows collapse to a single-baseline compact form. */
+const COMPACT_ROW_HEIGHT = 80;
+
+/**
+ * Compact form: horizontal room reserved right of each score for its
+ * denominator, which moves onto the same baseline.
+ */
+const DENOMINATOR_RESERVE = 84;
+
+/** Per-row type scale — every size and baseline derives from the row height. */
+interface RowTypography {
+  compact: boolean;
+  rank: FontSpec;
+  name: FontSpec;
+  score: FontSpec;
+  denominator: FontSpec;
+  badge: FontSpec;
+  /** Baseline of rank / name / scores, offset from the row top. */
+  baseline1: number;
+  /** Baseline of denominators / écart — equals baseline1 in compact form. */
+  baseline2: number;
+}
+
+function clampPx(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+/**
+ * Derive the row type scale from the available row height, so the image
+ * stays legible from 6 up to ~15 parties. Two regimes:
+ * - regular (≥ COMPACT_ROW_HEIGHT): two baselines, base sizes scaled down
+ *   proportionally with a floor;
+ * - compact: one baseline — score and denominator side by side, the écart
+ *   pill replaced by a compact signed marker — sizes derived from the row
+ *   height with per-role floors.
+ */
+function deriveRowTypography(rowHeight: number): RowTypography {
+  if (rowHeight >= COMPACT_ROW_HEIGHT) {
+    const scale = Math.max(0.75, Math.min(1, rowHeight / REFERENCE_ROW_HEIGHT));
+    const scaled = (font: FontSpec): FontSpec => ({ ...font, px: Math.round(font.px * scale) });
+    return {
+      compact: false,
+      rank: scaled(RANK_FONT),
+      name: scaled(NAME_FONT),
+      score: scaled(SCORE_FONT),
+      denominator: scaled(DENOMINATOR_FONT),
+      badge: scaled(BADGE_FONT),
+      baseline1: Math.round(rowHeight * 0.42),
+      baseline2: Math.round(rowHeight * 0.8),
+    };
+  }
+  const baseline = Math.round(rowHeight * 0.66);
+  return {
+    compact: true,
+    rank: { ...RANK_FONT, px: clampPx(rowHeight * 0.4, 15, RANK_FONT.px) },
+    name: { ...NAME_FONT, px: clampPx(rowHeight * 0.42, 18, NAME_FONT.px) },
+    score: { ...SCORE_FONT, px: clampPx(rowHeight * 0.5, 20, SCORE_FONT.px) },
+    denominator: { ...DENOMINATOR_FONT, px: clampPx(rowHeight * 0.34, 13, DENOMINATOR_FONT.px) },
+    badge: { ...BADGE_FONT, px: clampPx(rowHeight * 0.34, 13, BADGE_FONT.px) },
+    baseline1: baseline,
+    baseline2: baseline,
+  };
+}
+
 /**
  * Compose the full share image. Rows follow the promesses ranking (the same
  * primary order as the results screen and its audit drill-down); each row
@@ -239,13 +306,32 @@ export function buildShareImageLayout(
   }
   cursorY -= 62; // back to the last title baseline
 
-  // ——— Column headings over the two score columns ———
-  cursorY += 84;
+  // ——— Row geometry first: the type scale, the compact/regular regime and
+  // the column anchors all derive from the height available per row ———
+  const colHeaderY = cursorY + 84;
+  const footerBaseline = SHARE_IMAGE_HEIGHT - 60;
+  const footerRuleY = SHARE_IMAGE_HEIGHT - 104;
+  const legendBaseline = footerRuleY - 28;
+  const listTop = colHeaderY + 24;
+  const listBottom = legendBaseline - LEGEND_FONT.px - 28;
+  const rowCount = Math.max(scores.length, 1);
+  const rowGap = rowCount > 8 ? 10 : 16;
+  const rowHeight = Math.min(
+    REFERENCE_ROW_HEIGHT,
+    Math.floor((listBottom - listTop - (rowCount - 1) * rowGap) / rowCount),
+  );
+  const typo = deriveRowTypography(rowHeight);
+  // In compact form the denominator moves onto the score baseline, right of
+  // the score — the score anchor (and its heading) shifts left to make room.
+  const promScoreRight = typo.compact ? PROMESSES_RIGHT - DENOMINATOR_RESERVE : PROMESSES_RIGHT;
+  const actesScoreRight = typo.compact ? ACTES_RIGHT - DENOMINATOR_RESERVE : ACTES_RIGHT;
+
+  // ——— Column headings — each shares the x anchor of its score column ———
   items.push({
     kind: 'text',
     text: strings.promessesHeading,
-    x: PROMESSES_RIGHT,
-    y: cursorY,
+    x: promScoreRight,
+    y: colHeaderY,
     align: 'right',
     font: COLUMN_FONT,
     color: 'ink-soft',
@@ -253,17 +339,12 @@ export function buildShareImageLayout(
   items.push({
     kind: 'text',
     text: strings.actesHeading,
-    x: ACTES_RIGHT,
-    y: cursorY,
+    x: actesScoreRight,
+    y: colHeaderY,
     align: 'right',
     font: COLUMN_FONT,
     color: 'ink-soft',
   });
-
-  // ——— Footer anchors (composed bottom-up so the list gets the rest) ———
-  const footerBaseline = SHARE_IMAGE_HEIGHT - 60;
-  const footerRuleY = SHARE_IMAGE_HEIGHT - 104;
-  const legendBaseline = footerRuleY - 28;
 
   items.push({
     kind: 'rect',
@@ -294,25 +375,41 @@ export function buildShareImageLayout(
   });
 
   // ——— Party rows, promesses ranking order ———
-  const listTop = cursorY + 24;
-  const listBottom = legendBaseline - LEGEND_FONT.px - 28;
-  const rowGap = 16;
-  const rowCount = Math.max(scores.length, 1);
-  const rowHeight = Math.min(
-    116,
-    Math.floor((listBottom - listTop - (rowCount - 1) * rowGap) / rowCount),
-  );
-
   const scoreById = new Map(scores.map((s) => [s.partyId, s]));
   const nameLeft = MARGIN + 88;
-  const nameMaxWidth = PROMESSES_RIGHT - 150 - nameLeft;
+  // Names (and compact markers) must end before the widest promesses score.
+  const maxPromScoreWidth = scores.reduce(
+    (widest, s) =>
+      Math.max(widest, measure(formatScore(s.promesses.score, strings.notAvailable), typo.score)),
+    0,
+  );
+  const maxPromDenominatorWidth = scores.reduce(
+    (widest, s) =>
+      Math.max(widest, measure(`${s.promesses.denominator}/${totalStatements}`, typo.denominator)),
+    0,
+  );
+  const nameRightLimit = promScoreRight - maxPromScoreWidth - 24;
 
   rankByDimension(scores, 'promesses').forEach((ranked, index) => {
     const party = scoreById.get(ranked.partyId);
     if (party === undefined) return;
     const top = listTop + index * (rowHeight + rowGap);
-    const baseline1 = top + Math.round(rowHeight * 0.42);
-    const baseline2 = top + Math.round(rowHeight * 0.8);
+    const baseline1 = top + typo.baseline1;
+    const baseline2 = top + typo.baseline2;
+
+    // Compact écart marker (replaces the pill): a signed number after the
+    // name, dot-prefixed and accented when the engine flags it marquant.
+    const compactMarker =
+      typo.compact && party.ecart !== null
+        ? `${party.ecartMarquant ? '● ' : ''}${formatEcart(party.ecart)}`
+        : null;
+    const markerReserve = compactMarker === null ? 0 : measure(compactMarker, typo.badge) + 14;
+    const name = truncateToWidth(
+      partyNames.get(party.partyId) ?? party.partyId,
+      nameRightLimit - markerReserve - nameLeft,
+      typo.name,
+      measure,
+    );
 
     items.push({
       kind: 'rect',
@@ -330,52 +427,59 @@ export function buildShareImageLayout(
       x: MARGIN + 30,
       y: baseline1,
       align: 'left',
-      font: RANK_FONT,
+      font: typo.rank,
       color: 'ink-soft',
     });
     items.push({
       kind: 'text',
-      text: truncateToWidth(
-        partyNames.get(party.partyId) ?? party.partyId,
-        nameMaxWidth,
-        NAME_FONT,
-        measure,
-      ),
+      text: name,
       x: nameLeft,
       y: baseline1,
       align: 'left',
-      font: NAME_FONT,
+      font: typo.name,
       color: 'ink',
     });
+    if (compactMarker !== null) {
+      items.push({
+        kind: 'text',
+        text: compactMarker,
+        x: nameLeft + measure(name, typo.name) + 14,
+        y: baseline1,
+        align: 'left',
+        font: typo.badge,
+        color: party.ecartMarquant ? 'accent' : 'ink-soft',
+      });
+    }
 
     // The two scores, side by side — separate columns, never one number.
     items.push({
       kind: 'text',
       text: formatScore(party.promesses.score, strings.notAvailable),
-      x: PROMESSES_RIGHT,
+      x: promScoreRight,
       y: baseline1,
       align: 'right',
-      font: SCORE_FONT,
+      font: typo.score,
       color: 'ink',
     });
     items.push({
       kind: 'text',
       text: formatScore(party.actes.score, strings.notAvailable),
-      x: ACTES_RIGHT,
+      x: actesScoreRight,
       y: baseline1,
       align: 'right',
-      font: SCORE_FONT,
+      font: typo.score,
       color: 'ink',
     });
 
-    // Denominators — always displayed, one per dimension.
+    // Denominators — always displayed, one per dimension. In compact form
+    // they share the score baseline, right of the score.
     items.push({
       kind: 'text',
       text: `${party.promesses.denominator}/${totalStatements}`,
       x: PROMESSES_RIGHT,
       y: baseline2,
       align: 'right',
-      font: DENOMINATOR_FONT,
+      font: typo.denominator,
       color: 'ink-soft',
     });
     items.push({
@@ -384,22 +488,26 @@ export function buildShareImageLayout(
       x: ACTES_RIGHT,
       y: baseline2,
       align: 'right',
-      font: DENOMINATOR_FONT,
+      font: typo.denominator,
       color: 'ink-soft',
     });
 
-    // Écart badge — mirrors the mobile results badge; accent-filled pill
-    // when the engine flags the écart as marquant.
-    if (party.ecart !== null) {
+    // Écart pill (regular form only) — mirrors the mobile results badge;
+    // accent-filled when the engine flags the écart as marquant.
+    if (!typo.compact && party.ecart !== null) {
       const label = party.ecartMarquant ? strings.ecartMarquantLabel : strings.ecartLabel;
-      const badgeText = `${label} ${formatEcart(party.ecart)}`;
-      const badgeWidth = Math.ceil(measure(badgeText, BADGE_FONT)) + 32;
-      const badgeHeight = 32;
+      const badgeText = truncateToWidth(
+        `${label} ${formatEcart(party.ecart)}`,
+        PROMESSES_RIGHT - maxPromDenominatorWidth - 24 - (nameLeft + 16),
+        typo.badge,
+        measure,
+      );
+      const badgeHeight = typo.badge.px + 12;
       const pill: RectItem = {
         kind: 'rect',
         x: nameLeft,
-        y: baseline2 - 23,
-        width: badgeWidth,
+        y: baseline2 - typo.badge.px - 3,
+        width: Math.ceil(measure(badgeText, typo.badge)) + 32,
         height: badgeHeight,
         radius: badgeHeight / 2,
       };
@@ -412,7 +520,7 @@ export function buildShareImageLayout(
         x: nameLeft + 16,
         y: baseline2,
         align: 'left',
-        font: BADGE_FONT,
+        font: typo.badge,
         color: party.ecartMarquant ? 'paper' : 'accent-deep',
       });
     }

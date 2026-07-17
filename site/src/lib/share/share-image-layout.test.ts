@@ -7,7 +7,8 @@
  * asserted without a DOM.
  */
 import { describe, expect, it } from 'vitest';
-import type { PartyScore } from '../scoring/scoring.ts';
+import { formatEcart } from '../results/results-presentation.ts';
+import { ECART_MARQUANT_THRESHOLD, type PartyScore } from '../scoring/scoring.ts';
 import {
   buildShareImageLayout,
   SHARE_IMAGE_HEIGHT,
@@ -39,7 +40,8 @@ function score(
     promesses: { score: promesses, denominator: options.promDen ?? 7 },
     actes: { score: actes, denominator: options.actesDen ?? 5 },
     ecart,
-    ecartMarquant: options.ecartMarquant ?? (ecart !== null && Math.abs(ecart) >= 15),
+    ecartMarquant:
+      options.ecartMarquant ?? (ecart !== null && Math.abs(ecart) >= ECART_MARQUANT_THRESHOLD),
     contradictions: [],
   };
 }
@@ -126,14 +128,19 @@ describe('buildShareImageLayout', () => {
   it('names the site and both score columns — the two scores are never fused', () => {
     const items = texts(input([score('a', 80, 60)]));
     expect(findText(items, STRINGS.siteTitle)).toBeDefined();
-    expect(findText(items, STRINGS.promessesHeading)).toBeDefined();
-    expect(findText(items, STRINGS.actesHeading)).toBeDefined();
-    // Both scores appear as distinct items in distinct columns.
+    // Each score shares the x anchor of ITS OWN column heading — a
+    // promesses/actes swap would fail here.
+    const promHeading = findText(items, STRINGS.promessesHeading);
+    const actesHeading = findText(items, STRINGS.actesHeading);
     const prom = findText(items, '80');
     const actes = findText(items, '60');
-    expect(prom).toBeDefined();
-    expect(actes).toBeDefined();
-    expect(prom?.x).not.toBe(actes?.x);
+    expect(promHeading).toBeDefined();
+    expect(actesHeading).toBeDefined();
+    expect(promHeading?.x).not.toBe(actesHeading?.x);
+    expect(prom?.x).toBe(promHeading?.x);
+    expect(actes?.x).toBe(actesHeading?.x);
+    expect(prom?.align).toBe('right');
+    expect(actes?.align).toBe('right');
   });
 
   it('orders the rows by the promesses ranking', () => {
@@ -160,10 +167,10 @@ describe('buildShareImageLayout', () => {
 
   it('labels the écart with its sign, and marks a marquant écart', () => {
     const plain = texts(input([score('a', 70, 62)]));
-    expect(findText(plain, 'écart +8')).toBeDefined();
+    expect(findText(plain, `écart ${formatEcart(8)}`)).toBeDefined();
 
     const marquant = texts(input([score('a', 40, 63)]));
-    expect(findText(marquant, 'écart marquant -23')).toBeDefined();
+    expect(findText(marquant, `écart marquant ${formatEcart(-23)}`)).toBeDefined();
   });
 
   it('shows no écart badge when either score is null', () => {
@@ -210,5 +217,99 @@ describe('buildShareImageLayout', () => {
         expect(item.y).toBeLessThanOrEqual(layout.height);
       }
     }
+  });
+});
+
+/** Approximate glyph bounding box: ~0.8 em ascent, ~0.25 em descent. */
+interface GlyphBox {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+function glyphBox(item: TextItem): GlyphBox {
+  const width = measure(item.text, item.font);
+  const left =
+    item.align === 'left' ? item.x : item.align === 'right' ? item.x - width : item.x - width / 2;
+  return {
+    left,
+    right: left + width,
+    top: item.y - item.font.px * 0.8,
+    bottom: item.y + item.font.px * 0.25,
+  };
+}
+
+function boxesOverlap(a: GlyphBox, b: GlyphBox): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+/**
+ * A fleet of n parties with realistic long names, varied écarts (plain,
+ * marquant, null) and the real 35-statement denominator space.
+ */
+function fleet(n: number): ShareImageInput {
+  const scores = Array.from({ length: n }, (_, i) =>
+    score(`p${i}`, 96 - i * 5, i % 4 === 3 ? null : 88 - i * 6, {
+      promDen: 7 + (i % 3),
+      actesDen: 5 + (i % 4),
+    }),
+  );
+  return {
+    scores,
+    partyNames: new Map(
+      scores.map((s, i) => [s.partyId, `Mouvement citoyen fédéral démocrate ${i + 1}`]),
+    ),
+    totalStatements: 35,
+    strings: STRINGS,
+  };
+}
+
+describe('share image geometry — target party counts', () => {
+  // 6 = current fixtures; 13 = the real federal target; 15 = headroom. The
+  // layout must not silently degrade: no two glyph boxes may collide.
+  for (const n of [6, 13, 15]) {
+    it(`keeps every glyph box collision-free and inside the canvas at ${n} parties`, () => {
+      const layout = buildShareImageLayout(fleet(n), measure);
+      const boxed = layout.items
+        .filter((item): item is TextItem => item.kind === 'text')
+        .map((item) => ({ item, box: glyphBox(item) }));
+      for (const { item, box } of boxed) {
+        expect(box.left, `"${item.text}" leaks left`).toBeGreaterThanOrEqual(0);
+        expect(box.right, `"${item.text}" leaks right`).toBeLessThanOrEqual(layout.width);
+        expect(box.top, `"${item.text}" leaks up`).toBeGreaterThanOrEqual(0);
+        expect(box.bottom, `"${item.text}" leaks down`).toBeLessThanOrEqual(layout.height);
+      }
+      for (let i = 0; i < boxed.length; i += 1) {
+        for (let j = i + 1; j < boxed.length; j += 1) {
+          const a = boxed[i];
+          const b = boxed[j];
+          if (a === undefined || b === undefined) continue;
+          expect(
+            boxesOverlap(a.box, b.box),
+            `"${a.item.text}" collides with "${b.item.text}"`,
+          ).toBe(false);
+        }
+      }
+    });
+  }
+
+  it('keeps both scores and denominators per party in the compact form (13 parties)', () => {
+    const items = texts(fleet(13));
+    // Top party: promesses 96 (7/35) and actes 88 (5/35) — still two columns.
+    expect(findText(items, '96')).toBeDefined();
+    expect(findText(items, '88')).toBeDefined();
+    expect(findText(items, '7/35')).toBeDefined();
+    expect(findText(items, '5/35')).toBeDefined();
+    // Null actes still rendered as « n.d. ».
+    expect(findText(items, 'n.d.')).toBeDefined();
+  });
+
+  it('replaces the écart pill with a compact signed marker when rows shrink', () => {
+    const items = texts(fleet(13));
+    // p8: 56 − 40 = +16 ≥ threshold → marquant, rendered as a marked signed
+    // number, not the verbose pill label.
+    expect(items.some((item) => item.text.includes(formatEcart(16)))).toBe(true);
+    expect(items.some((item) => item.text.startsWith('écart'))).toBe(false);
   });
 });
