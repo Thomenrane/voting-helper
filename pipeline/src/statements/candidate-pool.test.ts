@@ -1,0 +1,338 @@
+import { describe, expect, it } from 'vitest';
+
+import type { LLMClient, LLMRequest } from '../extraction/llm-client.ts';
+import type { LayerChunk, LayerInput } from '../extraction/position-extractor.ts';
+import type { PlenaryVote } from '../votes/votes.types.ts';
+import {
+  batchDossiers,
+  buildProgrammePoolPrompt,
+  buildVotePoolPrompt,
+  dedupeVotedDossiers,
+  generateProgrammePool,
+  generateVotePool,
+  parseProgrammePoolResponse,
+  parseVotePoolResponse,
+  type HarvestedCandidate,
+  type VotedDossier,
+} from './candidate-pool.ts';
+
+function layerInput(sourceId: string, pages: string[]): LayerInput {
+  return {
+    layer: {
+      source_id: sourceId,
+      source_sha256: 'abc123',
+      extractor: 'unpdf',
+      page_count: pages.length,
+      pages: pages.map((text, index) => ({ page: index + 1, text })),
+    },
+    raw_snapshot_id: `${sourceId}-2026-07-01`,
+    url_source: `https://example.org/${sourceId}.pdf`,
+  };
+}
+
+function chunkOf(input: LayerInput): LayerChunk {
+  return {
+    input,
+    firstPage: 1,
+    lastPage: input.layer.page_count,
+    text: input.layer.pages.map(({ page, text }) => `[PAGE ${page}]\n${text}`).join('\n'),
+  };
+}
+
+function plenaryVote(id: string, dossierId: string, date: string, title: string): PlenaryVote {
+  return {
+    id,
+    legislature: '56',
+    meeting_id: 'm1',
+    vote_number: '1',
+    date,
+    title_fr: `Vote sur ${title}`,
+    title_nl: `Stemming over ${title}`,
+    dossier: { id: dossierId, title, document_type: null, status: null },
+    document_id: null,
+    motion_id: null,
+    counts: { oui: 0, non: 0, abstention: 0 },
+    ballots: [],
+    groups: [],
+    warnings: [],
+  };
+}
+
+function fakeClient(
+  answers: readonly string[],
+  requests: LLMRequest[] = [],
+): LLMClient {
+  let call = 0;
+  return {
+    model: 'fake-model',
+    complete: (request) => {
+      requests.push(request);
+      const text = answers[call];
+      call += 1;
+      if (text === undefined) {
+        throw new Error('fake client exhausted');
+      }
+      return Promise.resolve({ text, usage: { input_tokens: 100, output_tokens: 10 } });
+    },
+  };
+}
+
+const VALID_ITEM =
+  '{"texte_fr": "Instaurer la mesure fictive Alpha.", ' +
+  '"note_concrete_fr": "Seuil fictif de démonstration.", "theme": "mobilite", "page": 2}';
+
+describe('buildProgrammePoolPrompt', () => {
+  it('carries the canonical themes, the party and the chunk text', () => {
+    const input = layerInput('parti-alpha-programme-fictif', ['Texte page 1.', 'Texte page 2.']);
+    const prompt = buildProgrammePoolPrompt('Parti Alpha', chunkOf(input));
+    expect(prompt.system).toContain('fiscalite');
+    expect(prompt.system).toContain('defense-europe');
+    expect(prompt.system).toContain('« Parti Alpha »');
+    expect(prompt.system).toContain('tableau vide []');
+    expect(prompt.user).toContain('[PAGE 2]');
+    expect(prompt.user).toContain("document 'parti-alpha-programme-fictif'");
+  });
+});
+
+describe('parseProgrammePoolResponse', () => {
+  const chunk = chunkOf(layerInput('parti-alpha-programme-fictif', ['p1', 'p2', 'p3']));
+
+  it('accepts a valid answer, including a fenced one', () => {
+    const items = parseProgrammePoolResponse(`\`\`\`json\n[${VALID_ITEM}]\n\`\`\``, chunk);
+    expect(items).toEqual([
+      {
+        texte_fr: 'Instaurer la mesure fictive Alpha.',
+        note_concrete_fr: 'Seuil fictif de démonstration.',
+        theme: 'mobilite',
+        page: 2,
+      },
+    ]);
+  });
+
+  it('accepts an empty array — a chunk may contain no usable measure', () => {
+    expect(parseProgrammePoolResponse('[]', chunk)).toEqual([]);
+  });
+
+  it('rejects non-JSON and non-array answers', () => {
+    expect(() => parseProgrammePoolResponse('Voici les mesures…', chunk)).toThrow(/not valid JSON/);
+    expect(() => parseProgrammePoolResponse('{"a": 1}', chunk)).toThrow(/not an array/);
+  });
+
+  it('rejects an unknown theme', () => {
+    const bad = VALID_ITEM.replace('"mobilite"', '"enseignement"');
+    expect(() => parseProgrammePoolResponse(`[${bad}]`, chunk)).toThrow(/unknown theme 'enseignement'/);
+  });
+
+  it('rejects empty texte_fr and note_concrete_fr', () => {
+    const noText = VALID_ITEM.replace('Instaurer la mesure fictive Alpha.', ' ');
+    expect(() => parseProgrammePoolResponse(`[${noText}]`, chunk)).toThrow(/empty texte_fr/);
+    const noNote = VALID_ITEM.replace('Seuil fictif de démonstration.', '');
+    expect(() => parseProgrammePoolResponse(`[${noNote}]`, chunk)).toThrow(/empty note_concrete_fr/);
+  });
+
+  it('rejects a page outside the submitted chunk', () => {
+    const outside = VALID_ITEM.replace('"page": 2', '"page": 7');
+    expect(() => parseProgrammePoolResponse(`[${outside}]`, chunk)).toThrow(
+      /page 7, outside the submitted chunk \(pages 1-3\)/,
+    );
+    const invalid = VALID_ITEM.replace('"page": 2', '"page": "deux"');
+    expect(() => parseProgrammePoolResponse(`[${invalid}]`, chunk)).toThrow(/invalid page/);
+  });
+});
+
+describe('generateProgrammePool', () => {
+  it('mines every chunk and stamps full provenance on each candidate — no id yet', async () => {
+    const input = layerInput('parti-alpha-programme-fictif', ['x'.repeat(30), 'y'.repeat(30)]);
+    const requests: LLMRequest[] = [];
+    // maxChunkChars forces two chunks → two answers.
+    const client = fakeClient([`[${VALID_ITEM.replace('"page": 2', '"page": 1')}]`, '[]'], requests);
+    const result = await generateProgrammePool({
+      partyId: 'parti-alpha',
+      partyName: 'Parti Alpha',
+      layers: [input],
+      client,
+      maxChunkChars: 40,
+    });
+    expect(requests).toHaveLength(2);
+    expect(result.request_count).toBe(2);
+    expect(result.usage).toEqual({ input_tokens: 200, output_tokens: 20 });
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]).toEqual({
+      theme: 'mobilite',
+      texte_fr: 'Instaurer la mesure fictive Alpha.',
+      note_concrete_fr: 'Seuil fictif de démonstration.',
+      sources: [
+        {
+          kind: 'programme',
+          party_id: 'parti-alpha',
+          source_id: 'parti-alpha-programme-fictif',
+          ref_snapshot: 'parti-alpha-programme-fictif-2026-07-01',
+          url_source: 'https://example.org/parti-alpha-programme-fictif.pdf',
+          page: 1,
+        },
+      ],
+    });
+  });
+
+  it('persists the cumulative harvest after every parsed chunk', async () => {
+    const input = layerInput('parti-alpha-programme-fictif', ['x'.repeat(30), 'y'.repeat(30)]);
+    const persisted: number[] = [];
+    const client = fakeClient(['[]', `[${VALID_ITEM.replace('"page": 2', '"page": 2')}]`]);
+    await generateProgrammePool({
+      partyId: 'parti-alpha',
+      partyName: 'Parti Alpha',
+      layers: [input],
+      client,
+      maxChunkChars: 40,
+      persist: (candidates: readonly HarvestedCandidate[]) => {
+        persisted.push(candidates.length);
+        return Promise.resolve();
+      },
+    });
+    expect(persisted).toEqual([0, 1]);
+  });
+
+  it('has already persisted the paid chunks when a later answer is malformed', async () => {
+    const input = layerInput('parti-alpha-programme-fictif', ['x'.repeat(30), 'y'.repeat(30)]);
+    let lastPersisted: HarvestedCandidate[] = [];
+    const client = fakeClient([
+      `[${VALID_ITEM.replace('"page": 2', '"page": 1')}]`,
+      'réponse hors format',
+    ]);
+    await expect(
+      generateProgrammePool({
+        partyId: 'parti-alpha',
+        partyName: 'Parti Alpha',
+        layers: [input],
+        client,
+        maxChunkChars: 40,
+        persist: (candidates: readonly HarvestedCandidate[]) => {
+          lastPersisted = [...candidates];
+          return Promise.resolve();
+        },
+      }),
+    ).rejects.toThrow(/not valid JSON/);
+    expect(lastPersisted).toHaveLength(1);
+    expect(lastPersisted[0]?.texte_fr).toBe('Instaurer la mesure fictive Alpha.');
+  });
+});
+
+describe('dedupeVotedDossiers / batchDossiers', () => {
+  it('keeps one representative vote per dossier — the earliest', () => {
+    const votes = [
+      plenaryVote('56-m2-v1', '228', '2025-03-01', 'Mesure fictive Gamma'),
+      plenaryVote('56-m1-v1', '228', '2025-01-15', 'Mesure fictive Gamma'),
+      plenaryVote('56-m3-v1', '412', '2025-05-01', 'Mesure fictive Delta'),
+    ];
+    const dossiers = dedupeVotedDossiers(votes);
+    expect(dossiers).toHaveLength(2);
+    expect(dossiers.map((d) => d.vote.id).sort()).toEqual(['56-m1-v1', '56-m3-v1']);
+    expect(dossiers[0]?.dossier_ref).toBe('DOC 56 0228');
+  });
+
+  it('refuses a vote without dossier — eligibility must filter upstream', () => {
+    const vote = { ...plenaryVote('56-m1-v9', '1', '2025-01-01', 'x'), dossier: null };
+    expect(() => dedupeVotedDossiers([vote])).toThrow(/has no dossier/);
+  });
+
+  it('batches dossiers deterministically and rejects invalid sizes', () => {
+    const dossiers = dedupeVotedDossiers([
+      plenaryVote('56-m1-v1', '1', '2025-01-01', 'a'),
+      plenaryVote('56-m1-v2', '2', '2025-01-01', 'b'),
+      plenaryVote('56-m1-v3', '3', '2025-01-01', 'c'),
+    ]);
+    expect(batchDossiers(dossiers, 2).map((b) => b.length)).toEqual([2, 1]);
+    expect(() => batchDossiers(dossiers, 0)).toThrow(/positive integer/);
+  });
+});
+
+describe('vote pool prompt and parsing', () => {
+  const batch: VotedDossier[] = dedupeVotedDossiers([
+    plenaryVote('56-m1-v1', '228', '2025-01-15', 'Instauration de la mesure fictive Gamma'),
+    plenaryVote('56-m2-v4', '412', '2025-03-02', 'Mesure fictive Delta'),
+  ]);
+
+  it('lists every dossier with its DOC reference in the prompt', () => {
+    const prompt = buildVotePoolPrompt(batch);
+    expect(prompt.user).toContain('56-m1-v1');
+    expect(prompt.user).toContain('DOC 56 0412');
+    expect(prompt.system).toContain('exactement une fois');
+  });
+
+  it('accepts a complete answer mixing candidates and explicit nulls', () => {
+    const answer =
+      '[{"vote_id": "56-m1-v1", "candidat": {"texte_fr": "Instaurer la mesure fictive Gamma.", ' +
+      '"note_concrete_fr": "Échéance fictive de démonstration : 2030.", "theme": "pensions-secu"}}, ' +
+      '{"vote_id": "56-m2-v4", "candidat": null}]';
+    const items = parseVotePoolResponse(answer, batch);
+    expect(items).toHaveLength(2);
+    expect(items[0]?.candidat?.theme).toBe('pensions-secu');
+    expect(items[1]).toEqual({ vote_id: '56-m2-v4', candidat: null });
+  });
+
+  it('rejects an incomplete answer — silence is not a decision', () => {
+    const answer = '[{"vote_id": "56-m1-v1", "candidat": null}]';
+    expect(() => parseVotePoolResponse(answer, batch)).toThrow(
+      /incomplete: missing decision\(s\) for 56-m2-v4/,
+    );
+  });
+
+  it('rejects a missing candidat field — only an explicit null is a decision', () => {
+    const answer = '[{"vote_id": "56-m1-v1"}, {"vote_id": "56-m2-v4", "candidat": null}]';
+    expect(() => parseVotePoolResponse(answer, batch)).toThrow(
+      /misses the 'candidat' field/,
+    );
+  });
+
+  it('rejects unknown and duplicated vote ids', () => {
+    expect(() =>
+      parseVotePoolResponse('[{"vote_id": "56-m9-v9", "candidat": null}]', batch),
+    ).toThrow(/unknown vote '56-m9-v9'/);
+    const duplicated =
+      '[{"vote_id": "56-m1-v1", "candidat": null}, {"vote_id": "56-m1-v1", "candidat": null}]';
+    expect(() => parseVotePoolResponse(duplicated, batch)).toThrow(/duplicate decision/);
+  });
+
+  it('rejects a candidate with an unknown theme', () => {
+    const answer =
+      '[{"vote_id": "56-m1-v1", "candidat": {"texte_fr": "x", "note_concrete_fr": "y", ' +
+      '"theme": "enseignement"}}, {"vote_id": "56-m2-v4", "candidat": null}]';
+    expect(() => parseVotePoolResponse(answer, batch)).toThrow(/unknown theme/);
+  });
+});
+
+describe('generateVotePool', () => {
+  it('harvests candidates across batches with vote provenance', async () => {
+    const dossiers = dedupeVotedDossiers([
+      plenaryVote('56-m1-v1', '228', '2025-01-15', 'Instauration de la mesure fictive Gamma'),
+      plenaryVote('56-m2-v4', '412', '2025-03-02', 'Mesure fictive Delta'),
+    ]);
+    const answers = [
+      '[{"vote_id": "56-m1-v1", "candidat": {"texte_fr": "Instaurer la mesure fictive Gamma.", ' +
+        '"note_concrete_fr": "Échéance fictive de démonstration : 2030.", "theme": "pensions-secu"}}]',
+      '[{"vote_id": "56-m2-v4", "candidat": null}]',
+    ];
+    const persisted: number[] = [];
+    const result = await generateVotePool({
+      dossiers,
+      client: fakeClient(answers),
+      batchSize: 1,
+      persist: (candidates: readonly HarvestedCandidate[]) => {
+        persisted.push(candidates.length);
+        return Promise.resolve();
+      },
+    });
+    expect(result.request_count).toBe(2);
+    expect(persisted).toEqual([1, 1]);
+    expect(result.candidates).toEqual([
+      {
+        theme: 'pensions-secu',
+        texte_fr: 'Instaurer la mesure fictive Gamma.',
+        note_concrete_fr: 'Échéance fictive de démonstration : 2030.',
+        sources: [
+          { kind: 'vote', vote_id: '56-m1-v1', dossier: 'DOC 56 0228', date: '2025-01-15' },
+        ],
+      },
+    ]);
+  });
+});

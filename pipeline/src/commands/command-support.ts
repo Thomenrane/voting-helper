@@ -29,6 +29,13 @@ export const VOTES_REVIEW_FILE = 'votes-liaison.review.md';
  */
 export const VOTES_FILES_MANIFEST = 'votes-liaison.files.json';
 
+/**
+ * Candidate-statement pool directory (#24), shared between statements-pool
+ * (writer) and statements-select (reader) — command files must never import
+ * each other (they execute on import).
+ */
+export const STATEMENTS_POOL_DIR = 'data/statements/pool';
+
 export function describeEntry(entry: SnapshotEntry): string {
   const unchanged =
     entry.content_unchanged_from === undefined
