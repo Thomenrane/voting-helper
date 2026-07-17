@@ -84,6 +84,7 @@ describe('buildExtractionPrompt', () => {
     expect(system).toContain('VERBATIM');
     expect(system).toContain('langue source');
     expect(system).toContain('null');
+    expect(system).toContain('non-null (0 inclus');
     expect(system).toContain('-2');
     expect(user).toContain('s1 : Réduire les cotisations sociales');
     expect(user).toContain('[PAGE 1]');
