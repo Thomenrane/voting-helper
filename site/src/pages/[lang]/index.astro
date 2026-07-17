@@ -20,6 +20,7 @@ const t = UI[lang];
 
 <Base lang={lang} title={t.siteTitle} description={t.metaDescription}>
   <p class="demo-banner">{t.demoBanner}</p>
+  {t.draftNotice !== null && <p class="draft-banner">{t.draftNotice}</p>}
 
   <main>
     <LanguageSwitcher lang={lang} />
@@ -40,6 +41,19 @@ const t = UI[lang];
     background: var(--ink);
     color: var(--paper);
     font-size: 0.8125rem;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  /* Draft-quality strip (#7) — discreet but visible, distinct from the
+     demo banner so the two caveats read separately. */
+  .draft-banner {
+    margin: 0;
+    padding: 0.375rem 1rem;
+    background: var(--accent-wash);
+    color: var(--accent-deep);
+    border-bottom: 1px dashed var(--accent);
+    font-size: 0.75rem;
     text-align: center;
     letter-spacing: 0.02em;
   }

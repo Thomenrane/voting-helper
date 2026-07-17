@@ -1,7 +1,7 @@
 /**
- * UI strings, keyed by locale. The /nl route consumes the same dictionary —
- * route structure and strings are ready even though only /fr is built for
- * the tracer bullet (#16).
+ * UI strings, keyed by locale — the single i18n mechanism (#20): every
+ * interface string rendered by the site goes through UI[lang], and /fr and
+ * /nl consume the same dictionary through the same components.
  */
 import type { GroupVotePosition, PositionValue } from '@voting-helper/data';
 import type { Locale } from './locales.ts';
@@ -18,6 +18,11 @@ interface UiStrings {
   /** Accessible name of the language switcher nav. */
   languageSwitcherLabel: string;
   demoBanner: string;
+  /**
+   * Draft-quality notice for a locale whose texts have not been reviewed by
+   * a native speaker yet — a launch condition (#7). null once reviewed.
+   */
+  draftNotice: string | null;
   heading: string;
   intro: string;
   /** e.g. « basé sur 7/8 énoncés » */
@@ -87,6 +92,7 @@ export const UI: Record<Locale, UiStrings> = {
       'Répondez à des énoncés concrets et comparez votre alignement avec ce que les partis promettent et ce qu’ils votent — données fictives de démonstration.',
     languageSwitcherLabel: 'Choix de la langue',
     demoBanner: 'Démonstration — partis et positions entièrement fictifs.',
+    draftNotice: null,
     heading: 'Ce qu’ils promettent. Ce qu’ils votent.',
     intro:
       'Pour chaque parti, deux scores distincts — jamais fusionnés : votre alignement sur son programme (promesses) et sur ses votes à la Chambre (actes).',
@@ -148,6 +154,7 @@ export const UI: Record<Locale, UiStrings> = {
       'Beantwoord concrete stellingen en vergelijk uw overeenstemming met wat partijen beloven en wat ze stemmen — fictieve demonstratiegegevens.',
     languageSwitcherLabel: 'Taalkeuze',
     demoBanner: 'Demonstratie — partijen en standpunten zijn volledig fictief.',
+    draftNotice: 'NL-teksten in concept — nazicht door een moedertaalspreker vereist.',
     heading: 'Wat ze beloven. Wat ze stemmen.',
     intro:
       'Per partij twee aparte scores — nooit samengevoegd: uw overeenstemming met het programma (beloften) en met de stemmingen in de Kamer (daden).',
