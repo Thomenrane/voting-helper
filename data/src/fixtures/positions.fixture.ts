@@ -3,7 +3,9 @@
  * Citations, sources, snapshots, dossiers et votes sont inventés.
  *
  * Cas volontairement couverts par ce jeu de données :
- * - Parti B : votes opposés au programme sur s1 et s5 (badge « promesse vs vote »).
+ * - Parti B : votes opposés au programme sur s1 et s5 (badge « promesse vs vote »),
+ *   avec une note de contexte datée sur s5 (revirement documenté, #14 — sans effet
+ *   sur le score).
  * - Parti C : position programme absente sur s2 (« position non documentée »).
  * - Parti D : aucun vote lié sur s4 et s6 (exclus du score « actes »).
  * - Parti F : record s7 en statut « en_attente » (exclu du calcul), aucun record s3.
@@ -92,7 +94,18 @@ export const PARTY_POSITIONS: PartyPosition[] = [
   demoPosition('parti-b', 's2', 1, ['oui'], 15),
   demoPosition('parti-b', 's3', 0, ['abstention'], 22),
   demoPosition('parti-b', 's4', -2, ['non'], 28),
-  demoPosition('parti-b', 's5', 2, ['non'], 36),
+  {
+    ...demoPosition('parti-b', 's5', 2, ['non'], 36),
+    // Revirement documenté (#14) : note purement informative, jamais scorée.
+    note_contexte: {
+      texte_fr:
+        'Note fictive de démonstration : en avril 2025, le Parti B a annoncé renoncer à la prolongation défendue dans son programme 2024.',
+      texte_nl:
+        'Fictieve demonota: in april 2025 kondigde Partij B aan af te zien van de verlenging die haar programma 2024 verdedigde.',
+      date: '2025-04-10',
+      source_url: 'https://example.org/demo/communique-parti-b-nucleaire.html',
+    },
+  },
   demoPosition('parti-b', 's6', 1, ['oui'], 44),
   demoPosition('parti-b', 's7', 2, ['oui'], 51),
   demoPosition('parti-b', 's8', -2, ['abstention'], 59),

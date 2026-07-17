@@ -1,0 +1,150 @@
+---
+/**
+ * Shared frame of the transparency pages (#26): banners, language switcher,
+ * back-to-test link, masthead, prose typography. The pages differ only by
+ * their content, so the chrome lives once, here.
+ */
+import LanguageSwitcher from '../components/LanguageSwitcher.astro';
+import type { Locale } from '../i18n/locales.ts';
+import { localizePath } from '../i18n/paths.ts';
+import { UI } from '../i18n/ui.ts';
+import Base from './Base.astro';
+
+interface Props {
+  lang: Locale;
+  title: string;
+  description: string;
+  heading: string;
+  intro: string;
+}
+
+const { lang, title, description, heading, intro } = Astro.props;
+const t = UI[lang];
+---
+
+<Base lang={lang} title={title} description={description}>
+  <p class="demo-banner">{t.demoBanner}</p>
+  {t.draftNotice !== null && <p class="draft-banner">{t.draftNotice}</p>}
+
+  <main>
+    <LanguageSwitcher lang={lang} />
+
+    <p class="back">
+      <a href={localizePath('/', lang)}>← {t.backToTestLabel}</a>
+    </p>
+
+    <header class="masthead">
+      <h1>{heading}</h1>
+      <p class="intro">{intro}</p>
+    </header>
+
+    <div class="content">
+      <slot />
+    </div>
+  </main>
+</Base>
+
+<style>
+  .demo-banner {
+    margin: 0;
+    padding: 0.5rem 1rem;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 0.8125rem;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  /* Draft-quality strip (#7) — same treatment as the test page. */
+  .draft-banner {
+    margin: 0;
+    padding: 0.375rem 1rem;
+    background: var(--accent-wash);
+    color: var(--accent-deep);
+    border-bottom: 1px dashed var(--accent);
+    font-size: 0.75rem;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  main {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .back {
+    margin: 0;
+    font-size: 0.8125rem;
+  }
+
+  .back a {
+    color: var(--accent-deep);
+  }
+
+  .masthead {
+    padding: 1rem 0 1.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.75rem, 6vw, 2.5rem);
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+
+  .intro {
+    margin: 0.75rem 0 0;
+    color: var(--ink-soft);
+    font-size: 0.9375rem;
+    max-width: 34rem;
+  }
+
+  /* ——— Shared prose typography for the slotted content ——— */
+  .content :global(h2) {
+    margin: 2rem 0 0.625rem;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.25rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .content :global(h3) {
+    margin: 1.25rem 0 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+  }
+
+  .content :global(p) {
+    margin: 0.625rem 0 0;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+
+  .content :global(ul),
+  .content :global(ol) {
+    margin: 0.625rem 0 0;
+    padding-left: 1.25rem;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .content :global(a) {
+    color: var(--accent-deep);
+  }
+
+  @media (min-width: 40rem) {
+    main {
+      padding-top: 2.5rem;
+    }
+  }
+</style>

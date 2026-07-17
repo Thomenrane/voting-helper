@@ -6,10 +6,12 @@
  * bundled client script only drives navigation, selection state, persistence
  * (localStorage, never the network) and the provisional client-side results.
  */
-import { STATEMENTS } from '@voting-helper/data';
+import { CHANGELOG, PARTY_POSITIONS, STATEMENTS } from '@voting-helper/data';
 import { statementNote, statementText } from '../i18n/bilingual.ts';
 import type { Locale } from '../i18n/locales.ts';
 import { UI } from '../i18n/ui.ts';
+import { formatDateBE } from '../lib/results/results-presentation.ts';
+import { deriveDataDate, METHODOLOGY_VERSION } from '../lib/transparency/versioning.ts';
 import ResultsPanel from './ResultsPanel.astro';
 
 interface Props {
@@ -19,6 +21,14 @@ interface Props {
 const { lang } = Astro.props;
 const t = UI[lang];
 const total = STATEMENTS.length;
+
+// Double versioning (#26): shown discreetly under the ranking so a screenshot
+// of the results stays interpretable after a data or methodology update.
+const dataDate = deriveDataDate(PARTY_POSITIONS, CHANGELOG);
+const versionLine = t.versionLine(
+  METHODOLOGY_VERSION,
+  dataDate === null ? t.notAvailable : formatDateBE(dataDate),
+);
 ---
 
 <section class="wizard" data-wizard data-lang={lang}>
@@ -94,6 +104,7 @@ const total = STATEMENTS.length;
     <p class="privacy-note">{t.resultsPrivacyNote}</p>
     <ResultsPanel lang={lang} />
     <p class="results-methodology">{t.methodologyNote}</p>
+    <p class="results-version">{versionLine}</p>
     <div class="results-actions">
       <button type="button" class="nav-btn prev" data-back-to-questions>{t.previousLabel}</button>
       <button type="button" class="restart-btn" data-restart>{t.restartLabel}</button>
@@ -520,6 +531,13 @@ const total = STATEMENTS.length;
     border-top: 1px solid var(--line);
     font-size: 0.8125rem;
     color: var(--ink-soft);
+  }
+
+  .results-version {
+    margin: 0.375rem 0 0;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
   }
 
   .results-actions {

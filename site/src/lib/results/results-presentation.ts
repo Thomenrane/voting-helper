@@ -8,7 +8,15 @@
  * and every flag rendered here (écart marquant, contradictions) comes from
  * its output. No DOM, no I/O.
  */
-import type { Citation, LinkedVote, PartyPosition, PositionValue, Statement } from '@voting-helper/data';
+import type {
+  Citation,
+  ContextNote,
+  LinkedVote,
+  PartyPosition,
+  PositionValue,
+  Statement,
+} from '@voting-helper/data';
+import { validRecordsByStatement } from '../positions/valid-records.ts';
 import type { PartyScore } from '../scoring/scoring.ts';
 
 /** The two ranked columns of the slope chart. Never fused. */
@@ -116,6 +124,13 @@ export interface AuditStatement {
   votes: readonly LinkedVote[];
   /** « Promesse vs vote » flag, from the engine's contradiction ids. */
   isContradiction: boolean;
+  /**
+   * Dated context note (#14) — displayed distinctly from the citation,
+   * informational only: it never enters any score.
+   */
+  contextNote: ContextNote | null;
+  /** ISO date of the record's last human review; null without a record. */
+  lastRevision: string | null;
 }
 
 /** One theme group of the audit drill-down, statements in input order. */
@@ -136,18 +151,9 @@ export function buildPartyAudit(
   contradictionIds: readonly string[],
 ): AuditTheme[] {
   const contradictions = new Set(contradictionIds);
-  const recordByStatement = new Map<string, PartyPosition>();
-  for (const record of positions) {
-    if (record.party_id !== partyId || record.statut !== 'valide') continue;
-    // Same refusal as the engine (scoring.ts): two valid records for one
-    // party × statement is inconsistent data — never silently collapsed.
-    if (recordByStatement.has(record.statement_id)) {
-      throw new Error(
-        `Duplicate valid position for party "${partyId}" and statement "${record.statement_id}" — inconsistent dataset refused.`,
-      );
-    }
-    recordByStatement.set(record.statement_id, record);
-  }
+  // Same visibility rule as the engine (valid-records.ts): statut 'valide'
+  // only, duplicates refused — never silently collapsed.
+  const recordByStatement = validRecordsByStatement(partyId, positions);
 
   const themes: AuditTheme[] = [];
   const themeByName = new Map<string, AuditTheme>();
@@ -167,6 +173,8 @@ export function buildPartyAudit(
           : null,
       votes: record?.votes_lies ?? [],
       isContradiction: contradictions.has(statement.id),
+      contextNote: record?.note_contexte ?? null,
+      lastRevision: record?.derniere_revision ?? null,
     });
   }
   return themes;

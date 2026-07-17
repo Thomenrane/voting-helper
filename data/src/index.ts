@@ -1,5 +1,6 @@
 export type {
   Citation,
+  ContextNote,
   DossierDirection,
   GroupVotePosition,
   LinkedVote,
@@ -18,6 +19,9 @@ export {
   deriveVotePosition,
   type DerivedVotePosition,
 } from './linked-vote.ts';
+
+export type { ChangelogEntry, ChangelogEntryKind } from './changelog.ts';
+export { CHANGELOG } from './changelog.ts';
 
 export { PARTIES } from './fixtures/parties.fixture.ts';
 export { STATEMENTS } from './fixtures/statements.fixture.ts';

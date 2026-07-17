@@ -86,6 +86,21 @@ export interface LinkedVote {
 export type PositionStatus = 'valide' | 'en_attente' | 'rejete';
 
 /**
+ * Dated context note on one party × statement (#14, #26): a documented
+ * reversal or clarification AFTER the 2024 programme. Purely informational —
+ * the 2024 programme stays the fixed source of the « promesses » score until
+ * 2029, so this note must NEVER enter any scoring surface.
+ */
+export interface ContextNote {
+  texte_fr: string;
+  texte_nl: string;
+  /** ISO date (YYYY-MM-DD) of the documented event. */
+  date: string;
+  /** Public source documenting the reversal (press release, article…). */
+  source_url: string;
+}
+
+/**
  * Programme part of a party position.
  * Either both the position and its citation exist, or neither does:
  * an undocumented programme position ("position non documentée") excludes
@@ -113,4 +128,6 @@ export type PartyPosition = ProgrammePosition & {
   statut: PositionStatus;
   /** ISO date (YYYY-MM-DD) of the last human review of this record. */
   derniere_revision: string;
+  /** Optional dated context note — informational only, never scored. */
+  note_contexte?: ContextNote;
 };

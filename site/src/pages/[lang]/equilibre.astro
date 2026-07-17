@@ -1,0 +1,294 @@
+---
+/**
+ * Balance page (#26, decision #7) — every figure on this page is computed at
+ * build time by the tested balance module (lib/transparency/balance.ts) from
+ * the SAME dataset the test scores against. Nothing is hand-entered.
+ */
+import type { GetStaticPaths, InferGetStaticParamsType } from 'astro';
+import { PARTIES, PARTY_POSITIONS, STATEMENTS } from '@voting-helper/data';
+import { statementText } from '../../i18n/bilingual.ts';
+import { LOCALES } from '../../i18n/locales.ts';
+import { TRANSPARENCY } from '../../i18n/transparency.ts';
+import TransparencyPage from '../../layouts/TransparencyPage.astro';
+import { partyBalances, statementBalances } from '../../lib/transparency/balance.ts';
+
+export const getStaticPaths = (() =>
+  LOCALES.map((lang) => ({ params: { lang } }))) satisfies GetStaticPaths;
+
+const { lang } = Astro.params as InferGetStaticParamsType<typeof getStaticPaths>;
+const b = TRANSPARENCY[lang].balance;
+
+const coverage = partyBalances(PARTIES, STATEMENTS, PARTY_POSITIONS);
+const distribution = statementBalances(PARTIES, STATEMENTS, PARTY_POSITIONS);
+
+const partyNameById = new Map(PARTIES.map((party) => [party.id, party.name]));
+const statementById = new Map(STATEMENTS.map((statement) => [statement.id, statement]));
+
+/** Bar width in % — guards the empty-dataset division. */
+const percent = (value: number, total: number): number => (total === 0 ? 0 : (value / total) * 100);
+
+const legend = [
+  { label: b.pourLabel, className: 'pour' },
+  { label: b.neutreLabel, className: 'neutre' },
+  { label: b.contreLabel, className: 'contre' },
+  { label: b.nonDocumenteLabel, className: 'non-documente' },
+];
+---
+
+<TransparencyPage
+  lang={lang}
+  title={b.pageTitle}
+  description={b.metaDescription}
+  heading={b.heading}
+  intro={b.intro}
+>
+  <section>
+    <h2>{b.coverageHeading}</h2>
+    <p>{b.coverageIntro}</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{b.partyColumn}</th>
+            <th scope="col">{b.programmeColumn}</th>
+            <th scope="col">{b.votesStatementsColumn}</th>
+            <th scope="col" class="num">{b.linkedVotesColumn}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {coverage.map((row) => (
+            <tr>
+              <th scope="row">{partyNameById.get(row.partyId) ?? row.partyId}</th>
+              <td>
+                <span class="cell-ratio">{b.ratio(row.documentedProgramme, row.totalStatements)}</span>
+                <span class="bar" role="presentation">
+                  <span
+                    class="bar-fill"
+                    style={`width: ${percent(row.documentedProgramme, row.totalStatements)}%`}
+                  />
+                </span>
+              </td>
+              <td>
+                <span class="cell-ratio">{b.ratio(row.statementsWithVotes, row.totalStatements)}</span>
+                <span class="bar" role="presentation">
+                  <span
+                    class="bar-fill"
+                    style={`width: ${percent(row.statementsWithVotes, row.totalStatements)}%`}
+                  />
+                </span>
+              </td>
+              <td class="num">{row.linkedVotes}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>{b.distributionHeading}</h2>
+    <p>{b.distributionIntro}</p>
+
+    <ul class="legend" role="presentation">
+      {legend.map((item) => (
+        <li class="legend-item">
+          <span class:list={['swatch', item.className]} role="presentation" />
+          {item.label}
+        </li>
+      ))}
+    </ul>
+
+    <ul class="distribution">
+      {distribution.map((row) => {
+        const statement = statementById.get(row.statementId);
+        const segments = [
+          { count: row.pour, label: b.pourLabel, className: 'pour' },
+          { count: row.neutre, label: b.neutreLabel, className: 'neutre' },
+          { count: row.contre, label: b.contreLabel, className: 'contre' },
+          { count: row.nonDocumente, label: b.nonDocumenteLabel, className: 'non-documente' },
+        ];
+        return (
+          <li class="distribution-row">
+            <p class="distribution-statement">
+              {statement !== undefined ? statementText(statement, lang) : row.statementId}
+            </p>
+            <div class="stack" role="presentation">
+              {segments.map(
+                (segment) =>
+                  segment.count > 0 && (
+                    <span
+                      class:list={['segment', segment.className]}
+                      style={`width: ${percent(segment.count, row.totalParties)}%`}
+                    />
+                  ),
+              )}
+            </div>
+            <p class="distribution-counts">
+              {segments
+                .map((segment) => `${segment.label} : ${b.partyCount(segment.count)}`)
+                .join(' · ')}
+            </p>
+          </li>
+        );
+      })}
+    </ul>
+  </section>
+</TransparencyPage>
+
+<style>
+  /* ——— Coverage table ——— */
+  .table-scroll {
+    margin-top: 0.875rem;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  th,
+  td {
+    padding: 0.5rem 0.75rem 0.5rem 0;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  thead th {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  tbody th {
+    font-weight: 600;
+  }
+
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cell-ratio {
+    display: inline-block;
+    min-width: 2.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar {
+    display: inline-block;
+    width: 4rem;
+    height: 0.375rem;
+    background: var(--accent-wash);
+    border-radius: 999px;
+    overflow: hidden;
+    vertical-align: middle;
+  }
+
+  .bar-fill {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+  }
+
+  /* ——— Distribution — accent-scale segments only, no party color ——— */
+  .legend {
+    list-style: none;
+    margin: 0.875rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+
+  .swatch {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 0.1875rem;
+  }
+
+  .pour {
+    background: var(--accent);
+  }
+
+  .neutre {
+    background: var(--accent-wash);
+  }
+
+  .contre {
+    background: var(--ink);
+  }
+
+  .non-documente {
+    background: transparent;
+    border: 1px dashed var(--ink-soft);
+  }
+
+  .distribution {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .distribution-row {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0.625rem;
+    padding: 0.75rem 0.875rem;
+  }
+
+  .distribution-statement {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .stack {
+    margin-top: 0.5rem;
+    display: flex;
+    height: 0.625rem;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--paper);
+  }
+
+  .stack .segment {
+    display: block;
+    height: 100%;
+  }
+
+  .stack .non-documente {
+    border: none;
+    background:
+      repeating-linear-gradient(
+        -45deg,
+        var(--line),
+        var(--line) 2px,
+        transparent 2px,
+        transparent 5px
+      );
+  }
+
+  .distribution-counts {
+    margin: 0.5rem 0 0;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+</style>
