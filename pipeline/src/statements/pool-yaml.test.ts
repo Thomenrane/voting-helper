@@ -4,17 +4,17 @@ import type { CandidateStatement } from './candidate-pool.ts';
 import { parsePoolYaml, renderPoolYaml } from './pool-yaml.ts';
 
 const PROGRAMME_CANDIDATE: CandidateStatement = {
-  id: 'ps-c001',
+  id: 'parti-alpha-c001',
   theme: 'mobilite',
-  texte_fr: 'Supprimer la TVA sur les billets de train.',
-  note_concrete_fr: 'TVA à 0 % sur le rail voyageurs.',
+  texte_fr: 'Instaurer la mesure fictive Alpha.',
+  note_concrete_fr: 'Seuil fictif de démonstration.',
   sources: [
     {
       kind: 'programme',
-      party_id: 'ps',
-      source_id: 'ps-programme-2024',
-      ref_snapshot: 'ps-programme-2024-2026-07-01',
-      url_source: 'https://example.org/ps.pdf',
+      party_id: 'parti-alpha',
+      source_id: 'parti-alpha-programme-fictif',
+      ref_snapshot: 'parti-alpha-programme-fictif-2026-07-01',
+      url_source: 'https://example.org/parti-alpha.pdf',
       page: 12,
     },
   ],
@@ -23,10 +23,10 @@ const PROGRAMME_CANDIDATE: CandidateStatement = {
 const VOTE_CANDIDATE: CandidateStatement = {
   id: 'votes-c001',
   theme: 'pensions-secu',
-  texte_fr: 'Relever l’âge légal de la pension à 67 ans.',
-  note_concrete_fr: 'Âge légal porté à 67 ans en 2030.',
+  texte_fr: 'Instaurer la mesure fictive Gamma.',
+  note_concrete_fr: 'Échéance fictive de démonstration : 2030.',
   sources: [{ kind: 'vote', vote_id: '56-m1-v1', dossier: 'DOC 56 0228', date: '2025-01-15' }],
-  positions: { ps: -2, mr: 2 },
+  positions: { 'parti-alpha': -2, 'parti-beta': 2 },
 };
 
 describe('pool YAML round-trip', () => {
@@ -64,7 +64,7 @@ describe('parsePoolYaml validation', () => {
 
   it('rejects malformed sources per kind', () => {
     const missingPage = mutate((c) => {
-      c['sources'] = [{ kind: 'programme', party_id: 'ps', source_id: 's', ref_snapshot: 'r', url_source: 'u' }];
+      c['sources'] = [{ kind: 'programme', party_id: 'parti-alpha', source_id: 's', ref_snapshot: 'r', url_source: 'u' }];
     });
     expect(() => parsePoolYaml(missingPage, 'pool.yaml')).toThrow(/invalid page/);
     const badDate = mutate((c) => {
@@ -79,26 +79,26 @@ describe('parsePoolYaml validation', () => {
 
   it('rejects out-of-scale coded positions', () => {
     const text = mutate((c) => {
-      c['positions'] = { ps: 3 };
+      c['positions'] = { 'parti-alpha': 3 };
     });
-    expect(() => parsePoolYaml(text, 'pool.yaml')).toThrow(/out-of-scale position for 'ps': 3/);
+    expect(() => parsePoolYaml(text, 'pool.yaml')).toThrow(/out-of-scale position for 'parti-alpha': 3/);
   });
 
   it('validates positions keys against known parties when the registry is provided', () => {
     const text = renderPoolYaml([VOTE_CANDIDATE], 'h');
-    const known = new Set(['ps', 'mr']);
+    const known = new Set(['parti-alpha', 'parti-beta']);
     expect(parsePoolYaml(text, 'pool.yaml', known)).toEqual([VOTE_CANDIDATE]);
-    expect(() => parsePoolYaml(text, 'pool.yaml', new Set(['ps']))).toThrow(
-      /unknown party 'mr'/,
+    expect(() => parsePoolYaml(text, 'pool.yaml', new Set(['parti-alpha']))).toThrow(
+      /unknown party 'parti-beta'/,
     );
     const typo = mutate((c) => {
-      c['positions'] = { psx: 2 };
+      c['positions'] = { 'parti-alphx': 2 };
     });
-    expect(() => parsePoolYaml(typo, 'pool.yaml', known)).toThrow(/unknown party 'psx'/);
+    expect(() => parsePoolYaml(typo, 'pool.yaml', known)).toThrow(/unknown party 'parti-alphx'/);
     const caseTypo = mutate((c) => {
-      c['positions'] = { PS: 2 };
+      c['positions'] = { 'PARTI-ALPHA': 2 };
     });
-    expect(() => parsePoolYaml(caseTypo, 'pool.yaml', known)).toThrow(/unknown party 'PS'/);
+    expect(() => parsePoolYaml(caseTypo, 'pool.yaml', known)).toThrow(/unknown party 'PARTI-ALPHA'/);
   });
 
   it('accepts an absent positions map — coding happens later in the HITL loop', () => {

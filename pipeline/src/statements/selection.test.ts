@@ -18,10 +18,10 @@ function candidate(
     sources: [
       {
         kind: 'programme',
-        party_id: 'ps',
-        source_id: 'ps-programme-2024',
+        party_id: 'parti-alpha',
+        source_id: 'parti-alpha-programme-fictif',
         ref_snapshot: 'snap',
-        url_source: 'https://example.org/ps.pdf',
+        url_source: 'https://example.org/parti-alpha.pdf',
         page: 1,
       },
     ],
@@ -34,8 +34,8 @@ function candidate(
 
 describe('rankCandidates', () => {
   it('ranks cleaving candidates above consensual ones, uncoded last', () => {
-    const consensual = candidate('a-c001', 'fiscalite', { ps: 2, mr: 2, ecolo: 2, nva: 2 });
-    const cleaving = candidate('a-c002', 'sante', { ps: 2, mr: -2, ecolo: 2, nva: -2 });
+    const consensual = candidate('a-c001', 'fiscalite', { 'parti-alpha': 2, 'parti-beta': 2, 'parti-gamma': 2, 'parti-delta': 2 });
+    const cleaving = candidate('a-c002', 'sante', { 'parti-alpha': 2, 'parti-beta': -2, 'parti-gamma': 2, 'parti-delta': -2 });
     const uncoded = candidate('a-c003', 'mobilite');
     const ranked = rankCandidates([consensual, uncoded, cleaving]);
     expect(ranked.map((entry) => entry.candidate.id)).toEqual(['a-c002', 'a-c001', 'a-c003']);
@@ -45,15 +45,15 @@ describe('rankCandidates', () => {
   });
 
   it('breaks score ties by coded count, then id — deterministic', () => {
-    const twoParties = candidate('b-c002', 'emploi', { ps: 2, mr: -2 });
-    const fourParties = candidate('b-c001', 'emploi', { ps: 2, mr: -2, ecolo: 2, nva: -2 });
-    const sameAsFour = candidate('a-c009', 'emploi', { ps: 2, mr: -2, ecolo: 2, nva: -2 });
+    const twoParties = candidate('b-c002', 'emploi', { 'parti-alpha': 2, 'parti-beta': -2 });
+    const fourParties = candidate('b-c001', 'emploi', { 'parti-alpha': 2, 'parti-beta': -2, 'parti-gamma': 2, 'parti-delta': -2 });
+    const sameAsFour = candidate('a-c009', 'emploi', { 'parti-alpha': 2, 'parti-beta': -2, 'parti-gamma': 2, 'parti-delta': -2 });
     const ranked = rankCandidates([twoParties, fourParties, sameAsFour]);
     expect(ranked.map((entry) => entry.candidate.id)).toEqual(['a-c009', 'b-c001', 'b-c002']);
   });
 
   it('treats a single coded position as uncoded (score null)', () => {
-    const [only] = rankCandidates([candidate('c-c001', 'sante', { ps: 2 })]);
+    const [only] = rankCandidates([candidate('c-c001', 'sante', { 'parti-alpha': 2 })]);
     expect(only?.discriminance).toEqual({ score: null, coded: 1 });
   });
 
@@ -83,12 +83,12 @@ describe('assessPoolCoverage', () => {
 describe('renderSelectionReport', () => {
   it('renders coverage gaps, the ranking and the human-selection reminder', () => {
     const pool = [
-      candidate('a-c001', 'fiscalite', { ps: 2, mr: -2 }),
+      candidate('a-c001', 'fiscalite', { 'parti-alpha': 2, 'parti-beta': -2 }),
       candidate('a-c002', 'sante'),
     ];
     const report = renderSelectionReport({
       runDate: '17/07/2026',
-      poolFiles: ['data/statements/pool/ps.candidates.yaml'],
+      poolFiles: ['data/statements/pool/parti-alpha.candidates.yaml'],
       ranked: rankCandidates(pool),
       coverage: assessPoolCoverage(pool),
     });

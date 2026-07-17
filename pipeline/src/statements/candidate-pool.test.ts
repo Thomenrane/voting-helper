@@ -78,31 +78,31 @@ function fakeClient(
 }
 
 const VALID_ITEM =
-  '{"texte_fr": "Supprimer la TVA sur les billets de train.", ' +
-  '"note_concrete_fr": "TVA à 0 % sur le rail voyageurs.", "theme": "mobilite", "page": 2}';
+  '{"texte_fr": "Instaurer la mesure fictive Alpha.", ' +
+  '"note_concrete_fr": "Seuil fictif de démonstration.", "theme": "mobilite", "page": 2}';
 
 describe('buildProgrammePoolPrompt', () => {
   it('carries the canonical themes, the party and the chunk text', () => {
-    const input = layerInput('ps-programme-2024', ['Texte page 1.', 'Texte page 2.']);
-    const prompt = buildProgrammePoolPrompt('PS', chunkOf(input));
+    const input = layerInput('parti-alpha-programme-fictif', ['Texte page 1.', 'Texte page 2.']);
+    const prompt = buildProgrammePoolPrompt('Parti Alpha', chunkOf(input));
     expect(prompt.system).toContain('fiscalite');
     expect(prompt.system).toContain('defense-europe');
-    expect(prompt.system).toContain('« PS »');
+    expect(prompt.system).toContain('« Parti Alpha »');
     expect(prompt.system).toContain('tableau vide []');
     expect(prompt.user).toContain('[PAGE 2]');
-    expect(prompt.user).toContain("document 'ps-programme-2024'");
+    expect(prompt.user).toContain("document 'parti-alpha-programme-fictif'");
   });
 });
 
 describe('parseProgrammePoolResponse', () => {
-  const chunk = chunkOf(layerInput('ps-programme-2024', ['p1', 'p2', 'p3']));
+  const chunk = chunkOf(layerInput('parti-alpha-programme-fictif', ['p1', 'p2', 'p3']));
 
   it('accepts a valid answer, including a fenced one', () => {
     const items = parseProgrammePoolResponse(`\`\`\`json\n[${VALID_ITEM}]\n\`\`\``, chunk);
     expect(items).toEqual([
       {
-        texte_fr: 'Supprimer la TVA sur les billets de train.',
-        note_concrete_fr: 'TVA à 0 % sur le rail voyageurs.',
+        texte_fr: 'Instaurer la mesure fictive Alpha.',
+        note_concrete_fr: 'Seuil fictif de démonstration.',
         theme: 'mobilite',
         page: 2,
       },
@@ -124,9 +124,9 @@ describe('parseProgrammePoolResponse', () => {
   });
 
   it('rejects empty texte_fr and note_concrete_fr', () => {
-    const noText = VALID_ITEM.replace('Supprimer la TVA sur les billets de train.', ' ');
+    const noText = VALID_ITEM.replace('Instaurer la mesure fictive Alpha.', ' ');
     expect(() => parseProgrammePoolResponse(`[${noText}]`, chunk)).toThrow(/empty texte_fr/);
-    const noNote = VALID_ITEM.replace('TVA à 0 % sur le rail voyageurs.', '');
+    const noNote = VALID_ITEM.replace('Seuil fictif de démonstration.', '');
     expect(() => parseProgrammePoolResponse(`[${noNote}]`, chunk)).toThrow(/empty note_concrete_fr/);
   });
 
@@ -142,13 +142,13 @@ describe('parseProgrammePoolResponse', () => {
 
 describe('generateProgrammePool', () => {
   it('mines every chunk and stamps full provenance on each candidate — no id yet', async () => {
-    const input = layerInput('ps-programme-2024', ['x'.repeat(30), 'y'.repeat(30)]);
+    const input = layerInput('parti-alpha-programme-fictif', ['x'.repeat(30), 'y'.repeat(30)]);
     const requests: LLMRequest[] = [];
     // maxChunkChars forces two chunks → two answers.
     const client = fakeClient([`[${VALID_ITEM.replace('"page": 2', '"page": 1')}]`, '[]'], requests);
     const result = await generateProgrammePool({
-      partyId: 'ps',
-      partyName: 'PS',
+      partyId: 'parti-alpha',
+      partyName: 'Parti Alpha',
       layers: [input],
       client,
       maxChunkChars: 40,
@@ -159,15 +159,15 @@ describe('generateProgrammePool', () => {
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0]).toEqual({
       theme: 'mobilite',
-      texte_fr: 'Supprimer la TVA sur les billets de train.',
-      note_concrete_fr: 'TVA à 0 % sur le rail voyageurs.',
+      texte_fr: 'Instaurer la mesure fictive Alpha.',
+      note_concrete_fr: 'Seuil fictif de démonstration.',
       sources: [
         {
           kind: 'programme',
-          party_id: 'ps',
-          source_id: 'ps-programme-2024',
-          ref_snapshot: 'ps-programme-2024-2026-07-01',
-          url_source: 'https://example.org/ps-programme-2024.pdf',
+          party_id: 'parti-alpha',
+          source_id: 'parti-alpha-programme-fictif',
+          ref_snapshot: 'parti-alpha-programme-fictif-2026-07-01',
+          url_source: 'https://example.org/parti-alpha-programme-fictif.pdf',
           page: 1,
         },
       ],
@@ -175,12 +175,12 @@ describe('generateProgrammePool', () => {
   });
 
   it('persists the cumulative harvest after every parsed chunk', async () => {
-    const input = layerInput('ps-programme-2024', ['x'.repeat(30), 'y'.repeat(30)]);
+    const input = layerInput('parti-alpha-programme-fictif', ['x'.repeat(30), 'y'.repeat(30)]);
     const persisted: number[] = [];
     const client = fakeClient(['[]', `[${VALID_ITEM.replace('"page": 2', '"page": 2')}]`]);
     await generateProgrammePool({
-      partyId: 'ps',
-      partyName: 'PS',
+      partyId: 'parti-alpha',
+      partyName: 'Parti Alpha',
       layers: [input],
       client,
       maxChunkChars: 40,
@@ -193,7 +193,7 @@ describe('generateProgrammePool', () => {
   });
 
   it('has already persisted the paid chunks when a later answer is malformed', async () => {
-    const input = layerInput('ps-programme-2024', ['x'.repeat(30), 'y'.repeat(30)]);
+    const input = layerInput('parti-alpha-programme-fictif', ['x'.repeat(30), 'y'.repeat(30)]);
     let lastPersisted: HarvestedCandidate[] = [];
     const client = fakeClient([
       `[${VALID_ITEM.replace('"page": 2', '"page": 1')}]`,
@@ -201,8 +201,8 @@ describe('generateProgrammePool', () => {
     ]);
     await expect(
       generateProgrammePool({
-        partyId: 'ps',
-        partyName: 'PS',
+        partyId: 'parti-alpha',
+        partyName: 'Parti Alpha',
         layers: [input],
         client,
         maxChunkChars: 40,
@@ -213,16 +213,16 @@ describe('generateProgrammePool', () => {
       }),
     ).rejects.toThrow(/not valid JSON/);
     expect(lastPersisted).toHaveLength(1);
-    expect(lastPersisted[0]?.texte_fr).toBe('Supprimer la TVA sur les billets de train.');
+    expect(lastPersisted[0]?.texte_fr).toBe('Instaurer la mesure fictive Alpha.');
   });
 });
 
 describe('dedupeVotedDossiers / batchDossiers', () => {
   it('keeps one representative vote per dossier — the earliest', () => {
     const votes = [
-      plenaryVote('56-m2-v1', '228', '2025-03-01', 'Réforme des pensions'),
-      plenaryVote('56-m1-v1', '228', '2025-01-15', 'Réforme des pensions'),
-      plenaryVote('56-m3-v1', '412', '2025-05-01', 'Taxe kérosène'),
+      plenaryVote('56-m2-v1', '228', '2025-03-01', 'Mesure fictive Gamma'),
+      plenaryVote('56-m1-v1', '228', '2025-01-15', 'Mesure fictive Gamma'),
+      plenaryVote('56-m3-v1', '412', '2025-05-01', 'Mesure fictive Delta'),
     ];
     const dossiers = dedupeVotedDossiers(votes);
     expect(dossiers).toHaveLength(2);
@@ -248,8 +248,8 @@ describe('dedupeVotedDossiers / batchDossiers', () => {
 
 describe('vote pool prompt and parsing', () => {
   const batch: VotedDossier[] = dedupeVotedDossiers([
-    plenaryVote('56-m1-v1', '228', '2025-01-15', 'Relèvement de l’âge légal de la pension'),
-    plenaryVote('56-m2-v4', '412', '2025-03-02', 'Taxe sur le kérosène'),
+    plenaryVote('56-m1-v1', '228', '2025-01-15', 'Instauration de la mesure fictive Gamma'),
+    plenaryVote('56-m2-v4', '412', '2025-03-02', 'Mesure fictive Delta'),
   ]);
 
   it('lists every dossier with its DOC reference in the prompt', () => {
@@ -261,8 +261,8 @@ describe('vote pool prompt and parsing', () => {
 
   it('accepts a complete answer mixing candidates and explicit nulls', () => {
     const answer =
-      '[{"vote_id": "56-m1-v1", "candidat": {"texte_fr": "Relever l’âge légal de la pension à 67 ans.", ' +
-      '"note_concrete_fr": "Âge légal porté à 67 ans en 2030.", "theme": "pensions-secu"}}, ' +
+      '[{"vote_id": "56-m1-v1", "candidat": {"texte_fr": "Instaurer la mesure fictive Gamma.", ' +
+      '"note_concrete_fr": "Échéance fictive de démonstration : 2030.", "theme": "pensions-secu"}}, ' +
       '{"vote_id": "56-m2-v4", "candidat": null}]';
     const items = parseVotePoolResponse(answer, batch);
     expect(items).toHaveLength(2);
@@ -304,12 +304,12 @@ describe('vote pool prompt and parsing', () => {
 describe('generateVotePool', () => {
   it('harvests candidates across batches with vote provenance', async () => {
     const dossiers = dedupeVotedDossiers([
-      plenaryVote('56-m1-v1', '228', '2025-01-15', 'Relèvement de l’âge légal de la pension'),
-      plenaryVote('56-m2-v4', '412', '2025-03-02', 'Taxe sur le kérosène'),
+      plenaryVote('56-m1-v1', '228', '2025-01-15', 'Instauration de la mesure fictive Gamma'),
+      plenaryVote('56-m2-v4', '412', '2025-03-02', 'Mesure fictive Delta'),
     ]);
     const answers = [
-      '[{"vote_id": "56-m1-v1", "candidat": {"texte_fr": "Relever l’âge légal de la pension à 67 ans.", ' +
-        '"note_concrete_fr": "Âge légal porté à 67 ans en 2030.", "theme": "pensions-secu"}}]',
+      '[{"vote_id": "56-m1-v1", "candidat": {"texte_fr": "Instaurer la mesure fictive Gamma.", ' +
+        '"note_concrete_fr": "Échéance fictive de démonstration : 2030.", "theme": "pensions-secu"}}]',
       '[{"vote_id": "56-m2-v4", "candidat": null}]',
     ];
     const persisted: number[] = [];
@@ -327,8 +327,8 @@ describe('generateVotePool', () => {
     expect(result.candidates).toEqual([
       {
         theme: 'pensions-secu',
-        texte_fr: 'Relever l’âge légal de la pension à 67 ans.',
-        note_concrete_fr: 'Âge légal porté à 67 ans en 2030.',
+        texte_fr: 'Instaurer la mesure fictive Gamma.',
+        note_concrete_fr: 'Échéance fictive de démonstration : 2030.',
         sources: [
           { kind: 'vote', vote_id: '56-m1-v1', dossier: 'DOC 56 0228', date: '2025-01-15' },
         ],
