@@ -15,6 +15,8 @@ interface ScaleOption {
 interface UiStrings {
   siteTitle: string;
   metaDescription: string;
+  /** Accessible name of the language switcher nav. */
+  languageSwitcherLabel: string;
   demoBanner: string;
   heading: string;
   intro: string;
@@ -83,6 +85,7 @@ export const UI: Record<Locale, UiStrings> = {
     siteTitle: 'Test électoral fédéral — démonstration',
     metaDescription:
       'Répondez à des énoncés concrets et comparez votre alignement avec ce que les partis promettent et ce qu’ils votent — données fictives de démonstration.',
+    languageSwitcherLabel: 'Choix de la langue',
     demoBanner: 'Démonstration — partis et positions entièrement fictifs.',
     heading: 'Ce qu’ils promettent. Ce qu’ils votent.',
     intro:
@@ -143,6 +146,7 @@ export const UI: Record<Locale, UiStrings> = {
     siteTitle: 'Federale stemtest — demonstratie',
     metaDescription:
       'Beantwoord concrete stellingen en vergelijk uw overeenstemming met wat partijen beloven en wat ze stemmen — fictieve demonstratiegegevens.',
+    languageSwitcherLabel: 'Taalkeuze',
     demoBanner: 'Demonstratie — partijen en standpunten zijn volledig fictief.',
     heading: 'Wat ze beloven. Wat ze stemmen.',
     intro:
