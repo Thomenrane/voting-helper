@@ -370,8 +370,12 @@ export function parseVotePoolResponse(
       throw new Error(`LLM answer contains a duplicate decision for vote '${voteId}'.`);
     }
     seen.add(voteId);
+    if (!('candidat' in record)) {
+      // A missing key is not an explicit decision — 'candidat': null is.
+      throw new Error(`LLM answer item ${index} (${voteId}) misses the 'candidat' field.`);
+    }
     const candidat = record['candidat'];
-    if (candidat === null || candidat === undefined) {
+    if (candidat === null) {
       return { vote_id: voteId, candidat: null };
     }
     if (typeof candidat !== 'object') {

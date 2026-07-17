@@ -235,6 +235,13 @@ describe('vote pool prompt and parsing', () => {
     );
   });
 
+  it('rejects a missing candidat field — only an explicit null is a decision', () => {
+    const answer = '[{"vote_id": "56-m1-v1"}, {"vote_id": "56-m2-v4", "candidat": null}]';
+    expect(() => parseVotePoolResponse(answer, batch)).toThrow(
+      /misses the 'candidat' field/,
+    );
+  });
+
   it('rejects unknown and duplicated vote ids', () => {
     expect(() =>
       parseVotePoolResponse('[{"vote_id": "56-m9-v9", "candidat": null}]', batch),
