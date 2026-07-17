@@ -13,6 +13,8 @@ const CANDIDATE: PositionCandidate = {
   source_id: 'demo-doc',
   raw_snapshot_id: 'demo-doc@20260716T000000000Z',
   url_source: 'https://example.org/demo.pdf',
+  chunk_first_page: 12,
+  chunk_last_page: 13,
   verdict: { status: 'verified', page: 12, spans_next_page: false },
 };
 

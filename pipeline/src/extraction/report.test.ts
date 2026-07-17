@@ -40,12 +40,16 @@ const CANDIDATE: PositionCandidate = {
   source_id: 'demo-doc',
   raw_snapshot_id: 'demo-doc@x',
   url_source: 'https://example.org/demo.pdf',
+  chunk_first_page: 12,
+  chunk_last_page: 12,
   verdict: { status: 'verified', page: 12, spans_next_page: false },
 };
 
 const RESULT: PartyExtractionResult = {
   party_id: 'demo',
   chunk_count: 3,
+  chunks: [{ source_id: 'demo-doc', first_page: 1, last_page: 12, chars: 6000 }],
+  candidates: [CANDIDATE],
   usage: { input_tokens: 1000, output_tokens: 100 },
   outcomes: [
     { kind: 'position', statement_id: 's1', position: 2, citation: CANDIDATE },
