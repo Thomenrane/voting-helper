@@ -7,7 +7,7 @@
  * scoped styles apply to all of it. The client (results-view.ts, driven by
  * the wizard island) only fills scores, reorders rows and draws the lines.
  */
-import { PARTIES, PARTY_POSITIONS, STATEMENTS } from '@voting-helper/data';
+import { deriveRelativeVote, PARTIES, PARTY_POSITIONS, STATEMENTS } from '@voting-helper/data';
 import type { Locale } from '../i18n/locales.ts';
 import { UI } from '../i18n/ui.ts';
 import { buildPartyAudit, formatDateBE } from '../lib/results/results-presentation.ts';
@@ -134,7 +134,9 @@ const scaleLabel = (position: number): string =>
                                   <li class="vote">
                                     <p class="vote-head">
                                       <strong class="vote-direction">
-                                        {t.voteDirection[vote.position_groupe]}
+                                        {t.voteDirection[
+                                          deriveRelativeVote(vote.vote_groupe, vote.direction_dossier)
+                                        ]}
                                       </strong>{' '}
                                       — {formatDateBE(vote.date)} — {vote.dossier}
                                     </p>

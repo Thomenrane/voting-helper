@@ -8,7 +8,14 @@
  * - Parti D : aucun vote lié sur s4 et s6 (exclus du score « actes »).
  * - Parti F : record s7 en statut « en_attente » (exclu du calcul), aucun record s3.
  */
-import type { Citation, GroupVotePosition, LinkedVote, PartyPosition, PositionValue } from '../schema.ts';
+import type {
+  Citation,
+  DossierDirection,
+  GroupVotePosition,
+  LinkedVote,
+  PartyPosition,
+  PositionValue,
+} from '../schema.ts';
 
 /** Fabrique une citation fictive de démonstration. */
 function demoCitation(partyId: string, statementId: string, page: number): Citation {
@@ -20,31 +27,47 @@ function demoCitation(partyId: string, statementId: string, page: number): Citat
   };
 }
 
-/** Fabrique un vote lié fictif de démonstration. */
-function demoVote(id: string, position_groupe: GroupVotePosition): LinkedVote {
+/**
+ * Fabrique un vote lié fictif de démonstration (schéma m3) : vote BRUT du
+ * groupe sur le dossier + direction du dossier par rapport à l'énoncé. La
+ * position relative (+2/0/−2) est toujours dérivée via deriveVotePosition.
+ */
+function demoVote(
+  id: string,
+  vote_groupe: GroupVotePosition,
+  direction_dossier: DossierDirection = 'soutient',
+): LinkedVote {
   return {
     id,
     date: '2025-03-15',
     dossier: `DOC 56 ${id.toUpperCase()}/001 (fictif)`,
-    position_groupe,
+    vote_groupe,
+    direction_dossier,
     justification: 'Vote fictif de démonstration lié directement à la mesure de l’énoncé.',
   };
 }
 
-/** Fabrique un record parti × énoncé complet (programme + votes). */
+/**
+ * Fabrique un record parti × énoncé complet (programme + votes). `votes`
+ * donne le vote brut du groupe ; `directions` (optionnel, aligné par index)
+ * la direction du dossier — 'soutient' par défaut.
+ */
 function demoPosition(
   partyId: string,
   statementId: string,
   position: PositionValue,
   votes: GroupVotePosition[],
   page: number,
+  directions: DossierDirection[] = [],
 ): PartyPosition {
   return {
     party_id: partyId,
     statement_id: statementId,
     position,
     citation: demoCitation(partyId, statementId, page),
-    votes_lies: votes.map((v, i) => demoVote(`${partyId}-${statementId}-v${i + 1}`, v)),
+    votes_lies: votes.map((v, i) =>
+      demoVote(`${partyId}-${statementId}-v${i + 1}`, v, directions[i] ?? 'soutient'),
+    ),
     statut: 'valide',
     derniere_revision: '2026-06-01',
   };
@@ -62,7 +85,10 @@ export const PARTY_POSITIONS: PartyPosition[] = [
   demoPosition('parti-a', 's8', -1, ['non'], 62),
 
   // Parti B — promesses proches du profil démo, mais votes opposés sur s1 et s5.
-  demoPosition('parti-b', 's1', 2, ['non'], 9),
+  // s1 exerce le chemin « contredit » du schéma m3 : le groupe a voté « oui »
+  // sur un dossier qui contredit l'énoncé — position dérivée −2, identique à
+  // un « non » sur un dossier qui le soutient (s5).
+  demoPosition('parti-b', 's1', 2, ['oui'], 9, ['contredit']),
   demoPosition('parti-b', 's2', 1, ['oui'], 15),
   demoPosition('parti-b', 's3', 0, ['abstention'], 22),
   demoPosition('parti-b', 's4', -2, ['non'], 28),

@@ -1,5 +1,6 @@
 export type {
   Citation,
+  DossierDirection,
   GroupVotePosition,
   LinkedVote,
   Party,
@@ -11,6 +12,12 @@ export type {
   UserAnswer,
   UserAnswers,
 } from './schema.ts';
+
+export {
+  deriveRelativeVote,
+  deriveVotePosition,
+  type DerivedVotePosition,
+} from './linked-vote.ts';
 
 export { PARTIES } from './fixtures/parties.fixture.ts';
 export { STATEMENTS } from './fixtures/statements.fixture.ts';

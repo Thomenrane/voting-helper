@@ -7,7 +7,8 @@
  * - « sans opinion » (or no answer) excludes a statement from BOTH scores.
  * - Missing programme position excludes it from « promesses » only.
  * - Zero linked votes excludes it from « actes » only.
- * - Group votes map oui/abstention/non → +2/0/−2 relative to the statement;
+ * - Each linked vote's ±2/0 position is DERIVED from the raw group vote and
+ *   the dossier direction (deriveVotePosition, schema m3 — never stored);
  *   several linked votes are averaged.
  * - Zero denominator → score null (« n.d. »), never 0.
  * - Écart = promesses − actes on the rounded (displayed) scores;
@@ -20,12 +21,12 @@
  *   inconsistent data must never be silently averaged.
  * - The two scores are NEVER fused into a single number.
  */
-import type {
-  GroupVotePosition,
-  Party,
-  PartyPosition,
-  PositionValue,
-  UserAnswers,
+import {
+  deriveVotePosition,
+  type Party,
+  type PartyPosition,
+  type PositionValue,
+  type UserAnswers,
 } from '@voting-helper/data';
 
 /** One dimension (promesses or actes) of a party's result. */
@@ -52,12 +53,6 @@ export interface PartyScore {
 /** |écart| threshold above which the promesses/actes gap is highlighted. */
 export const ECART_MARQUANT_THRESHOLD = 15;
 
-const GROUP_VOTE_VALUE: Record<GroupVotePosition, number> = {
-  oui: 2,
-  abstention: 0,
-  non: -2,
-};
-
 /** Maximum city-block distance between two positions on the −2..+2 scale. */
 const MAX_DISTANCE = 4;
 
@@ -67,7 +62,10 @@ const MAX_DISTANCE = 4;
  */
 function votePosition(record: PartyPosition): number | null {
   if (record.votes_lies.length === 0) return null;
-  const sum = record.votes_lies.reduce((acc, v) => acc + GROUP_VOTE_VALUE[v.position_groupe], 0);
+  const sum = record.votes_lies.reduce(
+    (acc, v) => acc + deriveVotePosition(v.vote_groupe, v.direction_dossier),
+    0,
+  );
   return sum / record.votes_lies.length;
 }
 
