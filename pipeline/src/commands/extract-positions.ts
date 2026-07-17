@@ -77,15 +77,29 @@ async function main(): Promise<void> {
   console.log(`Preparing text layers for ${party.name} (${pdfSources.length} document(s))…`);
   const layers: LayerInput[] = [];
   for (const source of pdfSources) {
-    const { layer, manifest: next } = await ensureTextLayer(repoRoot, manifest, source);
+    // A dry-run mutates nothing: missing layers are derived in memory only.
+    const { layer, manifest: next } = await ensureTextLayer(
+      repoRoot,
+      manifest,
+      source,
+      undefined,
+      { persist: !dryRun },
+    );
     manifest = next;
     layers.push(layer.input);
+    const state = layer.created
+      ? dryRun
+        ? ' (derived in memory — dry-run, not attested)'
+        : ' (derived + attested)'
+      : ' (reused)';
     console.log(
       `  ${layer.created ? '+' : '='} ${layer.entry.snapshot_id} — ` +
-        `${layer.input.layer.page_count} pages${layer.created ? ' (derived + attested)' : ' (reused)'}`,
+        `${layer.input.layer.page_count} pages${state}`,
     );
   }
-  await saveManifest(manifestPath, manifest);
+  if (!dryRun) {
+    await saveManifest(manifestPath, manifest);
+  }
 
   const chunks = layers.flatMap((input) => chunkLayer(input));
   const totalChars = chunks.reduce((n, c) => n + c.text.length, 0);

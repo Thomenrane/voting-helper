@@ -103,6 +103,27 @@ describe('ensureTextLayer', () => {
     expect(sha256Hex(stored)).toBe(first.layer.entry.sha256);
   });
 
+  it('derives in memory without touching manifest or disk when persist is off', async () => {
+    const manifest = await seedRawSnapshot(['Page en memoire seulement']);
+    const { layer, manifest: next } = await ensureTextLayer(repoRoot, manifest, SOURCE, NOW, {
+      persist: false,
+    });
+    expect(layer.created).toBe(true);
+    expect(layer.input.layer.pages[0]?.text).toContain('Page en memoire seulement');
+    expect(next).toBe(manifest); // untouched — a dry-run mutates nothing
+    await expect(readFile(join(repoRoot, layer.entry.file))).rejects.toThrow();
+  });
+
+  it('still reuses an existing attested layer when persist is off', async () => {
+    const manifest = await seedRawSnapshot(['Une page']);
+    const first = await ensureTextLayer(repoRoot, manifest, SOURCE, NOW);
+    const second = await ensureTextLayer(repoRoot, first.manifest, SOURCE, NOW, {
+      persist: false,
+    });
+    expect(second.layer.created).toBe(false);
+    expect(second.layer.entry.snapshot_id).toBe(first.layer.entry.snapshot_id);
+  });
+
   it('refuses non-PDF sources with the documented limitation', async () => {
     const manifest = await seedRawSnapshot(['x']);
     await expect(

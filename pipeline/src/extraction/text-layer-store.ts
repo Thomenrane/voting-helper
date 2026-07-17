@@ -61,12 +61,23 @@ async function readSnapshotBytes(repoRoot: string, entry: SnapshotEntry): Promis
   return bytes;
 }
 
+export interface EnsureTextLayerOptions {
+  /**
+   * When false (dry-run), a missing layer is derived IN MEMORY only: the
+   * manifest is returned untouched and nothing is written to disk. An
+   * existing attested layer is still reused. Default: true.
+   */
+  persist?: boolean;
+}
+
 export async function ensureTextLayer(
   repoRoot: string,
   manifest: SnapshotManifest,
   source: SnapshotSource,
   now: () => Date = () => new Date(),
+  options: EnsureTextLayerOptions = {},
 ): Promise<EnsureTextLayerResult> {
+  const persist = options.persist ?? true;
   if (source.mediaType !== 'application/pdf') {
     throw new Error(
       `Source '${source.id}' is ${source.mediaType} — the per-page text layer only covers PDF ` +
@@ -115,6 +126,10 @@ export async function ensureTextLayer(
     snapshotsDir: SNAPSHOTS_DIR,
     quality: summarizeTextLayerQuality(layer),
   });
+  const input = { layer, raw_snapshot_id: raw.snapshot_id, url_source: source.originUrl };
+  if (!persist) {
+    return { manifest, layer: { input, entry, created: true } };
+  }
   const nextManifest = appendSnapshot(manifest, entry);
   const appended = nextManifest.snapshots[nextManifest.snapshots.length - 1];
   if (appended === undefined) {
@@ -123,10 +138,6 @@ export async function ensureTextLayer(
   await writeSnapshotFile(repoRoot, appended, bytes);
   return {
     manifest: nextManifest,
-    layer: {
-      input: { layer, raw_snapshot_id: raw.snapshot_id, url_source: source.originUrl },
-      entry: appended,
-      created: true,
-    },
+    layer: { input, entry: appended, created: true },
   };
 }
