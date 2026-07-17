@@ -1,0 +1,67 @@
+# Positions N-VA — extraction par agent (abonnement) du 17/07/2026, pilote #25.
+# Statuts: en_attente = à valider en review de PR. Chaque citation a été recopiée
+# VERBATIM depuis la couche texte dérivée du programme officiel N-VA 2024 et
+# vérifiée mécaniquement (recherche textuelle normalisée) à la page indiquée.
+# Aucune citation inventée. Généré pour le pilote — ne pas éditer à la main hors review.
+positions:
+  - party_id: nva
+    statement_id: s1
+    position: 1
+    citation:
+      texte: Concreet pleiten we voor een verdere verlaging van de loonkosten.
+      url_source: https://www.n-va.be/sites/n-va.be/files/2024-04/Verkiezingsprogramma.pdf
+      ref_snapshot: nva-programme-2024@20260716T212932871Z
+      page: 16
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-17
+  - party_id: nva
+    statement_id: s2
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-17
+  - party_id: nva
+    statement_id: s3
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-17
+  - party_id: nva
+    statement_id: s4
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-17
+  - party_id: nva
+    statement_id: s5
+    position: 2
+    citation:
+      texte: De wet op de kernuitstap schaffen we af. We kiezen voor het maximaal
+        behoud van de bestaande kerncentrales en we bereiden de bouw van nieuwe
+        kerncentrales voor, eventueel in samenwerking met buurlanden.
+      url_source: https://www.n-va.be/sites/n-va.be/files/2024-04/Verkiezingsprogramma.pdf
+      ref_snapshot: nva-programme-2024@20260716T212932871Z
+      page: 23
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-17
+  - party_id: nva
+    statement_id: s6
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-17
+  - party_id: nva
+    statement_id: s7
+    position: 1
+    citation:
+      texte: Daarom pleiten we ervoor om raadplegingen bij een mentale zorgverlener
+        voor jongeren voor het grootste deel terug te betalen.
+      url_source: https://www.n-va.be/sites/n-va.be/files/2024-04/Verkiezingsprogramma.pdf
+      ref_snapshot: nva-programme-2024@20260716T212932871Z
+      page: 32
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-17
+  - party_id: nva
+    statement_id: s8
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-17
