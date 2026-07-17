@@ -17,7 +17,8 @@
  * command prints the exact plan (chunks or batches, sizes, token estimate)
  * WITHOUT calling the LLM — it never invents model output.
  */
-import { mkdir, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -37,9 +38,12 @@ import {
   generateProgrammePool,
   generateVotePool,
   DEFAULT_DOSSIER_BATCH_SIZE,
+  type CandidateStatement,
+  type PersistHarvest,
   type PoolGenerationResult,
 } from '../statements/candidate-pool.ts';
-import { renderPoolYaml } from '../statements/pool-yaml.ts';
+import { mergePoolCandidates } from '../statements/pool-merge.ts';
+import { parsePoolYaml, renderPoolYaml } from '../statements/pool-yaml.ts';
 import { loadVotesDataset } from '../votes/load-dataset.ts';
 import { fail, resolveRepoRoot, STATEMENTS_POOL_DIR } from './command-support.ts';
 
@@ -53,29 +57,66 @@ function displayDate(): { iso: string; display: string } {
   return { iso, display: `${day}/${month}/${year}` };
 }
 
-async function writePool(
-  repoRoot: string,
-  origin: string,
-  result: PoolGenerationResult,
-  header: string,
-): Promise<string> {
-  const poolDir = join(repoRoot, STATEMENTS_POOL_DIR);
-  await mkdir(poolDir, { recursive: true });
-  const relative = `${STATEMENTS_POOL_DIR}/${origin}.candidates.yaml`;
-  await writeFile(join(repoRoot, relative), renderPoolYaml(result.candidates, header));
-  return relative;
+/**
+ * A pool file opened for a merging harvest. A re-run NEVER overwrites human
+ * work (pool-merge.ts): existing candidates — ids, hand-coded positions —
+ * are preserved verbatim, new candidates are appended, ambiguity fails
+ * loudly. `persist` is handed to the generator so every parsed chunk lands
+ * on disk immediately: a malformed answer late in a paid run loses nothing.
+ */
+interface PoolTarget {
+  relative: string;
+  existing: CandidateStatement[];
+  persist: PersistHarvest;
 }
 
-function reportRun(result: PoolGenerationResult, relative: string, model: string): void {
+async function openPoolTarget(
+  repoRoot: string,
+  origin: string,
+  header: string,
+): Promise<PoolTarget> {
+  const poolDir = join(repoRoot, STATEMENTS_POOL_DIR);
+  const relative = `${STATEMENTS_POOL_DIR}/${origin}.candidates.yaml`;
+  const absolute = join(poolDir, `${origin}.candidates.yaml`);
+  const existing = existsSync(absolute)
+    ? parsePoolYaml(await readFile(absolute, 'utf8'), relative)
+    : [];
+  if (existing.length > 0) {
+    console.log(
+      `Merging into existing ${relative} — ${existing.length} candidate(s) preserved ` +
+        '(ids and coded positions are never overwritten).',
+    );
+  }
+  const persist: PersistHarvest = async (candidates) => {
+    const merged = mergePoolCandidates(origin, existing, candidates);
+    await mkdir(poolDir, { recursive: true });
+    await writeFile(absolute, renderPoolYaml(merged, header));
+  };
+  return { relative, existing, persist };
+}
+
+async function reportRun(
+  target: PoolTarget,
+  origin: string,
+  result: PoolGenerationResult,
+  model: string,
+): Promise<void> {
+  // Idempotent final write — also covers a harvest with zero requests.
+  await target.persist(result.candidates);
+  const merged = mergePoolCandidates(origin, target.existing, result.candidates);
+  const added = merged.length - target.existing.length;
   const byTheme = new Map<string, number>();
-  for (const candidate of result.candidates) {
+  for (const candidate of merged) {
     byTheme.set(candidate.theme, (byTheme.get(candidate.theme) ?? 0) + 1);
   }
-  console.log(`\nDone: ${result.candidates.length} candidate statement(s) harvested.`);
+  console.log(
+    `\nDone: ${added} new candidate statement(s) harvested, ` +
+      `${target.existing.length} preserved from previous runs — ${merged.length} in the pool.`,
+  );
   for (const [theme, count] of [...byTheme.entries()].sort()) {
     console.log(`  ${theme}: ${count}`);
   }
-  console.log(`  ${relative}`);
+  console.log(`  ${target.relative}`);
   console.log(`\n${formatRunCost(computeRunCost(result.usage, model), model)}`);
   console.log('Next: npm run statements:select');
 }
@@ -145,25 +186,26 @@ async function runProgrammePool(partyId: string, model: string, dryRun: boolean)
   }
 
   const client = createAnthropicClient(model);
+  const { display } = displayDate();
+  const target = await openPoolTarget(
+    repoRoot,
+    party.party_id,
+    `Énoncés candidats ${party.name} — pool mis à jour le ${display} (modèle ${model}).\n` +
+      `Candidats SEULEMENT : la sélection des 35 et la réécriture sont humaines\n` +
+      `(docs/methodologie/guide-redaction-enonces.md). 'positions' se code à la main\n` +
+      `pendant la session HITL, puis 'npm run statements:select' classe le pool.\n` +
+      `Un re-run fusionne : ids et positions codées sont toujours préservés.`,
+  );
   console.log(`Harvesting candidate statements with ${model}…`);
   const result = await generateProgrammePool({
     partyId: party.party_id,
     partyName: party.name,
     layers,
     client,
+    persist: target.persist,
     log: (line) => console.log(line),
   });
-  const { display } = displayDate();
-  const relative = await writePool(
-    repoRoot,
-    party.party_id,
-    result,
-    `Énoncés candidats ${party.name} — pool généré le ${display} (modèle ${model}).\n` +
-      `Candidats SEULEMENT : la sélection des 35 et la réécriture sont humaines\n` +
-      `(docs/methodologie/guide-redaction-enonces.md). 'positions' se code à la main\n` +
-      `pendant la session HITL, puis 'npm run statements:select' classe le pool.`,
-  );
-  reportRun(result, relative, model);
+  await reportRun(target, party.party_id, result, model);
 }
 
 async function runVotePool(model: string, dryRun: boolean, batchSize: number): Promise<void> {
@@ -196,24 +238,25 @@ async function runVotePool(model: string, dryRun: boolean, batchSize: number): P
   }
 
   const client = createAnthropicClient(model);
+  const { display } = displayDate();
+  const target = await openPoolTarget(
+    repoRoot,
+    'votes',
+    `Énoncés candidats issus des dossiers votés — pool mis à jour le ${display}\n` +
+      `(modèle ${model}, dataset ${snapshotId}). Candidats SEULEMENT : la sélection\n` +
+      `des 35 et la réécriture sont humaines (docs/methodologie/\n` +
+      `guide-redaction-enonces.md). Un re-run fusionne : ids et positions codées\n` +
+      `sont toujours préservés.`,
+  );
   console.log(`Harvesting candidate statements with ${model}…`);
   const result = await generateVotePool({
     dossiers,
     client,
     batchSize,
+    persist: target.persist,
     log: (line) => console.log(line),
   });
-  const { display } = displayDate();
-  const relative = await writePool(
-    repoRoot,
-    'votes',
-    result,
-    `Énoncés candidats issus des dossiers votés — pool généré le ${display}\n` +
-      `(modèle ${model}, dataset ${snapshotId}). Candidats SEULEMENT : la sélection\n` +
-      `des 35 et la réécriture sont humaines (docs/methodologie/\n` +
-      `guide-redaction-enonces.md).`,
-  );
-  reportRun(result, relative, model);
+  await reportRun(target, 'votes', result, model);
 }
 
 async function main(): Promise<void> {

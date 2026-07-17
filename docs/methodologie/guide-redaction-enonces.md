@@ -159,6 +159,12 @@ publie jamais seul.
    (`--votes`). Chaque candidat naît avec ses sources (parti + page +
    snapshot, ou vote + dossier DOC) et un thème proposé parmi les 10.
    Sortie : `data/statements/pool/*.candidates.yaml`.
+   **Règle de fusion** : relancer la commande ne détruit jamais le travail
+   humain — les candidats existants (ids, `positions` codées, corrections
+   manuelles) sont préservés tels quels, les candidats réellement nouveaux
+   sont ajoutés à la suite (les ids ne sont jamais renumérotés), et tout
+   cas ambigu (ids dupliqués, candidats indistinguables) fait échouer la
+   commande bruyamment plutôt que d'écraser.
 2. **Codage des positions** — pour mesurer la discriminance, les positions
    des partis sur les candidats pressentis sont codées dans le champ
    `positions` des fichiers du pool (à la main pour un tri grossier, ou via
@@ -224,7 +230,15 @@ npm run statements:select
 Les étapes 3-4 bouclent : coder quelques candidats, re-classer, resserrer.
 Le rapport signale les thèmes en trou de couverture ; y répondre en
 relançant `statements:pool` sur des sources couvrant ces thèmes, pas en
-inventant des énoncés.
+inventant des énoncés. Relancer est toujours sûr : la commande fusionne
+dans le fichier existant sans jamais toucher aux ids ni aux `positions`
+déjà codées.
+
+**Reprise après incident** : le pool s'écrit sur disque au fil des chunks
+et des lots. Si un run échoue en cours de route (réponse malformée, coupure
+réseau), tout ce qui a réussi avant l'échec est déjà dans le fichier —
+relancer la même commande complète le pool par fusion, sans re-perdre ni
+re-payer ce qui est acquis.
 
 ### Format de sortie de la sélection
 

@@ -68,12 +68,27 @@ export interface CandidateStatement {
   positions?: Record<string, PositionValue>;
 }
 
+/**
+ * A candidate as it comes out of the harvest — no id yet (ids are assigned
+ * by the pool merge so re-runs never renumber, see pool-merge.ts) and no
+ * positions (coded by humans later).
+ */
+export type HarvestedCandidate = Omit<CandidateStatement, 'id' | 'positions'>;
+
 export interface PoolGenerationResult {
-  candidates: CandidateStatement[];
+  candidates: HarvestedCandidate[];
   usage: LLMUsage;
   /** Number of LLM requests made (programme chunks or dossier batches). */
   request_count: number;
 }
+
+/**
+ * Called after EVERY successfully parsed request with the cumulative
+ * harvest so far, so a paid run persists progress incrementally: a
+ * malformed answer at request k+1 never loses the k answers already paid
+ * for — the caller has already persisted them.
+ */
+export type PersistHarvest = (candidates: readonly HarvestedCandidate[]) => Promise<void>;
 
 const THEME_LINES = CANONICAL_THEMES.map((theme) => `  - ${theme.id} (${theme.label_fr})`);
 
@@ -208,6 +223,8 @@ export interface GenerateProgrammePoolOptions {
   client: LLMClient;
   maxChunkChars?: number;
   maxTokensPerAnswer?: number;
+  /** Incremental persistence hook — see PersistHarvest. */
+  persist?: PersistHarvest;
   /** Progress logger — injected so tests stay silent. */
   log?: (line: string) => void;
 }
@@ -223,11 +240,12 @@ export async function generateProgrammePool(
     client,
     maxChunkChars,
     maxTokensPerAnswer = 8192,
+    persist,
     log = () => {},
   } = options;
   const chunks = layers.flatMap((input) => chunkLayer(input, maxChunkChars));
   let usage: LLMUsage = { input_tokens: 0, output_tokens: 0 };
-  const candidates: CandidateStatement[] = [];
+  const candidates: HarvestedCandidate[] = [];
   for (const [index, chunk] of chunks.entries()) {
     log(
       `  chunk ${index + 1}/${chunks.length} — ${chunk.input.layer.source_id} ` +
@@ -238,7 +256,6 @@ export async function generateProgrammePool(
     usage = addUsage(usage, response.usage);
     for (const item of parseProgrammePoolResponse(response.text, chunk)) {
       candidates.push({
-        id: `${partyId}-c${String(candidates.length + 1).padStart(3, '0')}`,
         theme: item.theme,
         texte_fr: item.texte_fr,
         note_concrete_fr: item.note_concrete_fr,
@@ -254,6 +271,7 @@ export async function generateProgrammePool(
         ],
       });
     }
+    await persist?.(candidates);
   }
   return { candidates, usage, request_count: chunks.length };
 }
@@ -403,6 +421,8 @@ export interface GenerateVotePoolOptions {
   client: LLMClient;
   batchSize?: number;
   maxTokensPerAnswer?: number;
+  /** Incremental persistence hook — see PersistHarvest. */
+  persist?: PersistHarvest;
   /** Progress logger — injected so tests stay silent. */
   log?: (line: string) => void;
 }
@@ -416,12 +436,13 @@ export async function generateVotePool(
     client,
     batchSize = DEFAULT_DOSSIER_BATCH_SIZE,
     maxTokensPerAnswer = 8192,
+    persist,
     log = () => {},
   } = options;
   const batches = batchDossiers(dossiers, batchSize);
   const byVoteId = new Map(dossiers.map((entry) => [entry.vote.id, entry]));
   let usage: LLMUsage = { input_tokens: 0, output_tokens: 0 };
-  const candidates: CandidateStatement[] = [];
+  const candidates: HarvestedCandidate[] = [];
   for (const [index, batch] of batches.entries()) {
     log(`  batch ${index + 1}/${batches.length} — ${batch.length} dossier(s)…`);
     const prompt = buildVotePoolPrompt(batch);
@@ -436,7 +457,6 @@ export async function generateVotePool(
         throw new Error('unreachable: parsed decision names a dossier outside the pool input');
       }
       candidates.push({
-        id: `votes-c${String(candidates.length + 1).padStart(3, '0')}`,
         theme: item.candidat.theme,
         texte_fr: item.candidat.texte_fr,
         note_concrete_fr: item.candidat.note_concrete_fr,
@@ -450,6 +470,7 @@ export async function generateVotePool(
         ],
       });
     }
+    await persist?.(candidates);
   }
   return { candidates, usage, request_count: batches.length };
 }

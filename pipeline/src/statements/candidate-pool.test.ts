@@ -12,6 +12,7 @@ import {
   generateVotePool,
   parseProgrammePoolResponse,
   parseVotePoolResponse,
+  type HarvestedCandidate,
   type VotedDossier,
 } from './candidate-pool.ts';
 
@@ -140,7 +141,7 @@ describe('parseProgrammePoolResponse', () => {
 });
 
 describe('generateProgrammePool', () => {
-  it('mines every chunk and stamps full provenance on each candidate', async () => {
+  it('mines every chunk and stamps full provenance on each candidate — no id yet', async () => {
     const input = layerInput('ps-programme-2024', ['x'.repeat(30), 'y'.repeat(30)]);
     const requests: LLMRequest[] = [];
     // maxChunkChars forces two chunks → two answers.
@@ -157,7 +158,6 @@ describe('generateProgrammePool', () => {
     expect(result.usage).toEqual({ input_tokens: 200, output_tokens: 20 });
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0]).toEqual({
-      id: 'ps-c001',
       theme: 'mobilite',
       texte_fr: 'Supprimer la TVA sur les billets de train.',
       note_concrete_fr: 'TVA à 0 % sur le rail voyageurs.',
@@ -172,6 +172,48 @@ describe('generateProgrammePool', () => {
         },
       ],
     });
+  });
+
+  it('persists the cumulative harvest after every parsed chunk', async () => {
+    const input = layerInput('ps-programme-2024', ['x'.repeat(30), 'y'.repeat(30)]);
+    const persisted: number[] = [];
+    const client = fakeClient(['[]', `[${VALID_ITEM.replace('"page": 2', '"page": 2')}]`]);
+    await generateProgrammePool({
+      partyId: 'ps',
+      partyName: 'PS',
+      layers: [input],
+      client,
+      maxChunkChars: 40,
+      persist: (candidates: readonly HarvestedCandidate[]) => {
+        persisted.push(candidates.length);
+        return Promise.resolve();
+      },
+    });
+    expect(persisted).toEqual([0, 1]);
+  });
+
+  it('has already persisted the paid chunks when a later answer is malformed', async () => {
+    const input = layerInput('ps-programme-2024', ['x'.repeat(30), 'y'.repeat(30)]);
+    let lastPersisted: HarvestedCandidate[] = [];
+    const client = fakeClient([
+      `[${VALID_ITEM.replace('"page": 2', '"page": 1')}]`,
+      'réponse hors format',
+    ]);
+    await expect(
+      generateProgrammePool({
+        partyId: 'ps',
+        partyName: 'PS',
+        layers: [input],
+        client,
+        maxChunkChars: 40,
+        persist: (candidates: readonly HarvestedCandidate[]) => {
+          lastPersisted = [...candidates];
+          return Promise.resolve();
+        },
+      }),
+    ).rejects.toThrow(/not valid JSON/);
+    expect(lastPersisted).toHaveLength(1);
+    expect(lastPersisted[0]?.texte_fr).toBe('Supprimer la TVA sur les billets de train.');
   });
 });
 
@@ -270,15 +312,20 @@ describe('generateVotePool', () => {
         '"note_concrete_fr": "Âge légal porté à 67 ans en 2030.", "theme": "pensions-secu"}}]',
       '[{"vote_id": "56-m2-v4", "candidat": null}]',
     ];
+    const persisted: number[] = [];
     const result = await generateVotePool({
       dossiers,
       client: fakeClient(answers),
       batchSize: 1,
+      persist: (candidates: readonly HarvestedCandidate[]) => {
+        persisted.push(candidates.length);
+        return Promise.resolve();
+      },
     });
     expect(result.request_count).toBe(2);
+    expect(persisted).toEqual([1, 1]);
     expect(result.candidates).toEqual([
       {
-        id: 'votes-c001',
         theme: 'pensions-secu',
         texte_fr: 'Relever l’âge légal de la pension à 67 ans.',
         note_concrete_fr: 'Âge légal porté à 67 ans en 2030.',
