@@ -71,6 +71,9 @@ describe('buildPartyLinks', () => {
       direction_dossier: 'contredit',
       justification: 'Vote final sur la mesure.',
     });
+    // The group tally travels with the link so the review can show the
+    // resolved-ballots ratio behind the majority (M3 of the #34 review).
+    expect(ps?.tally).toEqual({ group: 'PS', oui: 15, non: 0, abstention: 1 });
     // Ecolo and Groen share the Ecolo-Groen fraction: same raw vote for both.
     const shared = links.filter((l) => l.fraction === 'Ecolo-Groen');
     expect(shared.map((l) => l.party_id).sort()).toEqual(['ecolo', 'groen']);

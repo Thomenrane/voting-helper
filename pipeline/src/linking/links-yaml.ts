@@ -7,6 +7,7 @@
  */
 import type { LinkedVote, PartyPosition } from '@voting-helper/data';
 
+import type { GroupTally } from '../votes/votes.types.ts';
 import { formatDossierRef } from './dossier-ref.ts';
 import { groupMajorityVote } from './group-vote.ts';
 import type { PartyGroup } from './party-groups.ts';
@@ -16,6 +17,8 @@ import type { RetainedLink } from './vote-preselection.ts';
 export interface PartyLinkedVote {
   party_id: string;
   fraction: string;
+  /** Group tally behind the majority — the review shows the resolved-ballots ratio. */
+  tally: GroupTally;
   linked_vote: LinkedVote;
 }
 
@@ -58,6 +61,7 @@ export function buildPartyLinks(
       links.push({
         party_id,
         fraction,
+        tally,
         linked_vote: {
           id: vote.id,
           date: vote.date,

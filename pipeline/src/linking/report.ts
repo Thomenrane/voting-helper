@@ -74,16 +74,24 @@ function renderRetained(link: RetainedLink): string[] {
   ];
 }
 
+/** `oui (3/7 bulletins résolus)`: majority count over the group's resolved ballots. */
+function formatRawVoteCell(link: PartyLinkedVote): string {
+  const { tally, linked_vote } = link;
+  const resolved = tally.oui + tally.non + tally.abstention;
+  return `${linked_vote.vote_groupe} (${tally[linked_vote.vote_groupe]}/${resolved} bulletins résolus)`;
+}
+
 function renderPartyTable(
-  voteId: string,
+  retainedVote: RetainedLink['vote'],
   links: readonly PartyLinkedVote[],
   absences: readonly PartyVoteAbsence[],
 ): string[] {
+  const voteId = retainedVote.id;
   const rows = links
     .filter((l) => l.linked_vote.id === voteId)
     .map(
       (l) =>
-        `| ${l.party_id} | ${l.fraction} | ${l.linked_vote.vote_groupe} | ${l.linked_vote.direction_dossier} | ${formatDerived(deriveVotePosition(l.linked_vote.vote_groupe, l.linked_vote.direction_dossier))} |`,
+        `| ${l.party_id} | ${l.fraction} | ${formatRawVoteCell(l)} | ${l.linked_vote.direction_dossier} | ${formatDerived(deriveVotePosition(l.linked_vote.vote_groupe, l.linked_vote.direction_dossier))} |`,
     );
   const lines: string[] = [];
   if (rows.length > 0) {
@@ -92,6 +100,13 @@ function renderPartyTable(
       '| Parti | Groupe | Vote brut | Direction | Position dérivée |',
       '|---|---|---|---|---|',
       ...rows,
+    );
+  }
+  if (retainedVote.warnings.length > 0) {
+    // M3: a majority computed on a partially resolved tally must jump out.
+    lines.push(
+      '',
+      ...retainedVote.warnings.map((warning) => `- ⚠ _Qualité des données du scrutin : ${warning}_`),
     );
   }
   const missing = absences.filter((a) => a.vote_id === voteId);
@@ -119,7 +134,7 @@ function renderStatement(report: StatementLinkReport): string[] {
     );
   } else {
     for (const link of report.retained) {
-      lines.push('', ...renderRetained(link), ...renderPartyTable(link.vote.id, report.links, report.absences));
+      lines.push('', ...renderRetained(link), ...renderPartyTable(link.vote, report.links, report.absences));
     }
   }
   if (report.setAside.length > 0) {

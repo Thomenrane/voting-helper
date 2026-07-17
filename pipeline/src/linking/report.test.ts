@@ -35,7 +35,7 @@ const VOTE: PlenaryVote = {
   counts: { oui: 0, non: 0, abstention: 0 },
   ballots: [],
   groups: [],
-  warnings: [],
+  warnings: ["deputy 'X' (oui) not found in the members file — group unresolved"],
 };
 
 const REPORT: StatementLinkReport = {
@@ -58,6 +58,7 @@ const REPORT: StatementLinkReport = {
     {
       party_id: 'ps',
       fraction: 'PS',
+      tally: { group: 'PS', oui: 3, non: 2, abstention: 2 },
       linked_vote: {
         id: '56-m10-v1',
         date: '2025-03-15',
@@ -92,6 +93,17 @@ describe('renderLinkingReview', () => {
   it('shows the raw group vote per party and the DERIVED position', () => {
     // oui × contredit → −2, and the raw vote stays visible.
     expect(review).toMatch(/PS.*oui.*−2/s);
+  });
+
+  it('shows the resolved-ballots ratio behind each group majority (M3)', () => {
+    // vote_groupe 'oui' on a 3/2/2 tally: the majority rests on 3 of the 7
+    // resolved ballots — the reviewer must see it at a glance.
+    expect(review).toMatch(/oui \(3\/7 bulletins résolus\)/);
+  });
+
+  it('surfaces the vote data-quality warnings with a ⚠ mark (M3)', () => {
+    expect(review).toContain('⚠');
+    expect(review).toContain("deputy 'X' (oui) not found in the members file — group unresolved");
   });
 
   it('shows why candidates were set aside, mechanically and by the model', () => {
