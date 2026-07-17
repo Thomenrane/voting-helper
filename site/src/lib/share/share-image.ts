@@ -14,8 +14,12 @@ import type {
   ShareImageLayout,
 } from './share-image-layout.ts';
 
-/** Fallback palette — mirrors the CSS custom properties in Base.astro. */
-const FALLBACK_PALETTE: Record<ColorRole, string> = {
+/**
+ * Fallback palette — mirrors the CSS custom properties in Base.astro.
+ * Exported for the drift test (share-image.test.ts), which pins each value
+ * to the declaration in Base.astro so this shadow copy cannot rot.
+ */
+export const FALLBACK_PALETTE: Record<ColorRole, string> = {
   ink: '#211c33',
   'ink-soft': '#605a75',
   paper: '#fbfafd',
