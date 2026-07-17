@@ -2,11 +2,7 @@
  * Locale-aware path resolution (#20) — used by the language switcher and the
  * hreflang alternates. Pure string logic, no Astro dependency.
  */
-import { LOCALES, type Locale } from './locales.ts';
-
-function isLocale(segment: string): segment is Locale {
-  return (LOCALES as readonly string[]).includes(segment);
-}
+import { isLocale, type Locale } from './locales.ts';
 
 /**
  * Return `pathname` addressed to `locale`: its leading locale segment is
