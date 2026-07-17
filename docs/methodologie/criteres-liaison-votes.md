@@ -47,9 +47,13 @@ métadonnées du vote (`pipeline/src/linking/vote-eligibility.ts`) :
   - renvoi en commission / verzending (terugzending) naar de commissie ;
   - ajournement / verdaging ;
   - ordre des travaux / regeling van de werkzaamheden ;
-  - demande d'urgence / urgentie(verzoek) ;
+  - demande d'urgence / urgentieverzoek ;
   - consultation du Conseil d'État / advies van de Raad van State ;
   - motion d'ordre / ordemotie.
+
+  Les motifs sont ancrés sur ces formules procédurales complètes, jamais sur
+  des mots isolés : un « plan d'urgence hivernal » ou une « réforme du
+  Conseil d'État » sont des dossiers de fond et ne sont pas exclus.
 
 Chaque run publie le décompte des exclusions par motif dans son résumé de
 review.

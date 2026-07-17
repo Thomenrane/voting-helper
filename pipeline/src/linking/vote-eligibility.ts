@@ -47,9 +47,12 @@ const PROCEDURAL_PATTERNS: readonly { pattern: RegExp; label: string }[] = [
     pattern: /ordre des travaux|regeling van (de )?werkzaamheden/,
     label: 'ordre des travaux',
   },
-  { pattern: /\burgence\b|\burgentie/, label: "demande d'urgence" },
+  // Anchored on the published procedural FORMULAS, never on isolated words:
+  // « plan d'urgence hivernal » or « réforme du Conseil d'État » are
+  // substantive dossiers and must NOT be excluded.
+  { pattern: /demande d.urgence|urgentieverzoek/, label: "demande d'urgence" },
   {
-    pattern: /conseil d.etat|raad van state/,
+    pattern: /consultation du conseil d.etat|advies van de raad van state/,
     label: "consultation du Conseil d'État",
   },
   { pattern: /motion d.ordre|ordemotie/, label: "motion d'ordre" },

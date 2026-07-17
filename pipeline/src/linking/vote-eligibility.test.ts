@@ -97,4 +97,24 @@ describe('classifyVoteEligibility — mechanical exclusions', () => {
     });
     expect(classifyVoteEligibility(v).eligible).toBe(true);
   });
+
+  it('does not exclude a substantive dossier mentioning « urgence » (anchored pattern)', () => {
+    // The published criterion is « demande d'urgence », not the word alone:
+    // a winter emergency plan is a substantive measure, not procedure.
+    const v = vote({
+      title_fr: "Projet de loi instaurant un plan d'urgence hivernal pour les sans-abri",
+      title_nl: 'Wetsontwerp tot invoering van een winternoodplan',
+    });
+    expect(classifyVoteEligibility(v).eligible).toBe(true);
+  });
+
+  it('does not exclude a reform OF the Conseil d’État (anchored pattern)', () => {
+    // Only the « consultation du Conseil d'État » procedure is excluded —
+    // legislating about the institution itself is substantive.
+    const v = vote({
+      title_fr: "Projet de loi portant réforme du Conseil d'État",
+      title_nl: 'Wetsontwerp tot hervorming van de Raad van State',
+    });
+    expect(classifyVoteEligibility(v).eligible).toBe(true);
+  });
 });
