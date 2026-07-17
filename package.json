@@ -16,6 +16,8 @@
     "snapshot:programmes": "node pipeline/src/commands/snapshot-programmes.ts",
     "snapshot:verify": "node pipeline/src/commands/snapshot-verify.ts",
     "snapshot:votes": "node pipeline/src/commands/snapshot-votes.ts",
+    "statements:pool": "node pipeline/src/commands/statements-pool.ts",
+    "statements:select": "node pipeline/src/commands/statements-select.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p data && tsc --noEmit -p pipeline && npm run typecheck --workspace site"
   },
