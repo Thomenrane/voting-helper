@@ -7,6 +7,7 @@ import type { Statement } from '@voting-helper/data';
 
 import type { RunCost } from './cost.ts';
 import { formatRunCost } from './cost.ts';
+import type { CoverageReport } from './coverage-report.ts';
 import type { PartyExtractionResult, StatementOutcome } from './position-extractor.ts';
 
 function truncate(text: string, max = 160): string {
@@ -46,6 +47,8 @@ export interface ReportInput {
   statements: readonly Statement[];
   result: PartyExtractionResult;
   cost: RunCost;
+  /** Coverage report of the sweep — surfaces flagged silences in the PR body. */
+  coverage: CoverageReport;
 }
 
 export function countOutcomes(outcomes: readonly StatementOutcome[]) {
@@ -57,8 +60,41 @@ export function countOutcomes(outcomes: readonly StatementOutcome[]) {
   };
 }
 
+function renderCoverageFlags(coverage: CoverageReport, byId: Map<string, Statement>): string[] {
+  const flagged = coverage.statements.filter((s) => s.flagged);
+  const header = [
+    '## Couverture du balayage',
+    '',
+    `Balayage exhaustif : **${coverage.chunks_examined}** chunk(s) bornés examinés. ` +
+      'Détail complet dans le rapport de couverture committé (`<parti>.coverage.md`).',
+  ];
+  if (flagged.length === 0) {
+    return [
+      ...header,
+      '',
+      'Aucun silence suspect : aucune « non documentée » n’a d’occurrence lexicale.',
+    ];
+  }
+  return [
+    ...header,
+    '',
+    `⚠️ **${flagged.length} silence(s) à vérifier** — « non documentée » dont le scan lexical`,
+    'retrouve le sujet dans le programme. La review DOIT confirmer qu’aucune position n’a été manquée :',
+    '',
+    ...flagged.map((s) => {
+      const texte = byId.get(s.statement_id)?.texte_fr ?? s.statement_id;
+      const pages = s.lexical_pages
+        .slice(0, 8)
+        .map((p) => `${p.source_id} p.${p.page}`)
+        .join(', ');
+      const more = s.lexical_pages.length > 8 ? ` … +${s.lexical_pages.length - 8}` : '';
+      return `- ⚠️ \`${s.statement_id}\` — ${texte}\n  Pages à occurrence lexicale : ${pages}${more}`;
+    }),
+  ];
+}
+
 export function renderReviewSummary(input: ReportInput): string {
-  const { partyName, model, runDate, statements, result, cost } = input;
+  const { partyName, model, runDate, statements, result, cost, coverage } = input;
   const byId = new Map(statements.map((s) => [s.id, s]));
   const counts = countOutcomes(result.outcomes);
   const proposed = counts.position + counts.rejected + counts.conflict;
@@ -88,6 +124,8 @@ export function renderReviewSummary(input: ReportInput): string {
     `- Sans position documentée : **${counts.no_position}**`,
     `- Taux de vérification : ${verificationRate}`,
     `- ${formatRunCost(cost, model)}`,
+    '',
+    ...renderCoverageFlags(coverage, byId),
     '',
     '## Détail par énoncé',
     '',

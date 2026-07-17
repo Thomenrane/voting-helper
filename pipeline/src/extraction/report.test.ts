@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Statement } from '@voting-helper/data';
 
+import { buildCoverageReport } from './coverage-report.ts';
 import type { PartyExtractionResult, PositionCandidate } from './position-extractor.ts';
 import { countOutcomes, renderReviewSummary } from './report.ts';
 
@@ -64,6 +65,24 @@ const RESULT: PartyExtractionResult = {
   ],
 };
 
+const COVERAGE = buildCoverageReport({
+  partyId: 'demo',
+  statements: STATEMENTS,
+  outcomes: RESULT.outcomes,
+  candidates: RESULT.candidates,
+  chunks: RESULT.chunks,
+  lexicalScans: [
+    { statement_id: 's1', keywords: ['cotisations'], hits: [] },
+    { statement_id: 's2', keywords: ['tva', 'train'], hits: [] },
+    // s3 is « non documentée » AND has a lexical occurrence → flagged.
+    {
+      statement_id: 's3',
+      keywords: ['reacteurs', 'nucleaires'],
+      hits: [{ source_id: 'demo-doc', page: 5, terms: ['reacteurs', 'nucleaires'] }],
+    },
+  ],
+});
+
 describe('renderReviewSummary', () => {
   const summary = renderReviewSummary({
     partyName: 'Parti Démo',
@@ -72,6 +91,14 @@ describe('renderReviewSummary', () => {
     statements: STATEMENTS,
     result: RESULT,
     cost: { input_tokens: 1000, output_tokens: 100, usd: 0.0045, eur: 0.0039 },
+    coverage: COVERAGE,
+  });
+
+  it('surfaces flagged silences from the coverage report', () => {
+    expect(summary).toContain('Couverture du balayage');
+    expect(summary).toContain('silence(s) à vérifier');
+    expect(summary).toContain('⚠️ `s3`');
+    expect(summary).toContain('demo-doc p.5');
   });
 
   it('shows positions, citations, pages and the verification rate', () => {
@@ -108,6 +135,7 @@ describe('renderReviewSummary', () => {
         ],
       },
       cost: { input_tokens: 1, output_tokens: 1 },
+      coverage: COVERAGE,
     });
     expect(withElsewhere).toContain('retrouvée p. 12, 87 mais pas p. 40');
   });
