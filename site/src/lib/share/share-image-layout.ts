@@ -221,7 +221,7 @@ export function buildShareImageLayout(
     titleLines.length <= 2
       ? titleLines
       : [
-          titleLines[0] as string,
+          ...titleLines.slice(0, 1),
           truncateToWidth(titleLines.slice(1).join(' '), contentWidth, TITLE_FONT, measure),
         ];
   cursorY += 74;
