@@ -156,6 +156,10 @@ async function main(): Promise<void> {
     console.log(`  ${statement.id} — ${candidates.length} candidate(s)…`);
     const selection = await preselectVotesForStatement({ statement, candidates, client });
     usage = addUsage(usage, selection.usage);
+    const submittedIds = new Set(candidates.map((c) => c.vote.id));
+    const notSubmitted = eligible
+      .filter((c) => !submittedIds.has(c.vote.id))
+      .map((c) => ({ id: c.vote.id, title_fr: c.vote.title_fr }));
     const { links, absences } = buildPartyLinks(selection.retained, PARTY_GROUPS);
     for (const link of links) {
       const byStatement = votesByPartyStatement.get(link.party_id) ?? new Map<string, LinkedVote[]>();
@@ -168,6 +172,7 @@ async function main(): Promise<void> {
       statement,
       eligibleCount: eligible.length,
       candidateCount: candidates.length,
+      notSubmitted,
       retained: selection.retained,
       setAside: selection.setAside,
       links,

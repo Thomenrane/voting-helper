@@ -29,6 +29,12 @@ export interface StatementLinkReport {
   eligibleCount: number;
   /** Candidates actually sent to the model for this statement. */
   candidateCount: number;
+  /**
+   * Eligible votes NOT submitted to the model for this statement (lexical
+   * prefilter, published rule): the reviewer must be able to rescue a vote
+   * the prefilter wrongly dropped.
+   */
+  notSubmitted: readonly { id: string; title_fr: string }[];
   retained: readonly RetainedLink[];
   setAside: readonly SetAsideLink[];
   links: readonly PartyLinkedVote[];
@@ -126,8 +132,26 @@ function renderStatement(report: StatementLinkReport): string[] {
       lines.push(`- \`${aside.vote.id}\` (${ref}) : ${aside.motif}`);
     }
   }
+  if (report.notSubmitted.length > 0) {
+    lines.push(
+      '',
+      `Éligibles non soumis au modèle (préfiltre lexical, règle publiée) : **${report.notSubmitted.length}** — à repêcher en review si un vote pertinent a été écarté à tort :`,
+      '',
+      ...report.notSubmitted
+        .slice(0, NOT_SUBMITTED_CAP)
+        .map((vote) => `- \`${vote.id}\` — ${vote.title_fr}`),
+    );
+    if (report.notSubmitted.length > NOT_SUBMITTED_CAP) {
+      lines.push(
+        `- _… et ${report.notSubmitted.length - NOT_SUBMITTED_CAP} autres (liste plafonnée à ${NOT_SUBMITTED_CAP} ; décompte exact ci-dessus)._`,
+      );
+    }
+  }
   return lines;
 }
+
+/** Display cap of the per-statement not-submitted list (exact count always shown). */
+const NOT_SUBMITTED_CAP = 25;
 
 export function renderLinkingReview(input: LinkingReviewInput): string {
   const { model, runDate, datasetSnapshotId, eligibility, reports, cost } = input;

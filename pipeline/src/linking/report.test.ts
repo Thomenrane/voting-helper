@@ -42,6 +42,7 @@ const REPORT: StatementLinkReport = {
   statement: STATEMENT,
   eligibleCount: 200,
   candidateCount: 12,
+  notSubmitted: [{ id: '56-m11-v9', title_fr: 'Projet de loi TVA — article 4' }],
   retained: [
     {
       vote: VOTE,
@@ -107,6 +108,33 @@ describe('renderLinkingReview', () => {
     expect(review).toContain('en_attente');
     expect(review).toContain('votes-dataset-leg56@20260716T000000000Z');
     expect(review).toContain('docs/methodologie/criteres-liaison-votes.md');
+  });
+
+  it('lists the eligible votes NOT submitted to the model (lexical prefilter)', () => {
+    // MAJOR 2 of the PR #34 review: the reviewer must be able to rescue a
+    // vote the prefilter wrongly dropped — id + title, with the exact count.
+    expect(review).toContain('56-m11-v9');
+    expect(review).toContain('Projet de loi TVA — article 4');
+    expect(review).toMatch(/non soumis au modèle.*\*\*1\*\*/i);
+  });
+
+  it('caps the not-submitted list but always reports the exact count', () => {
+    const many = Array.from({ length: 27 }, (_, i) => ({
+      id: `56-m20-v${i + 1}`,
+      title_fr: `Scrutin ${i + 1}`,
+    }));
+    const capped = renderLinkingReview({
+      model: 'claude-sonnet-5',
+      runDate: '17/07/2026',
+      datasetSnapshotId: 'x',
+      eligibility: { total: 10, eligible: 5, excludedByReason: new Map() },
+      reports: [{ ...REPORT, notSubmitted: many }],
+      cost: { input_tokens: 0, output_tokens: 0 },
+    });
+    expect(capped).toMatch(/non soumis au modèle.*\*\*27\*\*/i);
+    expect(capped).toContain('56-m20-v25');
+    expect(capped).not.toContain('56-m20-v26');
+    expect(capped).toContain('et 2 autres');
   });
 
   it('says explicitly when a statement has no retained vote (excluded from actes)', () => {

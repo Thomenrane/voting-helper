@@ -68,6 +68,14 @@ défaut) sont ensuite soumis au classement sémantique, qui décide pour
 deux cas. Le résumé de review montre donc, énoncé par énoncé, pourquoi
 chaque candidat a été retenu **ou écarté**.
 
+**Règle publiée du préfiltre :** un vote éligible sans recouvrement lexical
+avec l'énoncé n'est pas soumis au modèle — c'est une limite du signal
+actuel (intitulés seuls), en attendant les descripteurs Eurovoc de
+l'ingestion CRIV/FLWB. Pour que cette limite reste contrôlable, le résumé
+de review liste, énoncé par énoncé, les votes éligibles **non soumis** au
+modèle (identifiant + intitulé, liste plafonnée avec décompte exact) : la
+review peut repêcher un vote écarté à tort par le préfiltre.
+
 > Note : le jeu de données actuel (législature 56) n'expose pas les
 > descripteurs Eurovoc des dossiers. Quand l'ingestion CRIV/FLWB les
 > fournira, ils deviendront un signal mécanique supplémentaire de
