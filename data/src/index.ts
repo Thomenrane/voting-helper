@@ -20,6 +20,9 @@ export {
   type DerivedVotePosition,
 } from './linked-vote.ts';
 
+export type { ChangelogEntry, ChangelogEntryKind } from './changelog.ts';
+export { CHANGELOG } from './changelog.ts';
+
 export { PARTIES } from './fixtures/parties.fixture.ts';
 export { STATEMENTS } from './fixtures/statements.fixture.ts';
 export { PARTY_POSITIONS } from './fixtures/positions.fixture.ts';
