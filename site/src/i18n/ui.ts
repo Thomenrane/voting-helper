@@ -17,7 +17,12 @@ interface UiStrings {
   metaDescription: string;
   /** Accessible name of the language switcher nav. */
   languageSwitcherLabel: string;
-  demoBanner: string;
+  /**
+   * Fictitious-data banner — the single source of truth for the demo caveat.
+   * Rendered by the pages AND stamped on the share image; set to null the
+   * day the real corpus replaces the fixtures and both go out together.
+   */
+  demoBanner: string | null;
   /**
    * Draft-quality notice for a locale whose texts have not been reviewed by
    * a native speaker yet — a launch condition (#7). null once reviewed.
@@ -294,7 +299,7 @@ export const UI: Record<Locale, UiStrings> = {
     backToTestLabel: 'Terug naar de test',
     versionLine: (version, dataDate) => `Methodologie ${version} — gegevens per ${dataDate}`,
     shareButtonLabel: 'Mijn resultaat delen',
-    shareHint: 'Afbeelding gemaakt in uw browser — uw antwoorden verlaten hem niet.',
+    shareHint: 'Afbeelding gemaakt in uw browser — uw antwoorden verlaten uw browser niet.',
     shareSharedStatus: 'Afbeelding gedeeld.',
     shareDownloadedStatus: 'Afbeelding gedownload.',
     shareErrorStatus: 'Het maken van de afbeelding is mislukt. Probeer opnieuw.',

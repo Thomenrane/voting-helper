@@ -19,7 +19,7 @@ const t = UI[lang];
 ---
 
 <Base lang={lang} title={t.siteTitle} description={t.metaDescription}>
-  <p class="demo-banner">{t.demoBanner}</p>
+  {t.demoBanner !== null && <p class="demo-banner">{t.demoBanner}</p>}
   {t.draftNotice !== null && <p class="draft-banner">{t.draftNotice}</p>}
 
   <main>
