@@ -54,6 +54,17 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: '2026-07-17',
+    kind: 'votes',
+    titre_fr: 'Critères de liaison des votes publiés',
+    titre_nl: 'Koppelingscriteria voor stemmingen gepubliceerd',
+    detail_fr:
+      'Les critères qui décident quels votes de la Chambre sont liés à un énoncé (vote final ou amendement direct, procéduraux exclus) sont publiés et implémentés par le pipeline ; les votes liés enregistrent désormais le vote brut du groupe et le sens du dossier.',
+    detail_nl:
+      'De criteria die bepalen welke Kamerstemmingen aan een stelling worden gekoppeld (eindstemming of rechtstreeks amendement, procedurele uitgesloten) zijn gepubliceerd en door de pipeline geïmplementeerd; gekoppelde stemmingen registreren voortaan de ruwe fractiestem en de richting van het dossier.',
+    url_preuve: 'https://github.com/Thomenrane/voting-helper/pull/34',
+  },
+  {
+    date: '2026-07-17',
     kind: 'positions',
     titre_fr: 'Note de contexte datée sur un énoncé',
     titre_nl: 'Gedateerde contextnota bij een stelling',

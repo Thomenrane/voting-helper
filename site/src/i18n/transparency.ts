@@ -112,7 +112,7 @@ export const TRANSPARENCY: Record<Locale, TransparencyStrings> = {
         heading: 'L’échelle et le sens des votes',
         body: [
           'Vous répondez à chaque énoncé sur une échelle à 5 degrés : tout à fait d’accord (+2), plutôt d’accord (+1), neutre (0), plutôt contre (−1), tout à fait contre (−2). « Sans opinion » n’est pas un degré : l’énoncé est alors retiré de votre calcul, pour les deux scores.',
-          'Les positions de programme des partis sont codées sur la même échelle de −2 à +2, chacune adossée à une citation exacte du programme. Les votes sont traduits par rapport au sens de l’énoncé : un vote « oui » vaut +2, une abstention 0, un vote « non » −2. Quand plusieurs votes sont liés au même énoncé, leur moyenne est utilisée — elle peut donc être fractionnaire.',
+          'Les positions de programme des partis sont codées sur la même échelle de −2 à +2, chacune adossée à une citation exacte du programme. Chaque vote lié enregistre deux faits : le vote brut du groupe (oui, abstention, non) et le sens du dossier par rapport à l’énoncé (il le soutient ou le contredit). La position du vote s’en déduit : sur un dossier qui soutient l’énoncé, oui vaut +2, abstention 0, non −2 ; sur un dossier qui le contredit, la lecture s’inverse (oui vaut −2, non vaut +2, l’abstention reste 0). Quand plusieurs votes sont liés au même énoncé, leur moyenne est utilisée — elle peut donc être fractionnaire.',
         ],
       },
       formula: {
@@ -156,7 +156,7 @@ export const TRANSPARENCY: Record<Locale, TransparencyStrings> = {
           'Seuls comptent les votes nominatifs en séance plénière de la Chambre portant sur le vote final d’un texte ou sur un amendement portant directement sur la mesure de l’énoncé. Les votes de procédure sont exclus. Chaque liaison est justifiée en une phrase et validée en relecture ; un énoncé sans vote lié est exclu du score actes — jamais compté comme neutre.',
           'Les critères complets de liaison sont publiés dans le dépôt du projet (docs/methodologie/criteres-liaison-votes.md).',
         ],
-        repoLinkLabel: 'Dépôt du projet',
+        repoLinkLabel: 'Lire les critères complets de liaison des votes',
       },
       writingGuide: {
         heading: 'Comment les énoncés sont rédigés',
@@ -257,7 +257,7 @@ export const TRANSPARENCY: Record<Locale, TransparencyStrings> = {
         heading: 'De schaal en de richting van de stemmingen',
         body: [
           'U beantwoordt elke stelling op een schaal met 5 graden: helemaal akkoord (+2), eerder akkoord (+1), neutraal (0), eerder tegen (−1), helemaal tegen (−2). « Geen mening » is geen graad: de stelling wordt dan uit uw berekening verwijderd, voor beide scores.',
-          'De programmastandpunten van de partijen worden op dezelfde schaal van −2 tot +2 gecodeerd, elk gestaafd met een exact citaat uit het programma. Stemmingen worden vertaald ten opzichte van de richting van de stelling: een « ja »-stem telt als +2, een onthouding als 0, een « nee »-stem als −2. Zijn meerdere stemmingen aan dezelfde stelling gekoppeld, dan wordt hun gemiddelde gebruikt — dat kan dus een breukgetal zijn.',
+          'De programmastandpunten van de partijen worden op dezelfde schaal van −2 tot +2 gecodeerd, elk gestaafd met een exact citaat uit het programma. Elke gekoppelde stemming registreert twee feiten: de ruwe stem van de fractie (ja, onthouding, nee) en de richting van het dossier ten opzichte van de stelling (het steunt haar of spreekt haar tegen). Het standpunt van de stemming volgt daaruit: op een dossier dat de stelling steunt telt ja als +2, onthouding als 0, nee als −2; op een dossier dat haar tegenspreekt keert de lezing om (ja telt als −2, nee als +2, een onthouding blijft 0). Zijn meerdere stemmingen aan dezelfde stelling gekoppeld, dan wordt hun gemiddelde gebruikt — dat kan dus een breukgetal zijn.',
         ],
       },
       formula: {
@@ -302,7 +302,7 @@ export const TRANSPARENCY: Record<Locale, TransparencyStrings> = {
           'Alleen hoofdelijke stemmingen in de plenaire vergadering van de Kamer tellen mee, over de eindstemming van een tekst of over een amendement dat rechtstreeks de maatregel van de stelling betreft. Procedurele stemmingen zijn uitgesloten. Elke koppeling wordt in één zin verantwoord en in review gevalideerd; een stelling zonder gekoppelde stemming wordt uitgesloten van de score daden — nooit als neutraal geteld.',
           'De volledige koppelingscriteria staan gepubliceerd in de repository van het project (docs/methodologie/criteres-liaison-votes.md).',
         ],
-        repoLinkLabel: 'Repository van het project',
+        repoLinkLabel: 'Lees de volledige koppelingscriteria voor stemmingen',
       },
       writingGuide: {
         heading: 'Hoe de stellingen worden geschreven',

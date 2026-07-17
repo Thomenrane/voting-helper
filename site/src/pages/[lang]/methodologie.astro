@@ -22,9 +22,10 @@ const { lang } = Astro.params as InferGetStaticParamsType<typeof getStaticPaths>
 const t = UI[lang];
 const m = TRANSPARENCY[lang].methodology;
 
-// The full criteria document lives in the repository; linking the repo root
-// keeps the reference valid whatever the docs tree looks like.
-const REPO_URL = 'https://github.com/Thomenrane/voting-helper';
+// The authoritative vote-linking criteria document, published in the repo
+// (kept in sync with pipeline/src/linking/ by its own contract).
+const CRITERIA_URL =
+  'https://github.com/Thomenrane/voting-helper/blob/main/docs/methodologie/criteres-liaison-votes.md';
 
 const dataDate = deriveDataDate(PARTY_POSITIONS, CHANGELOG);
 const versionLine = t.versionLine(
@@ -79,7 +80,7 @@ const versionLine = t.versionLine(
     <h2>{m.votesSelection.heading}</h2>
     {m.votesSelection.body.map((paragraph) => <p>{paragraph}</p>)}
     <p>
-      <a href={REPO_URL} rel="noopener">{m.votesSelection.repoLinkLabel}</a>
+      <a href={CRITERIA_URL} rel="noopener">{m.votesSelection.repoLinkLabel}</a>
     </p>
   </section>
 
