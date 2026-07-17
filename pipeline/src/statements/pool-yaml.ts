@@ -75,6 +75,7 @@ function parseSource(raw: unknown, where: string): CandidateSource {
 function parsePositions(
   raw: unknown,
   where: string,
+  knownPartyIds?: ReadonlySet<string>,
 ): Record<string, PositionValue> | undefined {
   if (raw === undefined || raw === null) {
     return undefined;
@@ -84,6 +85,13 @@ function parsePositions(
   }
   const positions: Record<string, PositionValue> = {};
   for (const [partyId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (knownPartyIds !== undefined && !knownPartyIds.has(partyId)) {
+      throw new Error(
+        `${where} codes a position for unknown party '${partyId}' — known parties: ` +
+          `${[...knownPartyIds].join(', ')}. A typo here would silently skew the ` +
+          'discriminance score.',
+      );
+    }
     if (typeof value !== 'number' || !Number.isInteger(value) || value < -2 || value > 2) {
       throw new Error(`${where} has an out-of-scale position for '${partyId}': ${String(value)}.`);
     }
@@ -92,8 +100,17 @@ function parsePositions(
   return positions;
 }
 
-/** Parses one pool file back, validating every candidate. */
-export function parsePoolYaml(text: string, file: string): CandidateStatement[] {
+/**
+ * Parses one pool file back, validating every candidate. When
+ * `knownPartyIds` is provided (the commands pass the canonical party
+ * registry), hand-coded `positions` keys are validated against it — a
+ * typo'd party id fails loudly instead of silently skewing scores.
+ */
+export function parsePoolYaml(
+  text: string,
+  file: string,
+  knownPartyIds?: ReadonlySet<string>,
+): CandidateStatement[] {
   const parsed: unknown = parse(text);
   if (
     typeof parsed !== 'object' ||
@@ -131,7 +148,7 @@ export function parsePoolYaml(text: string, file: string): CandidateStatement[] 
         parseSource(source, `${where} source ${sourceIndex}`),
       ),
     };
-    const positions = parsePositions(r['positions'], where);
+    const positions = parsePositions(r['positions'], where, knownPartyIds);
     if (positions !== undefined) {
       candidate.positions = positions;
     }

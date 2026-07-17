@@ -15,6 +15,7 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { PARTY_PROGRAMMES } from '../sources/party-programmes.ts';
 import type { CandidateStatement } from '../statements/candidate-pool.ts';
 import { parsePoolYaml } from '../statements/pool-yaml.ts';
 import {
@@ -42,11 +43,12 @@ async function main(): Promise<void> {
     );
   }
 
+  const knownPartyIds = new Set(PARTY_PROGRAMMES.map((party) => party.party_id));
   const poolFiles: string[] = [];
   const candidates: CandidateStatement[] = [];
   for (const name of fileNames) {
     const relative = `${STATEMENTS_POOL_DIR}/${name}`;
-    const parsed = parsePoolYaml(await readFile(join(poolDir, name), 'utf8'), relative);
+    const parsed = parsePoolYaml(await readFile(join(poolDir, name), 'utf8'), relative, knownPartyIds);
     poolFiles.push(relative);
     candidates.push(...parsed);
     console.log(`  ${relative}: ${parsed.length} candidate(s)`);

@@ -29,7 +29,11 @@ import { ensureTextLayer } from '../extraction/text-layer-store.ts';
 import { classifyVoteEligibility } from '../linking/vote-eligibility.ts';
 import { emptyManifest } from '../snapshot/manifest.ts';
 import { loadManifest, saveManifest } from '../snapshot/snapshot-store.ts';
-import { getPartyProgramme, getPartyProgrammeSources } from '../sources/party-programmes.ts';
+import {
+  getPartyProgramme,
+  getPartyProgrammeSources,
+  PARTY_PROGRAMMES,
+} from '../sources/party-programmes.ts';
 import {
   batchDossiers,
   buildProgrammePoolPrompt,
@@ -78,8 +82,9 @@ async function openPoolTarget(
   const poolDir = join(repoRoot, STATEMENTS_POOL_DIR);
   const relative = `${STATEMENTS_POOL_DIR}/${origin}.candidates.yaml`;
   const absolute = join(poolDir, `${origin}.candidates.yaml`);
+  const knownPartyIds = new Set(PARTY_PROGRAMMES.map((party) => party.party_id));
   const existing = existsSync(absolute)
-    ? parsePoolYaml(await readFile(absolute, 'utf8'), relative)
+    ? parsePoolYaml(await readFile(absolute, 'utf8'), relative, knownPartyIds)
     : [];
   if (existing.length > 0) {
     console.log(

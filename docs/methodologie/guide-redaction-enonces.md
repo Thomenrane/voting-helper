@@ -168,7 +168,9 @@ publie jamais seul.
 2. **Codage des positions** — pour mesurer la discriminance, les positions
    des partis sur les candidats pressentis sont codées dans le champ
    `positions` des fichiers du pool (à la main pour un tri grossier, ou via
-   `extract:positions` quand le corpus extrait le permet).
+   `extract:positions` quand le corpus extrait le permet). Les clés du
+   champ sont validées contre le registre des partis : une coquille
+   (`psx`, `PS`) fait échouer la commande au lieu de fausser le score.
 3. **Mesure et classement** — `npm run statements:select` classe le pool
    par discriminance, vérifie la couverture des 10 thèmes et publie
    `data/statements/pool/selection.report.md`.

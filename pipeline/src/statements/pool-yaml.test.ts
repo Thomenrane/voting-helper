@@ -84,6 +84,23 @@ describe('parsePoolYaml validation', () => {
     expect(() => parsePoolYaml(text, 'pool.yaml')).toThrow(/out-of-scale position for 'ps': 3/);
   });
 
+  it('validates positions keys against known parties when the registry is provided', () => {
+    const text = renderPoolYaml([VOTE_CANDIDATE], 'h');
+    const known = new Set(['ps', 'mr']);
+    expect(parsePoolYaml(text, 'pool.yaml', known)).toEqual([VOTE_CANDIDATE]);
+    expect(() => parsePoolYaml(text, 'pool.yaml', new Set(['ps']))).toThrow(
+      /unknown party 'mr'/,
+    );
+    const typo = mutate((c) => {
+      c['positions'] = { psx: 2 };
+    });
+    expect(() => parsePoolYaml(typo, 'pool.yaml', known)).toThrow(/unknown party 'psx'/);
+    const caseTypo = mutate((c) => {
+      c['positions'] = { PS: 2 };
+    });
+    expect(() => parsePoolYaml(caseTypo, 'pool.yaml', known)).toThrow(/unknown party 'PS'/);
+  });
+
   it('accepts an absent positions map — coding happens later in the HITL loop', () => {
     const [parsed] = parsePoolYaml(renderPoolYaml([PROGRAMME_CANDIDATE], 'h'), 'pool.yaml');
     expect(parsed?.positions).toBeUndefined();
