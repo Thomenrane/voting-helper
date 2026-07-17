@@ -1,12 +1,23 @@
 ---
+/**
+ * The full test journey, one page per locale (#20): /fr and /nl are built
+ * from this single route — the locale flows down as a prop, the components
+ * resolve every string through UI[lang] and the bilingual helpers.
+ */
+import type { GetStaticPaths, InferGetStaticParamsType } from 'astro';
 import TestWizard from '../../components/TestWizard.astro';
+import { LOCALES } from '../../i18n/locales.ts';
 import { UI } from '../../i18n/ui.ts';
 import Base from '../../layouts/Base.astro';
 
-const t = UI.fr;
+export const getStaticPaths = (() =>
+  LOCALES.map((lang) => ({ params: { lang } }))) satisfies GetStaticPaths;
+
+const { lang } = Astro.params as InferGetStaticParamsType<typeof getStaticPaths>;
+const t = UI[lang];
 ---
 
-<Base lang="fr" title={t.siteTitle} description={t.metaDescription}>
+<Base lang={lang} title={t.siteTitle} description={t.metaDescription}>
   <p class="demo-banner">{t.demoBanner}</p>
 
   <main>
@@ -15,7 +26,7 @@ const t = UI.fr;
       <p class="intro">{t.intro}</p>
     </header>
 
-    <TestWizard lang="fr" />
+    <TestWizard lang={lang} />
   </main>
 </Base>
 
