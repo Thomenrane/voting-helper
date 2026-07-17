@@ -1,5 +1,6 @@
 export type {
   Citation,
+  ContextNote,
   DossierDirection,
   GroupVotePosition,
   LinkedVote,

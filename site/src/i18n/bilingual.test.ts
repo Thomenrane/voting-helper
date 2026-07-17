@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Statement } from '@voting-helper/data';
-import { statementNote, statementText } from './bilingual.ts';
+import type { ContextNote, Statement } from '@voting-helper/data';
+import { contextNoteText, statementNote, statementText } from './bilingual.ts';
 
 const STATEMENT: Statement = {
   id: 's-test',
@@ -28,5 +28,22 @@ describe('statementNote', () => {
 
   it('returns the Dutch note for nl', () => {
     expect(statementNote(STATEMENT, 'nl')).toBe('Concrete maatregel in het Nederlands.');
+  });
+});
+
+describe('contextNoteText', () => {
+  const NOTE: ContextNote = {
+    texte_fr: 'Note de contexte en français.',
+    texte_nl: 'Contextnota in het Nederlands.',
+    date: '2025-04-10',
+    source_url: 'https://example.org/source',
+  };
+
+  it('returns the French text for fr', () => {
+    expect(contextNoteText(NOTE, 'fr')).toBe('Note de contexte en français.');
+  });
+
+  it('returns the Dutch text for nl', () => {
+    expect(contextNoteText(NOTE, 'nl')).toBe('Contextnota in het Nederlands.');
   });
 });

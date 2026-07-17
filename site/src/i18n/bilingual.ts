@@ -1,13 +1,14 @@
 /**
  * Bilingual field resolution (#20) — the single place that maps a locale to
- * the matching `_fr` / `_nl` field of a bilingual record. Statements are the
- * only bilingual content; citations are NOT — they stay in their source
- * language whatever the locale (#10) and must never go through this module.
+ * the matching `_fr` / `_nl` field of a bilingual record. Statements and
+ * context notes (#14) are the bilingual content; citations are NOT — they
+ * stay in their source language whatever the locale (#10) and must never go
+ * through this module.
  *
  * The `Record<Locale, …>` shape is deliberate: adding a locale to LOCALES
  * fails compilation here until the mapping is completed.
  */
-import type { Statement } from '@voting-helper/data';
+import type { ContextNote, Statement } from '@voting-helper/data';
 import type { Locale } from './locales.ts';
 
 const TEXT_BY_LOCALE: Record<Locale, (statement: Statement) => string> = {
@@ -28,4 +29,14 @@ export function statementText(statement: Statement, locale: Locale): string {
 /** The « mesure concrète » footnote in the given locale. */
 export function statementNote(statement: Statement, locale: Locale): string {
   return NOTE_BY_LOCALE[locale](statement);
+}
+
+const CONTEXT_NOTE_BY_LOCALE: Record<Locale, (note: ContextNote) => string> = {
+  fr: (note) => note.texte_fr,
+  nl: (note) => note.texte_nl,
+};
+
+/** The dated context note (#14) in the given locale. */
+export function contextNoteText(note: ContextNote, locale: Locale): string {
+  return CONTEXT_NOTE_BY_LOCALE[locale](note);
 }
