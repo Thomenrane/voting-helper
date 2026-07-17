@@ -10,6 +10,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspace site",
+    "extract:positions": "node pipeline/src/commands/extract-positions.ts",
+    "positions:pr": "node pipeline/src/commands/prepare-position-pr.ts",
     "snapshot:programmes": "node pipeline/src/commands/snapshot-programmes.ts",
     "snapshot:verify": "node pipeline/src/commands/snapshot-verify.ts",
     "snapshot:votes": "node pipeline/src/commands/snapshot-votes.ts",
