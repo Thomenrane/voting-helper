@@ -72,6 +72,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Le schéma accepte une note de contexte datée sur un énoncé × parti (revirement documenté) — affichée dans l’audit, sans effet sur le score. Une position de démonstration l’illustre.',
     detail_nl:
       'Het schema aanvaardt een gedateerde contextnota bij een stelling × partij (gedocumenteerde ommekeer) — getoond in de audit, zonder invloed op de score. Eén demostandpunt illustreert dit.',
-    url_preuve: 'https://github.com/Thomenrane/voting-helper/issues/26',
+    url_preuve: 'https://github.com/Thomenrane/voting-helper/pull/35',
   },
 ];

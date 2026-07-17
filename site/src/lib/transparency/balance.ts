@@ -8,6 +8,7 @@
  * — never silently collapsed.
  */
 import type { Party, PartyPosition, Statement } from '@voting-helper/data';
+import { validRecordsByStatement } from '../positions/valid-records.ts';
 
 /** Coverage figures for one party, against the full statement set. */
 export interface PartyBalance {
@@ -35,24 +36,6 @@ export interface StatementBalance {
   nonDocumente: number;
   /** Denominator — the full party set. */
   totalParties: number;
-}
-
-/** Validated records of one party, keyed by statement — duplicates refused. */
-function validRecordsByStatement(
-  partyId: string,
-  positions: readonly PartyPosition[],
-): Map<string, PartyPosition> {
-  const byStatement = new Map<string, PartyPosition>();
-  for (const record of positions) {
-    if (record.party_id !== partyId || record.statut !== 'valide') continue;
-    if (byStatement.has(record.statement_id)) {
-      throw new Error(
-        `Duplicate valid position for party "${partyId}" and statement "${record.statement_id}" — inconsistent dataset refused.`,
-      );
-    }
-    byStatement.set(record.statement_id, record);
-  }
-  return byStatement;
 }
 
 /**

@@ -28,6 +28,7 @@ import {
   type PositionValue,
   type UserAnswers,
 } from '@voting-helper/data';
+import { validRecordsByStatement } from '../positions/valid-records.ts';
 
 /** One dimension (promesses or actes) of a party's result. */
 export interface DimensionScore {
@@ -53,8 +54,20 @@ export interface PartyScore {
 /** |écart| threshold above which the promesses/actes gap is highlighted. */
 export const ECART_MARQUANT_THRESHOLD = 15;
 
-/** Maximum city-block distance between two positions on the −2..+2 scale. */
-const MAX_DISTANCE = 4;
+/**
+ * Maximum city-block distance between two positions on the −2..+2 scale —
+ * the normalisation divisor of the published formula. Exported so the
+ * methodology-coherence test (transparency.test.ts) pins the published prose
+ * to the engine's value.
+ */
+export const MAX_DISTANCE = 4;
+
+/**
+ * Minimum strength (in scale degrees) each side must reach, with opposite
+ * signs, for a « promesse vs vote » contradiction: programme ≥ +1 and vote
+ * ≤ −1, or the mirror. Exported for the same prose-pinning test.
+ */
+export const CONTRADICTION_MIN_STRENGTH = 1;
 
 /**
  * Vote-derived position for one record: mean of the mapped linked votes,
@@ -78,7 +91,10 @@ function dimensionScore(distances: number[]): DimensionScore {
 
 /** « Promesse vs vote »: opposite signs, one side ≥ +1 and the other ≤ −1. */
 function isContradiction(programme: PositionValue, vote: number): boolean {
-  return (programme >= 1 && vote <= -1) || (programme <= -1 && vote >= 1);
+  return (
+    (programme >= CONTRADICTION_MIN_STRENGTH && vote <= -CONTRADICTION_MIN_STRENGTH) ||
+    (programme <= -CONTRADICTION_MIN_STRENGTH && vote >= CONTRADICTION_MIN_STRENGTH)
+  );
 }
 
 function scoreParty(
@@ -86,24 +102,14 @@ function scoreParty(
   partyId: string,
   positions: readonly PartyPosition[],
 ): PartyScore {
-  const records = positions.filter((p) => p.party_id === partyId && p.statut === 'valide');
-
   const promessesDistances: number[] = [];
   const actesDistances: number[] = [];
   const contradictions: string[] = [];
-  const seenStatements = new Set<string>();
 
-  for (const record of records) {
-    // An electoral tool must refuse inconsistent data, not average it: two
-    // valid records for the same party × statement would silently inflate
-    // the denominator and could duplicate a contradiction flag.
-    if (seenStatements.has(record.statement_id)) {
-      throw new Error(
-        `Duplicate valid position for party "${partyId}" and statement "${record.statement_id}" — inconsistent dataset refused.`,
-      );
-    }
-    seenStatements.add(record.statement_id);
-
+  // Shared visibility rule (valid-records.ts): statut 'valide' only, and an
+  // electoral tool must refuse inconsistent data, not average it — two valid
+  // records for the same party × statement throw there.
+  for (const record of validRecordsByStatement(partyId, positions).values()) {
     const vote = votePosition(record);
     if (record.position !== undefined && vote !== null && isContradiction(record.position, vote)) {
       contradictions.push(record.statement_id);
