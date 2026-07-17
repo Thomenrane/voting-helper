@@ -395,16 +395,17 @@ export function buildShareImageLayout(
       const badgeText = `${label} ${formatEcart(party.ecart)}`;
       const badgeWidth = Math.ceil(measure(badgeText, BADGE_FONT)) + 32;
       const badgeHeight = 32;
-      items.push({
+      const pill: RectItem = {
         kind: 'rect',
         x: nameLeft,
         y: baseline2 - 23,
         width: badgeWidth,
         height: badgeHeight,
         radius: badgeHeight / 2,
-        fill: party.ecartMarquant ? 'accent' : undefined,
-        stroke: party.ecartMarquant ? undefined : 'line',
-      });
+      };
+      if (party.ecartMarquant) pill.fill = 'accent';
+      else pill.stroke = 'line';
+      items.push(pill);
       items.push({
         kind: 'text',
         text: badgeText,
