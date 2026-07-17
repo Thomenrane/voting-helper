@@ -79,6 +79,35 @@ export function renderPositionsYaml(positions: readonly PartyPosition[], header:
 }
 
 const VALID_STATUTS = new Set(['valide', 'en_attente', 'rejete']);
+const VALID_VOTE_GROUPE = new Set(['oui', 'abstention', 'non']);
+const VALID_DIRECTION_DOSSIER = new Set(['soutient', 'contredit']);
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Validates one votes_lies entry against the extended LinkedVote schema (m3). */
+function assertLinkedVote(vote: unknown, file: string, index: number, voteIndex: number): void {
+  const where = `'${file}' position ${index} vote ${voteIndex}`;
+  if (typeof vote !== 'object' || vote === null) {
+    throw new Error(`${where} is not an object.`);
+  }
+  const v = vote as Record<string, unknown>;
+  for (const field of ['id', 'dossier', 'justification'] as const) {
+    if (typeof v[field] !== 'string' || v[field].trim().length === 0) {
+      throw new Error(`${where} misses '${field}'.`);
+    }
+  }
+  if (typeof v['date'] !== 'string' || !ISO_DATE.test(v['date'])) {
+    throw new Error(`${where} has invalid date '${String(v['date'])}'.`);
+  }
+  if (typeof v['vote_groupe'] !== 'string' || !VALID_VOTE_GROUPE.has(v['vote_groupe'])) {
+    throw new Error(`${where} has invalid vote_groupe '${String(v['vote_groupe'])}'.`);
+  }
+  if (
+    typeof v['direction_dossier'] !== 'string' ||
+    !VALID_DIRECTION_DOSSIER.has(v['direction_dossier'])
+  ) {
+    throw new Error(`${where} has invalid direction_dossier '${String(v['direction_dossier'])}'.`);
+  }
+}
 
 /** Parses a positions YAML file back, validating it against the shared schema. */
 export function parsePositionsYaml(text: string, file: string): PartyPosition[] {
@@ -103,6 +132,20 @@ export function parsePositionsYaml(text: string, file: string): PartyPosition[] 
     }
     if (!Array.isArray(r['votes_lies'])) {
       throw new Error(`'${file}' position ${index} misses votes_lies.`);
+    }
+    r['votes_lies'].forEach((vote: unknown, voteIndex: number) => {
+      assertLinkedVote(vote, file, index, voteIndex);
+    });
+    const ecartes = r['votes_ecartes'];
+    if (ecartes !== undefined && ecartes !== null) {
+      if (
+        !Array.isArray(ecartes) ||
+        ecartes.some((id: unknown) => typeof id !== 'string' || id.trim().length === 0)
+      ) {
+        throw new Error(
+          `'${file}' position ${index} has an invalid votes_ecartes (expected an array of vote ids).`,
+        );
+      }
     }
     const hasPosition = r['position'] !== undefined && r['position'] !== null;
     const hasCitation = r['citation'] !== undefined && r['citation'] !== null;

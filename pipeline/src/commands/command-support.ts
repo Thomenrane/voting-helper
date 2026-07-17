@@ -13,6 +13,22 @@ export function resolveRepoRoot(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 }
 
+/**
+ * Review summary of the latest vote-linking run (link:votes), inside
+ * data/positions/proposals/. Shared between link-votes (writer) and
+ * prepare-position-pr --votes (PR body) — command files must never import
+ * each other (they execute on import).
+ */
+export const VOTES_REVIEW_FILE = 'votes-liaison.review.md';
+
+/**
+ * Sidecar manifest of the latest vote-linking run: the repo-relative YAML
+ * files the run actually updated. prepare-position-pr --votes commits
+ * exactly these files — never a directory glob that could sweep unrelated
+ * proposals into the batch.
+ */
+export const VOTES_FILES_MANIFEST = 'votes-liaison.files.json';
+
 export function describeEntry(entry: SnapshotEntry): string {
   const unchanged =
     entry.content_unchanged_from === undefined

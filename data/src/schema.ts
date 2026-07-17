@@ -50,18 +50,34 @@ export interface Citation {
 /** How the party's parliamentary group voted, relative to the vote itself. */
 export type GroupVotePosition = 'oui' | 'abstention' | 'non';
 
-/** A parliamentary vote linked to a statement for one party. */
+/**
+ * Direction of the dossier relative to the STATEMENT: adopting the dossier
+ * either goes in the statement's direction ('soutient') or against it
+ * ('contredit').
+ */
+export type DossierDirection = 'soutient' | 'contredit';
+
+/**
+ * A parliamentary vote linked to a statement for one party.
+ *
+ * m3 decision (review of PR #28): the record stores the RAW group vote on the
+ * dossier plus the dossier's direction relative to the statement — the
+ * parliamentary fact stays auditable and any sense inversion is an explicit
+ * field, not prose. The statement-relative position (+2/0/−2) is DERIVED from
+ * these two fields via `deriveVotePosition` (linked-vote.ts), never stored:
+ * oui × soutient = +2, oui × contredit = −2, abstention = 0,
+ * non × soutient = −2, non × contredit = +2.
+ */
 export interface LinkedVote {
   id: string;
   /** ISO date (YYYY-MM-DD) of the vote. */
   date: string;
   /** Parliamentary dossier reference (e.g. DOC number). */
   dossier: string;
-  /**
-   * Group vote expressed relative to the STATEMENT's direction:
-   * oui → +2, abstention → 0, non → −2 in the "actes" score.
-   */
-  position_groupe: GroupVotePosition;
+  /** RAW group vote on the dossier — what the group actually voted. */
+  vote_groupe: GroupVotePosition;
+  /** Whether adopting the dossier supports or contradicts the statement. */
+  direction_dossier: DossierDirection;
   /** One-sentence justification for linking this vote to the statement. */
   justification: string;
 }
@@ -88,6 +104,12 @@ export type PartyPosition = ProgrammePosition & {
   party_id: string;
   statement_id: string;
   votes_lies: LinkedVote[];
+  /**
+   * Ids of linked votes REMOVED by a human reviewer. The vote-linking
+   * pipeline never re-proposes a vote listed here — a link deleted in
+   * review stays deleted across runs. Absent = none.
+   */
+  votes_ecartes?: string[];
   statut: PositionStatus;
   /** ISO date (YYYY-MM-DD) of the last human review of this record. */
   derniere_revision: string;

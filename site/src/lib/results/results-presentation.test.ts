@@ -190,7 +190,8 @@ describe('buildPartyAudit', () => {
         id: `${partyId}-${statementId}-v${i + 1}`,
         date: '2025-03-15',
         dossier: `DOC ${i + 1}`,
-        position_groupe: v,
+        vote_groupe: v,
+        direction_dossier: 'soutient' as const,
         justification: `Justification ${i + 1}`,
       })),
       statut: options.statut ?? 'valide',
@@ -215,7 +216,7 @@ describe('buildPartyAudit', () => {
     const s1 = audit[0]?.statements[0];
     expect(s1?.programme?.position).toBe(2);
     expect(s1?.programme?.citation.texte).toBe('Citation p/s1');
-    expect(s1?.votes.map((v) => v.position_groupe)).toEqual(['oui', 'abstention']);
+    expect(s1?.votes.map((v) => v.vote_groupe)).toEqual(['oui', 'abstention']);
   });
 
   it('reports an undocumented programme position (record without programme part)', () => {

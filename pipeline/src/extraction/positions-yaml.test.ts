@@ -90,6 +90,65 @@ describe('renderPositionsYaml / parsePositionsYaml round-trip', () => {
     expect(() => parsePositionsYaml(badScale, 'x.yaml')).toThrow(/out-of-scale/);
   });
 
+  it('round-trips a record carrying linked votes (extended m3 schema)', () => {
+    const withVotes: PartyPosition[] = [
+      {
+        party_id: 'demo',
+        statement_id: 's1',
+        votes_lies: [
+          {
+            id: '56-m10-v3',
+            date: '2025-03-15',
+            dossier: 'DOC 56 0228',
+            vote_groupe: 'oui',
+            direction_dossier: 'contredit',
+            justification: 'Vote final sur le dossier qui contredit la mesure.',
+          },
+        ],
+        statut: 'en_attente',
+        derniere_revision: '2026-07-17',
+      },
+    ];
+    const reloaded = parsePositionsYaml(renderPositionsYaml(withVotes, 'h'), 'demo.yaml');
+    expect(reloaded).toEqual(withVotes);
+  });
+
+  it('rejects a linked vote with an invalid raw group vote or direction', () => {
+    const vote = (voteGroupe: string, direction: string): string =>
+      `positions:\n  - party_id: demo\n    statement_id: s1\n    votes_lies:\n      - id: v1\n        date: "2025-03-15"\n        dossier: DOC 56 0228\n        vote_groupe: ${voteGroupe}\n        direction_dossier: ${direction}\n        justification: j\n    statut: en_attente\n    derniere_revision: "2026-07-16"\n`;
+    expect(() => parsePositionsYaml(vote('pour', 'soutient'), 'x.yaml')).toThrow(
+      /invalid vote_groupe 'pour'/,
+    );
+    expect(() => parsePositionsYaml(vote('oui', 'inverse'), 'x.yaml')).toThrow(
+      /invalid direction_dossier 'inverse'/,
+    );
+  });
+
+  it('round-trips the votes_ecartes reviewer memory and rejects malformed ones', () => {
+    const withEcartes: PartyPosition[] = [
+      {
+        party_id: 'demo',
+        statement_id: 's1',
+        votes_lies: [],
+        votes_ecartes: ['56-m10-v3'],
+        statut: 'valide',
+        derniere_revision: '2026-07-17',
+      },
+    ];
+    expect(parsePositionsYaml(renderPositionsYaml(withEcartes, 'h'), 'demo.yaml')).toEqual(
+      withEcartes,
+    );
+    const bad = `positions:\n  - party_id: demo\n    statement_id: s1\n    votes_lies: []\n    votes_ecartes: [""]\n    statut: valide\n    derniere_revision: "2026-07-16"\n`;
+    expect(() => parsePositionsYaml(bad, 'x.yaml')).toThrow(/votes_ecartes/);
+  });
+
+  it('rejects a linked vote missing its justification or date', () => {
+    const noJustification = `positions:\n  - party_id: demo\n    statement_id: s1\n    votes_lies:\n      - id: v1\n        date: "2025-03-15"\n        dossier: DOC 56 0228\n        vote_groupe: oui\n        direction_dossier: soutient\n        justification: ""\n    statut: en_attente\n    derniere_revision: "2026-07-16"\n`;
+    expect(() => parsePositionsYaml(noJustification, 'x.yaml')).toThrow(/justification/);
+    const badDate = `positions:\n  - party_id: demo\n    statement_id: s1\n    votes_lies:\n      - id: v1\n        date: 15/03/2025\n        dossier: DOC 56 0228\n        vote_groupe: oui\n        direction_dossier: soutient\n        justification: j\n    statut: en_attente\n    derniere_revision: "2026-07-16"\n`;
+    expect(() => parsePositionsYaml(badDate, 'x.yaml')).toThrow(/invalid date/);
+  });
+
   it('keeps the YAML loadable as plain PartyPosition[] for the site', () => {
     const positions = toPartyPositions('demo', OUTCOMES, '2026-07-16');
     const reloaded: PartyPosition[] = parsePositionsYaml(

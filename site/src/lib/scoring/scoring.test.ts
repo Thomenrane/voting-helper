@@ -21,11 +21,15 @@ function record(
   const base = {
     party_id: partyId,
     statement_id: statementId,
+    // Direction 'soutient': the raw group vote IS the statement-relative one.
+    // The vote_groupe × direction_dossier derivation table has its own tests
+    // (data/src/linked-vote.test.ts).
     votes_lies: votes.map((v, i) => ({
       id: `${partyId}-${statementId}-v${i + 1}`,
       date: '2025-01-01',
       dossier: 'DOC 56 0001/001',
-      position_groupe: v,
+      vote_groupe: v,
+      direction_dossier: 'soutient' as const,
       justification: 'Vote de test.',
     })),
     statut,
@@ -158,6 +162,20 @@ describe('scoreParties — contradiction « promesse vs vote »', () => {
     expect(x?.actes).toEqual({ score: 0, denominator: 1 });
     expect(x?.ecart).toBe(100);
     expect(x?.ecartMarquant).toBe(true);
+  });
+
+  it('derives the position from the raw vote × dossier direction (schema m3)', () => {
+    // « oui » on a dossier that CONTRADICTS the statement is a −2: same
+    // contradiction and same actes score as a « non » on a supporting dossier.
+    const answers: UserAnswers = { s1: 2 };
+    const base = record('x', 's1', 2, ['oui']);
+    const inverted: PartyPosition = {
+      ...base,
+      votes_lies: base.votes_lies.map((v) => ({ ...v, direction_dossier: 'contredit' as const })),
+    };
+    const [x] = scoreParties(answers, [partyX], [inverted]);
+    expect(x?.contradictions).toEqual(['s1']);
+    expect(x?.actes).toEqual({ score: 0, denominator: 1 });
   });
 
   it('flags in both directions (programme against, vote for)', () => {
