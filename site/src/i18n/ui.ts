@@ -3,7 +3,7 @@
  * route structure and strings are ready even though only /fr is built for
  * the tracer bullet (#16).
  */
-import type { GroupVotePosition, PositionValue } from '@voting-helper/data';
+import type { DossierDirection, GroupVotePosition, PositionValue } from '@voting-helper/data';
 import type { Locale } from './locales.ts';
 
 /** One degree of the 5-point answer scale, in display order. */
@@ -57,8 +57,12 @@ interface UiStrings {
   noLinkedVotes: string;
   /** Short badge on a statement where the party voted against its programme. */
   contradictionTag: string;
-  /** How the party's group voted, relative to the statement's direction. */
-  voteDirection: Record<GroupVotePosition, string>;
+  /** RAW group vote on the dossier — the verifiable parliamentary fact. */
+  voteRawFact: Record<GroupVotePosition, string>;
+  /** Direction of the dossier relative to the statement (schema m3). */
+  voteDossierDirection: Record<DossierDirection, string>;
+  /** Statement-relative reading derived from raw vote × direction. */
+  voteReading: Record<GroupVotePosition, string>;
   exactQuoteLabel: string;
   pageRef: (page: number) => string;
   sourceLinkLabel: string;
@@ -130,10 +134,19 @@ export const UI: Record<Locale, UiStrings> = {
       'Aucune position validée dans le programme de ce parti sur cet énoncé — exclu de son score promesses.',
     noLinkedVotes: 'Aucun vote lié — énoncé exclu du score actes.',
     contradictionTag: 'Promesse vs vote',
-    voteDirection: {
-      oui: 'A voté pour',
+    voteRawFact: {
+      oui: 'A voté oui',
       abstention: 'S’est abstenu',
-      non: 'A voté contre',
+      non: 'A voté non',
+    },
+    voteDossierDirection: {
+      soutient: 'le dossier soutient l’énoncé',
+      contredit: 'le dossier contredit l’énoncé',
+    },
+    voteReading: {
+      oui: 'position : pour',
+      abstention: 'position : abstention',
+      non: 'position : contre',
     },
     exactQuoteLabel: 'Citation exacte (langue source)',
     pageRef: (page) => `p. ${page}`,
@@ -189,10 +202,19 @@ export const UI: Record<Locale, UiStrings> = {
       'Geen gevalideerd standpunt in het programma van deze partij over deze stelling — uitgesloten van haar score beloften.',
     noLinkedVotes: 'Geen gekoppelde stemming — stelling uitgesloten van de score daden.',
     contradictionTag: 'Belofte vs stem',
-    voteDirection: {
-      oui: 'Stemde voor',
+    voteRawFact: {
+      oui: 'Stemde ja',
       abstention: 'Onthield zich',
-      non: 'Stemde tegen',
+      non: 'Stemde nee',
+    },
+    voteDossierDirection: {
+      soutient: 'het dossier steunt de stelling',
+      contredit: 'het dossier spreekt de stelling tegen',
+    },
+    voteReading: {
+      oui: 'positie: voor',
+      abstention: 'positie: onthouding',
+      non: 'positie: tegen',
     },
     exactQuoteLabel: 'Exact citaat (brontaal)',
     pageRef: (page) => `p. ${page}`,
