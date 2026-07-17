@@ -8,7 +8,7 @@
  * the wizard island) only fills scores, reorders rows and draws the lines.
  */
 import { deriveRelativeVote, PARTIES, PARTY_POSITIONS, STATEMENTS } from '@voting-helper/data';
-import { statementText } from '../i18n/bilingual.ts';
+import { contextNoteText, statementText } from '../i18n/bilingual.ts';
 import type { Locale } from '../i18n/locales.ts';
 import { UI } from '../i18n/ui.ts';
 import { buildPartyAudit, formatDateBE } from '../lib/results/results-presentation.ts';
@@ -151,6 +151,25 @@ const scaleLabel = (position: number): string =>
                               <p class="evidence-empty">{t.noLinkedVotes}</p>
                             )}
                           </div>
+                          {item.contextNote !== null && (
+                            <aside class="context-note">
+                              <p class="context-note-head">
+                                {t.contextNoteLabel(formatDateBE(item.contextNote.date))}
+                              </p>
+                              <p class="context-note-text">
+                                {contextNoteText(item.contextNote, lang)}{' '}
+                                <a href={item.contextNote.source_url} rel="noopener">
+                                  {t.sourceLinkLabel}
+                                </a>
+                              </p>
+                              <p class="context-note-hint">{t.contextNoteScoreHint}</p>
+                            </aside>
+                          )}
+                          {item.lastRevision !== null && (
+                            <p class="revision">
+                              {t.lastRevisionLabel(formatDateBE(item.lastRevision))}
+                            </p>
+                          )}
                         </div>
                       </details>
                     ))}
@@ -528,9 +547,55 @@ const scaleLabel = (position: number): string =>
     padding: 0.5rem 0.75rem;
   }
 
+  /* Dated context note (#14) — deliberately NOT the citation treatment
+     (no accent wash, no solid accent border): a dashed frame keeps it
+     clearly editorial context, never programme evidence. */
+  .context-note {
+    border: 1px dashed var(--accent);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .context-note-head {
+    margin: 0 0 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+  }
+
+  .context-note-text {
+    margin: 0;
+    font-size: 0.8125rem;
+  }
+
+  .context-note-text a {
+    color: var(--accent-deep);
+  }
+
+  .context-note-hint {
+    margin: 0.25rem 0 0;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+
+  .revision {
+    margin: 0;
+    font-size: 0.6875rem;
+    color: var(--ink-soft);
+  }
+
   @media (min-width: 40rem) {
     .evidence {
       grid-template-columns: 1fr 1fr;
+    }
+
+    /* The two evidence blocks stay side by side; the note and the revision
+       line span the full row beneath them. */
+    .context-note,
+    .revision {
+      grid-column: 1 / -1;
     }
   }
 </style>

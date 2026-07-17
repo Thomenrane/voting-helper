@@ -259,6 +259,32 @@ describe('buildPartyAudit', () => {
     expect(audit[0]?.statements[1]?.isContradiction).toBe(false);
   });
 
+  it('exposes the record revision date, null without a record', () => {
+    const audit = buildPartyAudit('p', statements, [record('p', 's1', { position: 2 })], []);
+    expect(audit[0]?.statements[0]?.lastRevision).toBe('2026-06-01');
+    expect(audit[0]?.statements[1]?.lastRevision).toBeNull();
+  });
+
+  it('exposes the dated context note when present, null otherwise (#14)', () => {
+    const note = {
+      texte_fr: 'Revirement documenté.',
+      texte_nl: 'Gedocumenteerde ommekeer.',
+      date: '2025-04-10',
+      source_url: 'https://example.org/communique',
+    };
+    const audit = buildPartyAudit(
+      'p',
+      statements,
+      [
+        { ...record('p', 's1', { position: 2, votes: ['non'] }), note_contexte: note },
+        record('p', 's2', { position: 1 }),
+      ],
+      [],
+    );
+    expect(audit[0]?.statements[0]?.contextNote).toEqual(note);
+    expect(audit[0]?.statements[1]?.contextNote).toBeNull();
+  });
+
   it('refuses two valid records for the same statement, like the engine does', () => {
     expect(() =>
       buildPartyAudit(

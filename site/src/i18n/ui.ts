@@ -73,6 +73,22 @@ interface UiStrings {
   exactQuoteLabel: string;
   pageRef: (page: number) => string;
   sourceLinkLabel: string;
+  // Transparency surfaces (#26)
+  /** e.g. « Dernière révision : 01/06/2026 » — date pre-formatted DD/MM/YYYY. */
+  lastRevisionLabel: (date: string) => string;
+  /** Heading of a dated context note (#14), e.g. « Note de contexte — 10/04/2025 ». */
+  contextNoteLabel: (date: string) => string;
+  /** Reminder that a context note never enters any score. */
+  contextNoteScoreHint: string;
+  /** Page names — footer links, page titles and headings. */
+  methodologyPageName: string;
+  balancePageName: string;
+  changelogPageName: string;
+  /** Accessible name of the footer transparency nav. */
+  footerNavLabel: string;
+  backToTestLabel: string;
+  /** e.g. « Méthodologie v1 — données au 16/07/2026 » (date pre-formatted). */
+  versionLine: (version: string, dataDate: string) => string;
 }
 
 const THEME_LABELS_FR: Record<string, string> = {
@@ -160,6 +176,16 @@ export const UI: Record<Locale, UiStrings> = {
     exactQuoteLabel: 'Citation exacte (langue source)',
     pageRef: (page) => `p. ${page}`,
     sourceLinkLabel: 'Source',
+    lastRevisionLabel: (date) => `Dernière révision : ${date}`,
+    contextNoteLabel: (date) => `Note de contexte — ${date}`,
+    contextNoteScoreHint:
+      'Cette note n’affecte pas le score : le programme 2024 reste la référence du score promesses.',
+    methodologyPageName: 'Méthodologie',
+    balancePageName: 'Équilibre',
+    changelogPageName: 'Changelog',
+    footerNavLabel: 'Transparence',
+    backToTestLabel: 'Retour au test',
+    versionLine: (version, dataDate) => `Méthodologie ${version} — données au ${dataDate}`,
   },
   nl: {
     siteTitle: 'Federale stemtest — demonstratie',
@@ -230,5 +256,15 @@ export const UI: Record<Locale, UiStrings> = {
     exactQuoteLabel: 'Exact citaat (brontaal)',
     pageRef: (page) => `p. ${page}`,
     sourceLinkLabel: 'Bron',
+    lastRevisionLabel: (date) => `Laatste herziening: ${date}`,
+    contextNoteLabel: (date) => `Contextnota — ${date}`,
+    contextNoteScoreHint:
+      'Deze nota beïnvloedt de score niet: het programma 2024 blijft de referentie voor de score beloften.',
+    methodologyPageName: 'Methodologie',
+    balancePageName: 'Evenwicht',
+    changelogPageName: 'Changelog',
+    footerNavLabel: 'Transparantie',
+    backToTestLabel: 'Terug naar de test',
+    versionLine: (version, dataDate) => `Methodologie ${version} — gegevens per ${dataDate}`,
   },
 };
