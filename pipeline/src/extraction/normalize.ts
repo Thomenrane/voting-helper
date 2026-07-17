@@ -6,8 +6,11 @@
  * 1. Unicode NFKC — folds PDF font ligatures (ﬁ→fi, ﬂ→fl) and compatibility
  *    forms; also maps NBSP (U+00A0) and narrow NBSP (U+202F) to plain spaces.
  *    Letters like œ/æ have no compatibility decomposition and stay intact.
- * 2. Soft hyphens (U+00AD) removed — end-of-line hyphenation artifacts of
- *    justified PDF text.
+ * 2. Invisible characters removed: soft hyphen (U+00AD, end-of-line
+ *    hyphenation artifact of justified PDF text), zero-width space (U+200B),
+ *    zero-width no-break space / BOM (U+FEFF) and the directional marks
+ *    LRM/RLM (U+200E/U+200F) — all can leak from pdf.js extraction and none
+ *    is citable content.
  * 3. Curly/angle quotes → straight quotes ('  "). French guillemets carry
  *    their inner (non-breaking) space as part of the typography — « X » and
  *    "X" are the same citation — so that space is swallowed with the
@@ -23,7 +26,7 @@
 export function normalizeForSearch(text: string): string {
   return text
     .normalize('NFKC')
-    .replace(/­/g, '')
+    .replace(/[\u00AD\u200B\uFEFF\u200E\u200F]/g, '')
     .replace(/[‘’‚‛ʼ]/g, "'")
     .replace(/«\s*/gu, '"')
     .replace(/\s*»/gu, '"')

@@ -15,6 +15,12 @@ describe('normalizeForSearch — documented typography rules', () => {
     expect(normalizeForSearch('gouver\u00ADnement')).toBe('gouvernement');
   });
 
+  it('removes zero-width and directional invisibles (pdf.js artifacts)', () => {
+    expect(normalizeForSearch('re\u200Bforme \uFEFFsociale\u200E et\u200F juste')).toBe(
+      'reforme sociale et juste',
+    );
+  });
+
   it('maps curly and angle quotes to straight quotes', () => {
     expect(normalizeForSearch('« l’État »')).toBe(`"l'État"`);
     expect(normalizeForSearch('“quote” en ‘nl’')).toBe(`"quote" en 'nl'`);
