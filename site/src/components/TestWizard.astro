@@ -7,6 +7,7 @@
  * (localStorage, never the network) and the provisional client-side results.
  */
 import { STATEMENTS } from '@voting-helper/data';
+import { statementNote, statementText } from '../i18n/bilingual.ts';
 import type { Locale } from '../i18n/locales.ts';
 import { UI } from '../i18n/ui.ts';
 import ResultsPanel from './ResultsPanel.astro';
@@ -44,11 +45,11 @@ const total = STATEMENTS.length;
           >
             <p class="theme">{t.themeLabel(statement.theme)}</p>
             <h2 class="statement" tabindex="-1" data-statement-heading>
-              {lang === 'fr' ? statement.texte_fr : statement.texte_nl}
+              {statementText(statement, lang)}
             </h2>
             <p class="note">
               <strong class="note-label">{t.noteLabel}</strong>
-              {lang === 'fr' ? statement.note_concrete_fr : statement.note_concrete_nl}
+              {statementNote(statement, lang)}
             </p>
 
             <div class="scale" role="group" aria-label={t.scaleGroupLabel}>
@@ -102,7 +103,7 @@ const total = STATEMENTS.length;
 
 <script>
   import { PARTIES, PARTY_POSITIONS, STATEMENTS } from '@voting-helper/data';
-  import type { Locale } from '../i18n/locales.ts';
+  import { DEFAULT_LOCALE, isLocale } from '../i18n/locales.ts';
   import { UI } from '../i18n/ui.ts';
   import { renderResults } from '../lib/results/results-view.ts';
   import { scoreParties } from '../lib/scoring/scoring.ts';
@@ -156,7 +157,9 @@ const total = STATEMENTS.length;
   }
 
   function initWizard(root: HTMLElement): void {
-    const lang = (root.dataset.lang ?? 'fr') as Locale;
+    // Validated, never cast: an altered/missing data-lang degrades to the
+    // default locale instead of indexing UI with an unknown key.
+    const lang = isLocale(root.dataset.lang) ? root.dataset.lang : DEFAULT_LOCALE;
     const t = UI[lang];
 
     const testSection = root.querySelector<HTMLElement>('[data-test]');
