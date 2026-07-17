@@ -30,11 +30,9 @@ import { STATEMENTS, type LinkedVote } from '@voting-helper/data';
 import { computeRunCost, formatRunCost, addUsage } from '../extraction/cost.ts';
 import { createAnthropicClient, DEFAULT_EXTRACTION_MODEL, type LLMUsage } from '../extraction/llm-client.ts';
 import { parsePositionsYaml, renderPositionsYaml } from '../extraction/positions-yaml.ts';
-import { emptyManifest, latestSnapshot, verifySnapshotIntegrity } from '../snapshot/manifest.ts';
-import { loadManifest, sha256Hex } from '../snapshot/snapshot-store.ts';
-import { DERIVED_VOTES_SOURCE } from '../sources/votes.sources.ts';
 import { PARTY_PROGRAMMES } from '../sources/party-programmes.ts';
-import type { PlenaryVote, VotesDataset } from '../votes/votes.types.ts';
+import { loadVotesDataset } from '../votes/load-dataset.ts';
+import type { PlenaryVote } from '../votes/votes.types.ts';
 import { buildPartyLinks, mergeStatementVotes } from '../linking/links-yaml.ts';
 import { assertPartyGroupsConsistent, PARTY_GROUPS } from '../linking/party-groups.ts';
 import { renderLinkingReview, type EligibilityStats, type StatementLinkReport } from '../linking/report.ts';
@@ -48,34 +46,9 @@ import {
 } from '../linking/vote-preselection.ts';
 import { fail, resolveRepoRoot, VOTES_FILES_MANIFEST, VOTES_REVIEW_FILE } from './command-support.ts';
 
-const MANIFEST_RELATIVE_PATH = 'data/manifests/votes.manifest.json';
 const PROPOSALS_DIR = 'data/positions/proposals';
 /** Rough FR/NL chars-per-token heuristic — dry-run estimate only. */
 const CHARS_PER_TOKEN_ESTIMATE = 3.5;
-
-async function loadVotesDataset(repoRoot: string): Promise<{ dataset: VotesDataset; snapshotId: string }> {
-  const manifest = await loadManifest(join(repoRoot, MANIFEST_RELATIVE_PATH), emptyManifest('', ''));
-  const entry = latestSnapshot(manifest, DERIVED_VOTES_SOURCE.id);
-  if (entry === undefined) {
-    throw new Error(
-      `No derived votes dataset recorded in ${MANIFEST_RELATIVE_PATH}. Run 'npm run snapshot:votes' first.`,
-    );
-  }
-  const absPath = join(repoRoot, entry.file);
-  if (!existsSync(absPath)) {
-    throw new Error(
-      `Snapshot file '${entry.file}' is missing locally (binaries are gitignored). ` +
-        `Re-run 'npm run snapshot:votes' to re-materialize it.`,
-    );
-  }
-  const bytes = await readFile(absPath);
-  verifySnapshotIntegrity(entry, sha256Hex(bytes));
-  const dataset = JSON.parse(new TextDecoder().decode(bytes)) as VotesDataset;
-  if (!Array.isArray(dataset.votes)) {
-    throw new Error(`Snapshot '${entry.snapshot_id}' is not a votes dataset ('votes' missing).`);
-  }
-  return { dataset, snapshotId: entry.snapshot_id };
-}
 
 function classifyDataset(votes: readonly PlenaryVote[]): {
   eligible: EligibleVote[];
