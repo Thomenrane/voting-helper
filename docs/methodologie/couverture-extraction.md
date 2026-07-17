@@ -1,0 +1,147 @@
+# Couverture de l'extraction des positions
+
+Ce document décrit comment le pipeline extrait la position d'un parti sur un
+énoncé à partir de son programme, et surtout **comment il rend le silence
+(« position non documentée ») auditable**. Il est publiable tel quel et fait
+foi : le code (`pipeline/src/extraction/`) implémente exactement ces règles,
+et toute évolution passe par une mise à jour de ce document dans la même pull
+request.
+
+## Le risque visé : le faux négatif
+
+Le vérificateur mécanique de citations (`criteres` implicites de #22) règle le
+faux **positif** : une citation inventée ou altérée est rejetée, jamais
+publiée. Ce document attaque le problème inverse, le faux **négatif** : une
+position réellement prise dans le programme mais qu'aucun appel au modèle n'a
+regardée deviendrait une « non documentée » trompeuse. Tant que le modèle lit
+le document « librement », le silence est un acte de *confiance*. On veut un
+acte *auditable*.
+
+## Principe : balayage exhaustif, pas de récupération sélective
+
+Le pipeline **balaye tout le document** (map sur l'intégralité de la couche
+texte). Il n'utilise **pas** de récupération sélective type RAG top-K : aller
+chercher les *k* passages les plus proches est perdant en rappel par
+conception — on ne peut pas prouver qu'on n'a rien manqué si on n'a pas tout
+regardé.
+
+La faiblesse connue des grands modèles sur un gros contexte
+(« lost-in-the-middle ») est contournée non pas en faisant confiance au
+modèle, mais en **bornant chaque appel** :
+
+- La couche texte est découpée en **chunks petits** (budget par défaut ~6 000
+  caractères, quelques pages — `DEFAULT_CHUNK_CHARS`). Le modèle ne voit
+  jamais un gros contexte.
+- **Un appel LLM par chunk**, avec **tous les énoncés groupés** dans l'appel.
+  Le chunk est le contexte coûteux ; on l'amortit en évaluant tous les énoncés
+  dessus d'un coup.
+- Pour **chaque énoncé × chaque chunk**, le modèle rend une décision
+  explicite : soit une position (−2..+2) accompagnée d'une **citation
+  verbatim** dans la langue source, soit `null` (« pas de position dans ce
+  chunk »).
+
+Le rappel vient donc du fait qu'on **examine tous les chunks**, pas d'un gros
+contexte.
+
+### Parsing strict et complet
+
+La réponse du modèle est parsée défensivement (leçons des reviews #32/#34) :
+**chaque énoncé demandé doit être décidé explicitement** dans la réponse. Un
+énoncé omis — réponse tronquée, tableau vide, injection dans le texte du PDF —
+est une **erreur dure**, jamais un silence éditorial. La « non documentée » est
+une décision explicite (`position: null`), jamais l'absence d'une réponse.
+
+## Fusion inter-chunks
+
+Chaque citation proposée par un chunk est **vérifiée mécaniquement** contre
+cette même couche texte (`verifyCitation`, réutilisé inchangé). Les candidats
+sont ensuite fusionnés en une issue par énoncé :
+
+- **Position documentée** — au moins un chunk a produit une position dont la
+  citation est mécaniquement vérifiée. Une position vérifiée **gagne**.
+- **Non documentée** — **si et seulement si aucun chunk** n'a produit de
+  position à citation vérifiée. C'est la définition auditable du silence.
+- **Citation rejetée** — des positions ont été proposées, mais aucune citation
+  n'a survécu à la vérification (jamais publiée).
+- **Conflit inter-chunks** — deux chunks produisent des positions **vérifiées
+  mais divergentes** pour le même énoncé.
+
+### Arbitrage d'un conflit inter-chunks
+
+Décision retenue (cohérente avec #22/#32) : un conflit **n'est jamais tranché
+automatiquement**. On ne choisit pas « le plus fort » : deux citations
+authentiques qui codent différemment le même énoncé signalent une vraie
+ambiguïté du programme (par ex. une position générale à un endroit, une
+exception à un autre). Le conflit est **signalé en review, aucun
+enregistrement n'est produit** — l'arbitrage est humain. Coder d'office
+l'emporterait sur une information réelle ; le silence explicite (record
+`en_attente` absent) est préférable à un faux consensus.
+
+## Filet déterministe : le scan lexical
+
+Le balayage exhaustif donne déjà le rappel. Le scan lexical ne **coupe
+jamais** rien — il sert uniquement à **prioriser l'attention humaine** et à
+**signaler les silences douteux**.
+
+- **Sans clé, sans réseau, déterministe.**
+- Pour chaque énoncé, des **mots-clés bilingues FR + NL** sont dérivés du
+  texte de l'énoncé lui-même (qui est bilingue) et de sa mesure concrète,
+  moins une liste publiée de mots-outils, plus un **registre de synonymes
+  publié** (`STATEMENT_KEYWORD_SYNONYMS`).
+- Le scan cherche ces mots-clés sur le **texte intégral** de la couche, avec la
+  **même normalisation que le vérificateur** (`normalizeForSearch`) complétée
+  d'un repli de casse et d'accents (la présence lexicale est insensible à la
+  casse et aux accents, contrairement à une citation verbatim).
+- Une page est retenue comme **occurrence** seulement si **au moins deux
+  mots-clés distincts co-occurrent** (`LEXICAL_COOCCURRENCE_MIN`) — un mot
+  générique isolé n'est pas une preuve que le sujet est traité.
+
+## Rapport de couverture
+
+Chaque run committe `data/positions/proposals/<parti>.coverage.md` :
+
+- le **nombre de chunks examinés** (preuve que le balayage est exhaustif) ;
+- par énoncé, les **chunks ayant produit un candidat** (✅ vérifié / ❌ rejeté) ;
+- par « non documentée », les **pages où le sujet apparaît lexicalement** ;
+- un **FLAG explicite** (⚠️) sur toute « non documentée » ayant des occurrences
+  lexicales : le relecteur **doit** vérifier ce silence.
+
+Les silences signalés sont aussi repris en tête du corps de PR
+(`<parti>.review.md`). Objectif : vérifier un silence en 30 secondes au lieu
+de relire 120 pages.
+
+## Planification sans clé (`--dry-run`)
+
+`extract:positions --dry-run` planifie le balayage sans clé ni appel :
+nombre de chunks bornés (= nombre d'appels LLM groupés), caractères balayés,
+et **estimation de tokens et de coût**. Un balayage complet du PS (1 220 pages,
+~3,57 M caractères) se planifie ainsi en ~610 appels bornés (heuristique
+3,5 caractères/token), soit un ordre de grandeur de quelques euros — l'ordre de
+grandeur, pas une vérité comptable.
+
+## Résidu irréductible (publié)
+
+Comme la limite du préfiltre lexical des votes est déjà publiée, celle-ci
+l'est aussi. Deux limites subsistent :
+
+1. **Le scan lexical peut manquer une paraphrase.** Une position formulée
+   **sans aucun des mots-clés attendus** (ni FR, ni NL, ni synonyme publié),
+   ou dont le sujet n'apparaît sur aucune page avec au moins deux mots-clés
+   co-occurrents, ne sera **pas signalée** : un tel silence resterait un faux
+   négatif non détecté. Le balayage exhaustif l'aura *examinée* (tous les
+   chunks sont vus par le modèle) ; c'est la *priorisation d'attention* qui la
+   raterait, pas la lecture.
+2. **Le modèle peut, sur un chunk donné, ne pas coder une position réellement
+   présente.** Le balayage exhaustif réduit ce risque (chaque passage est vu au
+   moins une fois dans un petit contexte), sans l'annuler.
+
+Ces deux résidus sont la raison pour laquelle **la review humaine reste la
+validation** : le pipeline propose, il ne publie pas.
+
+## Hors périmètre (suite)
+
+Le **widener sémantique** — des embeddings pour rattraper les paraphrases que
+le scan lexical rate — est une suite. Il nécessite un **modèle d'embeddings
+local** pour rester sans clé. Il ne changerait pas le rappel (on regarde déjà
+tout) : comme le scan lexical, il ne servirait qu'à *prioriser l'attention* et
+à *signaler des silences douteux*, **jamais à couper** (jamais de top-K).
