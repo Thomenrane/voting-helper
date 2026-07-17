@@ -12,6 +12,7 @@ import type { RunCost } from '../extraction/cost.ts';
 import { formatRunCost } from '../extraction/cost.ts';
 import { formatDossierRef } from './dossier-ref.ts';
 import type { PartyLinkedVote, PartyVoteAbsence } from './links-yaml.ts';
+import { KIND_LABEL } from './vote-eligibility.ts';
 import type { RetainedLink, SetAsideLink } from './vote-preselection.ts';
 
 /** Mechanical eligibility tallies over the whole dataset. */
@@ -68,7 +69,7 @@ function renderRetained(link: RetainedLink): string[] {
   const dossierTitle = vote.dossier?.title ?? 'titre inconnu';
   return [
     `**${ref} — ${dossierTitle}**`,
-    `- Vote : \`${vote.id}\` du ${vote.date} (${link.kind === 'amendement' ? 'amendement' : 'vote final'}) — ${vote.title_fr}`,
+    `- Vote : \`${vote.id}\` du ${vote.date} (${KIND_LABEL[link.kind]}) — ${vote.title_fr}`,
     `- Direction du dossier par rapport à l'énoncé : **${link.direction_dossier}**`,
     `- Pourquoi retenu : ${link.justification}`,
   ];

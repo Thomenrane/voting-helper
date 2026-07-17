@@ -32,8 +32,20 @@ function vote(overrides: Partial<PlenaryVote>): PlenaryVote {
 }
 
 describe('classifyVoteEligibility — inclusion', () => {
-  it('includes a dossier-linked plenary vote as vote_final by default', () => {
+  it('classifies an explicit whole-text vote as vote_final (FR and NL)', () => {
     expect(classifyVoteEligibility(vote({}))).toEqual({ eligible: true, kind: 'vote_final' });
+    const nl = vote({ title_fr: '…', title_nl: 'Stemming over het geheel van het wetsontwerp' });
+    expect(classifyVoteEligibility(nl)).toEqual({ eligible: true, kind: 'vote_final' });
+  });
+
+  it('uses the neutral scrutin_dossier kind when the type is not determinable (m2)', () => {
+    // Never claim « vote final » by default: an undeterminable title gets
+    // the neutral « scrutin lié au dossier » label.
+    const v = vote({
+      title_fr: 'Projet de loi portant des dispositions fiscales diverses',
+      title_nl: 'Wetsontwerp houdende diverse fiscale bepalingen',
+    });
+    expect(classifyVoteEligibility(v)).toEqual({ eligible: true, kind: 'scrutin_dossier' });
   });
 
   it('classifies a vote on amendments as amendement (FR title)', () => {

@@ -32,8 +32,12 @@ Un vote est liable à un énoncé si et seulement si :
    Chambre). Les scrutins sans dossier lié — motions, votes d'organisation —
    sont exclus mécaniquement.
 2. **Il s'agit d'un vote final en plénière sur ce dossier, ou d'un vote
-   d'amendement portant directement sur la mesure de l'énoncé.** Le type
-   (vote final / amendement) est classé à partir de l'intitulé du scrutin.
+   d'amendement portant directement sur la mesure de l'énoncé.** Le type est
+   classé à partir de l'intitulé du scrutin : « vote final » uniquement
+   quand l'intitulé mentionne explicitement le vote sur l'ensemble du
+   texte, « amendement » quand il nomme un amendement, et l'étiquette
+   neutre « scrutin lié au dossier » quand l'intitulé ne permet pas de
+   trancher — le type n'est jamais affirmé par défaut.
 3. **Le dossier porte directement sur la mesure concrète de l'énoncé** — pas
    seulement sur le même thème. Ce jugement de pertinence est proposé par le
    classement sémantique du pipeline et justifié en une phrase ; en cas de

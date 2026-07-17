@@ -17,7 +17,19 @@
  */
 import type { PlenaryVote } from '../votes/votes.types.ts';
 
-export type EligibleVoteKind = 'vote_final' | 'amendement';
+/**
+ * Classification of an eligible vote. 'scrutin_dossier' is the NEUTRAL kind
+ * used when the title does not allow determining the type — the pipeline
+ * never claims « vote final » by default (m2 of the #34 review).
+ */
+export type EligibleVoteKind = 'vote_final' | 'amendement' | 'scrutin_dossier';
+
+/** Review/prompt display labels of the vote kinds. */
+export const KIND_LABEL: Record<EligibleVoteKind, string> = {
+  vote_final: 'vote final',
+  amendement: 'amendement',
+  scrutin_dossier: 'scrutin lié au dossier',
+};
 
 export type VoteEligibility =
   | { eligible: true; kind: EligibleVoteKind }
@@ -59,6 +71,14 @@ const PROCEDURAL_PATTERNS: readonly { pattern: RegExp; label: string }[] = [
 ];
 
 const AMENDMENT_PATTERN = /\bamendement/;
+/** Explicit whole-text vote formulas (FR/NL) — positive detection only. */
+const FINAL_VOTE_PATTERN = /sur l.ensemble|l.ensemble du|l.ensemble de|over het geheel|geheel van het/;
+
+function classifyKind(title: string): EligibleVoteKind {
+  if (AMENDMENT_PATTERN.test(title)) return 'amendement';
+  if (FINAL_VOTE_PATTERN.test(title)) return 'vote_final';
+  return 'scrutin_dossier';
+}
 
 /**
  * Classifies one plenary vote against the published mechanical criteria.
@@ -81,8 +101,5 @@ export function classifyVoteEligibility(vote: PlenaryVote): VoteEligibility {
       };
     }
   }
-  return {
-    eligible: true,
-    kind: AMENDMENT_PATTERN.test(title) ? 'amendement' : 'vote_final',
-  };
+  return { eligible: true, kind: classifyKind(title) };
 }

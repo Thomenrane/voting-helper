@@ -23,7 +23,7 @@ import type { LLMClient, LLMUsage } from '../extraction/llm-client.ts';
 import { addUsage } from '../extraction/cost.ts';
 import type { PlenaryVote } from '../votes/votes.types.ts';
 import { formatDossierRef } from './dossier-ref.ts';
-import type { EligibleVoteKind } from './vote-eligibility.ts';
+import { KIND_LABEL, type EligibleVoteKind } from './vote-eligibility.ts';
 
 /** One mechanically eligible vote, with its classification. */
 export interface EligibleVote {
@@ -112,7 +112,7 @@ export function describeCandidate(candidate: EligibleVote): string {
   const { vote, kind } = candidate;
   const ref = vote.dossier === null ? '—' : formatDossierRef(vote.legislature, vote.dossier.id);
   const dossierTitle = vote.dossier?.title ?? 'titre de dossier inconnu';
-  return `${vote.id} | ${vote.date} | ${kind} | ${ref} — ${dossierTitle} | ${vote.title_fr}`;
+  return `${vote.id} | ${vote.date} | ${KIND_LABEL[kind]} | ${ref} — ${dossierTitle} | ${vote.title_fr}`;
 }
 
 export function buildLinkingPrompt(
