@@ -10,6 +10,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspace site",
+    "admit:report": "node pipeline/src/commands/admit-report.ts",
+    "admit:source": "node pipeline/src/commands/admit-source.ts",
     "extract:positions": "node pipeline/src/commands/extract-positions.ts",
     "link:votes": "node pipeline/src/commands/link-votes.ts",
     "positions:pr": "node pipeline/src/commands/prepare-position-pr.ts",
