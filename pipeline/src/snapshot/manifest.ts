@@ -10,8 +10,32 @@
  *   an existing version, it appends a new dated one.
  */
 
-/** How the bytes were obtained. `wayback` = origin URL dead or anti-bot. */
-export type SnapshotChannel = 'live' | 'wayback';
+/**
+ * How the bytes were obtained.
+ * - `live`: fetched from the origin URL;
+ * - `wayback`: origin URL dead or anti-bot, fetched from the Wayback Machine;
+ * - `manual`: provided by a human through the admission re-entry path (#42),
+ *   carrying an `attestation` (who/when/source) recorded in the manifest.
+ */
+export type SnapshotChannel = 'live' | 'wayback' | 'manual';
+
+/**
+ * Human attestation of a manually-sourced document (#42 re-entry path). When a
+ * source is UNCERTAIN/FAIL at the admission gate, a human finds and uploads the
+ * correct document; this records who vouched for it, when, and from where — so
+ * the manifest stays the single source of truth and the attestation can be
+ * published alongside the verification status.
+ */
+export interface SourceAttestation {
+  /** Who provided/verified the document (human name or handle). */
+  by: string;
+  /** ISO 8601 UTC datetime of the attestation. */
+  at: string;
+  /** Source URL or a description of where the document came from. */
+  source: string;
+  /** Optional free-text note (why this document, what was checked). */
+  note?: string;
+}
 
 /** `raw` = bytes as fetched from the source; `derived` = produced by the pipeline. */
 export type SnapshotKind = 'raw' | 'derived';
@@ -69,6 +93,11 @@ export interface SnapshotEntry {
    * ingestion runs is visible in git review.
    */
   quality?: Record<string, number>;
+  /**
+   * Human attestation, present only for `channel: 'manual'` snapshots provided
+   * through the admission re-entry path (#42). Recorded and published.
+   */
+  attestation?: SourceAttestation;
   provenance: string;
 }
 
@@ -141,11 +170,13 @@ export interface BuildSnapshotEntryOptions {
   snapshotsDir: string;
   /** Optional data-quality counters (derived snapshots). */
   quality?: Record<string, number>;
+  /** Optional human attestation (manual re-entry path, #42). */
+  attestation?: SourceAttestation;
 }
 
 /** Builds a dated snapshot entry. Pure — file layout is derived, never probed. */
 export function buildSnapshotEntry(options: BuildSnapshotEntryOptions): SnapshotEntry {
-  const { source, kind, retrievedAt, sha256, bytes, snapshotsDir, quality } = options;
+  const { source, kind, retrievedAt, sha256, bytes, snapshotsDir, quality, attestation } = options;
   if (!SAFE_SOURCE_ID.test(source.id)) {
     throw new Error(
       `Unsafe source id '${source.id}': ids are used in snapshot file paths and must match ${String(SAFE_SOURCE_ID)}.`,
@@ -167,6 +198,7 @@ export function buildSnapshotEntry(options: BuildSnapshotEntryOptions): Snapshot
     bytes,
     file: `${snapshotsDir}/${source.id}/${stamp}.${extension}`,
     ...(quality !== undefined ? { quality } : {}),
+    ...(attestation !== undefined ? { attestation } : {}),
     provenance: source.provenance,
   };
 }
