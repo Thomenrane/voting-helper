@@ -50,9 +50,9 @@ export const PARTY_PROGRAMMES: readonly PartyProgramme[] = [
   { party_id: 'groen', name: 'Groen', source_ids: ['groen-programme-2024'] },
   {
     // Unitary party, two language mirrors. Both sources are text/html chapter
-    // indexes (no national PDF): the per-page text layer does not cover them
-    // yet — the extraction command reports them as unsupported (see the spike
-    // doc's known-limitation section).
+    // indexes (no national PDF): the text layer is materialized PER CHAPTER via
+    // the bounded crawl (#51, `snapshot:programme-chapters`), each chapter = one
+    // « page », so admission and extraction treat them like any other party.
     party_id: 'ptb-pvda',
     name: 'PTB-PVDA',
     source_ids: ['ptb-programme-2024', 'pvda-programme-2024'],

@@ -134,7 +134,7 @@ async function main(): Promise<void> {
   }
 
   // Re-passe la porte d'admission.
-  const verdict = await admitPartyFromManifest(manifest, expected, fileLayerLoader(repoRoot));
+  const verdict = await admitPartyFromManifest(manifest, expected, fileLayerLoader(repoRoot, manifest));
   console.log(`\nNouveau verdict d'admission pour '${partyId}' : ${verdict.status}`);
   for (const reason of verdict.reasons) {
     console.log(`  - [${reason.severity}] ${reason.code} — ${reason.human}`);

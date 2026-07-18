@@ -26,8 +26,9 @@ import { PROGRAMME_SOURCES } from '../sources/programmes.sources.ts';
  *   (DéFI = 5 livrets « Axes » ; Open Vld = programme + plan chiffré) —
  *   l'incomplétude silencieuse la plus dangereuse est un livret manquant ;
  * - `web-chapters` : chapitres web sans PDF national (PTB/PVDA) ; la couche
- *   texte par page ne les couvre pas encore (limitation connue #22), donc les
- *   contrôles fondés sur les pages n'y sont pas applicables.
+ *   texte est matérialisée par chapitre via le crawl borné #51 (un chapitre =
+ *   une page), donc les contrôles fondés sur la PAGINATION (tolérance de pages,
+ *   TOC) n'y sont pas applicables — l'auto-identification, elle, est exécutée.
  */
 export type ProgrammeStructure = 'single-pdf' | 'n-booklets' | 'web-chapters';
 
@@ -199,8 +200,8 @@ export const EXPECTED_IDENTITIES: readonly ExpectedIdentity[] = [
   {
     party_id: 'ptb-pvda',
     // Parti unitaire, deux miroirs de langue. Chapitres web, aucun PDF national :
-    // la couche texte par page ne les couvre pas → contrôles fondés sur les
-    // pages non applicables ; l'admission reste conservatrice (UNCERTAIN).
+    // couche texte matérialisée par chapitre via le crawl borné #51 → contrôles
+    // fondés sur la pagination non applicables ; l'auto-identification s'exécute.
     title: 'PTB-PVDA — Programme (chapitres web, miroirs FR + NL)',
     year: 2024,
     level: 'federal',

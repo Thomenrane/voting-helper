@@ -47,7 +47,7 @@ async function main(): Promise<void> {
     throw new Error(`No programme snapshots recorded. Run 'npm run snapshot:programmes' first.`);
   }
 
-  const loadLayer = fileLayerLoader(repoRoot);
+  const loadLayer = fileLayerLoader(repoRoot, manifest);
   const verdicts: PartyAdmissionVerdict[] = [];
   for (const expected of EXPECTED_IDENTITIES) {
     verdicts.push(await admitPartyFromManifest(manifest, expected, loadLayer));
