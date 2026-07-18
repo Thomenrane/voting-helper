@@ -99,6 +99,31 @@ describe('buildSnapshotEntry', () => {
   });
 });
 
+describe('buildSnapshotEntry — human attestation (re-entry path #42)', () => {
+  it('omits attestation by default and records it when provided', () => {
+    const plain = entryAt('2026-07-16T13:07:42.000Z');
+    expect(plain.attestation).toBeUndefined();
+
+    const attested = buildSnapshotEntry({
+      source: { ...SOURCE, channel: 'manual' },
+      kind: 'raw',
+      retrievedAt: '2026-07-18T10:00:00.000Z',
+      sha256: 'a'.repeat(64),
+      bytes: 42,
+      snapshotsDir: 'data/snapshots/programmes',
+      attestation: {
+        by: 'Thomas',
+        at: '2026-07-18T10:00:00.000Z',
+        source: 'https://www.ps.be/programme-2024 (téléchargé en navigateur)',
+        note: 'Programme complet vérifié à la main.',
+      },
+    });
+    expect(attested.channel).toBe('manual');
+    expect(attested.attestation?.by).toBe('Thomas');
+    expect(attested.attestation?.source).toContain('ps.be');
+  });
+});
+
 describe('appendSnapshot — immutability', () => {
   it('appends without mutating the input manifest', () => {
     const manifest = emptyManifest('test', 'docs/research/programmes-partis.md');

@@ -40,6 +40,10 @@ import { parseArgs } from 'node:util';
 
 import { STATEMENTS } from '@voting-helper/data';
 
+import { buildPartyAdmissionInput, type DocumentSignals } from '../admission/evidence.ts';
+import { getExpectedIdentity } from '../admission/expected-identity.ts';
+import { assertPartyAdmitted } from '../admission/gate.ts';
+import { admitParty } from '../admission/verdict.ts';
 import {
   extractPositions,
   type LayerInput,
@@ -63,7 +67,7 @@ import { renderPositionsYaml, toPartyPositions } from '../extraction/positions-y
 import { countOutcomes, renderReviewSummary } from '../extraction/report.ts';
 import { formatSweepPlan, planSweep } from '../extraction/sweep-plan.ts';
 import { ensureTextLayer } from '../extraction/text-layer-store.ts';
-import { emptyManifest } from '../snapshot/manifest.ts';
+import { emptyManifest, latestSnapshot } from '../snapshot/manifest.ts';
 import { loadManifest, saveManifest } from '../snapshot/snapshot-store.ts';
 import { getPartyProgramme, getPartyProgrammeSources } from '../sources/party-programmes.ts';
 import { fail, resolveRepoRoot } from './command-support.ts';
@@ -161,10 +165,37 @@ export async function runExtractPositions(deps: ExtractPositionsDeps = {}): Prom
     await saveManifest(manifestPath, manifest);
   }
 
+  // Porte d'admission FAIL-CLOSED (#42) : aucun parti n'est extrait sans un
+  // verdict PASS net. L'évidence est construite à partir des couches texte que
+  // l'on vient de préparer (en mémoire en dry-run, attestées sinon).
+  const expected = getExpectedIdentity(party.party_id);
+  const layerBySource = new Map(layers.map((input) => [input.layer.source_id, input.layer]));
+  const admissionSignals: DocumentSignals[] = expected.parts.map((part) => ({
+    source_id: part.source_id,
+    layer: layerBySource.get(part.source_id) ?? null,
+    knownPages: null,
+  }));
+  const presentSourceIds = expected.parts
+    .filter((part) => latestSnapshot(manifest, part.source_id) !== undefined)
+    .map((part) => part.source_id);
+  const verdict = admitParty(
+    buildPartyAdmissionInput(expected, admissionSignals, presentSourceIds),
+  );
+  console.log(`\nAdmission (#42) — verdict pour ${party.name} : ${verdict.status}`);
+  for (const reason of verdict.reasons.filter((r) => r.severity !== 'PASS')) {
+    console.log(`  - [${reason.severity}] ${reason.code} — ${reason.human}`);
+  }
+
   const plan = planSweep({ partyName: party.name, statements: STATEMENTS, layers, model });
   console.log(`\n${formatSweepPlan(plan, STATEMENTS.length, model)}`);
 
   if (dryRun) {
+    if (verdict.status !== 'PASS') {
+      console.log(
+        `\nAdmission: verdict ${verdict.status} — un run réel serait REFUSÉ (fail-closed #42). ` +
+          'Chemin de sortie : npm run admit:source (ré-entrée humaine).',
+      );
+    }
     console.log(
       '\nDry-run: no LLM call was made, no positions were produced. ' +
         'Re-run without --dry-run with ANTHROPIC_API_KEY set to execute the extraction.',
@@ -192,6 +223,13 @@ export async function runExtractPositions(deps: ExtractPositionsDeps = {}): Prom
     );
     return;
   }
+
+  // Porte d'admission FAIL-CLOSED (#42) : placée AVANT le bloc partagé
+  // live+ingest, elle couvre les DEUX chemins producteurs de positions — un
+  // parti non-PASS ne peut produire de positions ni en live ni via --ingest.
+  // (--dry-run et --emit sont sortis plus haut : ils ne produisent aucune
+  // position.) Le seul chemin de sortie reste la ré-entrée humaine.
+  assertPartyAdmitted(verdict);
 
   // Live and ingest share the single real orchestration; only who produces the
   // per-chunk LLM outputs differs. Ingest replays externally-filled answers
