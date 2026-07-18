@@ -6,8 +6,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   appendSnapshot,
+  attachCriterionAttestation,
   buildSnapshotEntry,
   emptyManifest,
+  latestSnapshot,
   type SnapshotEntry,
   type SnapshotManifest,
   type SnapshotSource,
@@ -191,6 +193,112 @@ describe('fileLayerLoader — matérialisation depuis le snapshot brut épinglé
       fileLayerLoader(repoRoot),
     );
     expect(verdict.status).toBe('NOT_MATERIALIZED');
+  });
+});
+
+describe('admitPartyFromManifest — attestation de critère consommée (#50)', () => {
+  /**
+   * Snapshote un PDF brut « Verkiezingsprogramma 2024 » (année présente, niveau
+   * fédéral NON affirmé → level.absent UNCERTAIN), attesté au manifeste avec son
+   * vrai SHA-256 et matérialisable. C'est le cas bloquant du ticket : bon
+   * document, que la porte ne sait pas auto-confirmer sur le niveau.
+   */
+  async function seedUncertainNva(): Promise<{
+    repoRoot: string;
+    manifest: SnapshotManifest;
+    sha256: string;
+    snapshotId: string;
+  }> {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'admit-attest-'));
+    const pages = ['Verkiezingsprogramma 2024'];
+    while (pages.length < 120) pages.push(`pagina ${pages.length + 1}`);
+    const bytes = minimalPdf(pages);
+    const entry = buildSnapshotEntry({
+      source: source('nva-programme-2024'),
+      kind: 'raw',
+      retrievedAt: '2026-07-16T13:25:30.000Z',
+      sha256: sha256Hex(bytes),
+      bytes: bytes.length,
+      snapshotsDir: 'data/snapshots/programmes',
+    });
+    const absPath = join(repoRoot, entry.file);
+    await mkdir(dirname(absPath), { recursive: true });
+    await writeFile(absPath, bytes);
+    return {
+      repoRoot,
+      manifest: appendSnapshot(emptyManifest('t', 'n'), entry),
+      sha256: entry.sha256,
+      snapshotId: entry.snapshot_id,
+    };
+  }
+
+  it('sans attestation : level.absent → UNCERTAIN (fail-closed)', async () => {
+    const { repoRoot, manifest } = await seedUncertainNva();
+    const verdict = await admitPartyFromManifest(
+      manifest,
+      getExpectedIdentity('nva'),
+      fileLayerLoader(repoRoot),
+    );
+    expect(verdict.status).toBe('UNCERTAIN');
+    expect(verdict.reasons.find((r) => r.check === 'auto-id-level')?.code).toBe('level.absent');
+  });
+
+  it('attestation valide sur le snapshot épinglé → PASS attesté (level.attested)', async () => {
+    const { repoRoot, manifest, sha256, snapshotId } = await seedUncertainNva();
+    const attested = attachCriterionAttestation(manifest, snapshotId, {
+      criteria: ['auto-id-level'],
+      by: 'Thomas',
+      at: '2026-07-18T10:00:00.000Z',
+      note: 'Couverture vérifiée à la main.',
+      snapshot_sha256: sha256,
+    });
+    const verdict = await admitPartyFromManifest(
+      attested,
+      getExpectedIdentity('nva'),
+      fileLayerLoader(repoRoot),
+    );
+    expect(verdict.status).toBe('PASS');
+    const level = verdict.reasons.find((r) => r.check === 'auto-id-level');
+    expect(level?.code).toBe('level.attested');
+    expect(level?.attestation?.by).toBe('Thomas');
+  });
+
+  it('document remplacé (nouveau snapshot) → attestation invalidée → UNCERTAIN', async () => {
+    const { repoRoot, manifest, sha256, snapshotId } = await seedUncertainNva();
+    let next = attachCriterionAttestation(manifest, snapshotId, {
+      criteria: ['auto-id-level'],
+      by: 'Thomas',
+      at: '2026-07-18T10:00:00.000Z',
+      note: 'Couverture vérifiée à la main.',
+      snapshot_sha256: sha256,
+    });
+    // Un nouveau snapshot BRUT (bytes différents) est épinglé : l'attestation
+    // reste sur l'ancienne entrée, la nouvelle n'en porte pas → level redevient
+    // UNCERTAIN. On ne peut pas attester A puis substituer B en gardant le PASS.
+    const newPages = ['Verkiezingsprogramma 2024 — editie B'];
+    while (newPages.length < 120) newPages.push(`pagina ${newPages.length + 1}`);
+    const newBytes = minimalPdf(newPages);
+    const newEntry = buildSnapshotEntry({
+      source: source('nva-programme-2024'),
+      kind: 'raw',
+      retrievedAt: '2026-08-01T09:00:00.000Z',
+      sha256: sha256Hex(newBytes),
+      bytes: newBytes.length,
+      snapshotsDir: 'data/snapshots/programmes',
+    });
+    const absPath = join(repoRoot, newEntry.file);
+    await mkdir(dirname(absPath), { recursive: true });
+    await writeFile(absPath, newBytes);
+    next = appendSnapshot(next, newEntry);
+    expect(latestSnapshot(next, 'nva-programme-2024')?.sha256).toBe(newEntry.sha256);
+
+    const verdict = await admitPartyFromManifest(
+      next,
+      getExpectedIdentity('nva'),
+      fileLayerLoader(repoRoot),
+    );
+    expect(verdict.status).toBe('UNCERTAIN');
+    expect(verdict.reasons.find((r) => r.check === 'auto-id-level')?.code).toBe('level.absent');
   });
 });
 
