@@ -286,7 +286,18 @@
       "bytes": 9481278,
       "file": "data/snapshots/programmes/ps-programme-2024/20260716T132504Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § PS",
-      "content_unchanged_from": "ps-programme-2024@20260716T132504Z"
+      "content_unchanged_from": "ps-programme-2024@20260716T132504Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:25.665Z",
+          "note": "Couverture « Élections du 9 juin 2024 — Programme du Parti Socialiste » vérifiée ; scrutin fédéral du 9 juin 2024 (combiné fédéral/régional/européen).",
+          "snapshot_sha256": "6a6958f6082a8e64a56b5495a41bd0b7e95c8cf29424f21ce0e36ddc0e7d481a"
+        }
+      ]
     },
     {
       "snapshot_id": "mr-programme-2024@20260716T212908599Z",
@@ -302,7 +313,19 @@
       "bytes": 2520432,
       "file": "data/snapshots/programmes/mr-programme-2024/20260716T132508Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § MR",
-      "content_unchanged_from": "mr-programme-2024@20260716T132508Z"
+      "content_unchanged_from": "mr-programme-2024@20260716T132508Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:40.343Z",
+          "note": "Couverture « Programme général 2024 » vérifiée ; programme fédéral MR du scrutin du 9 juin 2024 (millésime en couverture, glyphes espacés).",
+          "snapshot_sha256": "976c51f0a1a976c0191eb6f7b64f1280363413884378b39be241e3abb638ed30"
+        }
+      ]
     },
     {
       "snapshot_id": "les-engages-programme-2024@20260716T212915421Z",
@@ -334,7 +357,18 @@
       "bytes": 3989603,
       "file": "data/snapshots/programmes/ecolo-programme-2024/20260716T132519Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § Ecolo (site anti-bot, canal Wayback)",
-      "content_unchanged_from": "ecolo-programme-2024@20260716T132519Z"
+      "content_unchanged_from": "ecolo-programme-2024@20260716T132519Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:44.497Z",
+          "note": "Programme consolidé 2024 (2024 présent p.2-3) ; scrutin fédéral du 9 juin 2024.",
+          "snapshot_sha256": "6cb7ebd3d4a8716d397f52196a167b5a12fa7a5118306a469372df00b387713a"
+        }
+      ]
     },
     {
       "snapshot_id": "ptb-programme-2024@20260716T212921538Z",
@@ -366,7 +400,19 @@
       "bytes": 1694564,
       "file": "data/snapshots/programmes/defi-axe-1-2024/20260716T132521Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § DéFI",
-      "content_unchanged_from": "defi-axe-1-2024@20260716T132521Z"
+      "content_unchanged_from": "defi-axe-1-2024@20260716T132521Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:52.735Z",
+          "note": "Couverture « Démocrate Fédéraliste Indépendant — VERS 2024 » ; programme fédéral DéFI (5 axes) du 9 juin 2024.",
+          "snapshot_sha256": "b351c97d1ee665706ce8b70f08c2e9c0bf5b08315ead5aaa68adea04574b64fd"
+        }
+      ]
     },
     {
       "snapshot_id": "defi-axe-2-2024@20260716T212923140Z",
@@ -382,7 +428,19 @@
       "bytes": 1182728,
       "file": "data/snapshots/programmes/defi-axe-2-2024/20260716T132521Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § DéFI",
-      "content_unchanged_from": "defi-axe-2-2024@20260716T132521Z"
+      "content_unchanged_from": "defi-axe-2-2024@20260716T132521Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:52.735Z",
+          "note": "Couverture « Démocrate Fédéraliste Indépendant — VERS 2024 » ; programme fédéral DéFI (5 axes) du 9 juin 2024.",
+          "snapshot_sha256": "7b16102e1f77e42e2ee71b2f953ca673a32bcfa3ff11993d1c6e6ad71e75a4c1"
+        }
+      ]
     },
     {
       "snapshot_id": "defi-axe-3-2024@20260716T212923757Z",
@@ -398,7 +456,19 @@
       "bytes": 1352454,
       "file": "data/snapshots/programmes/defi-axe-3-2024/20260716T132522Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § DéFI",
-      "content_unchanged_from": "defi-axe-3-2024@20260716T132522Z"
+      "content_unchanged_from": "defi-axe-3-2024@20260716T132522Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:52.735Z",
+          "note": "Couverture « Démocrate Fédéraliste Indépendant — VERS 2024 » ; programme fédéral DéFI (5 axes) du 9 juin 2024.",
+          "snapshot_sha256": "67b9a7a94f156bc877ed4b7eb3ddb8e9bed8244db30216f3e50af98d1e9abd44"
+        }
+      ]
     },
     {
       "snapshot_id": "defi-axe-4-2024@20260716T212924482Z",
@@ -414,7 +484,19 @@
       "bytes": 2781341,
       "file": "data/snapshots/programmes/defi-axe-4-2024/20260716T132522Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § DéFI",
-      "content_unchanged_from": "defi-axe-4-2024@20260716T132522Z"
+      "content_unchanged_from": "defi-axe-4-2024@20260716T132522Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:52.735Z",
+          "note": "Couverture « Démocrate Fédéraliste Indépendant — VERS 2024 » ; programme fédéral DéFI (5 axes) du 9 juin 2024.",
+          "snapshot_sha256": "cc8eb2ac02662904a316a4077ce95084a5b43ce43cedbce006abf93f5cacec05"
+        }
+      ]
     },
     {
       "snapshot_id": "defi-axe-5-2024@20260716T212925255Z",
@@ -430,7 +512,19 @@
       "bytes": 2415134,
       "file": "data/snapshots/programmes/defi-axe-5-2024/20260716T132523Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § DéFI",
-      "content_unchanged_from": "defi-axe-5-2024@20260716T132523Z"
+      "content_unchanged_from": "defi-axe-5-2024@20260716T132523Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:52.735Z",
+          "note": "Couverture « Démocrate Fédéraliste Indépendant — VERS 2024 » ; programme fédéral DéFI (5 axes) du 9 juin 2024.",
+          "snapshot_sha256": "d147f9f409abf8f8d94025d469cecc20672928712341e9d1636691851af4410b"
+        }
+      ]
     },
     {
       "snapshot_id": "nva-programme-2024@20260716T212932871Z",
@@ -462,7 +556,18 @@
       "bytes": 28806665,
       "file": "data/snapshots/programmes/vlaams-belang-programme-2024/20260716T132533Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § Vlaams Belang",
-      "content_unchanged_from": "vlaams-belang-programme-2024@20260716T132533Z"
+      "content_unchanged_from": "vlaams-belang-programme-2024@20260716T132533Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:56.501Z",
+          "note": "Programme « Vlaanderen weer van ons » 2024 (100 p.), source vlaamsbelang.org confirmée par le PO ; scrutin fédéral du 9 juin 2024.",
+          "snapshot_sha256": "564af32814b6f65ce7b20974ccbd46002125c20127fb3afde1a55d6d69e2f50a"
+        }
+      ]
     },
     {
       "snapshot_id": "vooruit-programme-2024@20260716T212937234Z",
@@ -478,7 +583,18 @@
       "bytes": 2083784,
       "file": "data/snapshots/programmes/vooruit-programme-2024/20260716T132535Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § Vooruit",
-      "content_unchanged_from": "vooruit-programme-2024@20260716T132535Z"
+      "content_unchanged_from": "vooruit-programme-2024@20260716T132535Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:49.073Z",
+          "note": "Couverture « Verkiezingsprogramma 2024 » vérifiée ; scrutin fédéral du 9 juin 2024.",
+          "snapshot_sha256": "7c53711dea58228d39a4da5248b43aec1d8979a16f40eacf4b8b0df62019d153"
+        }
+      ]
     },
     {
       "snapshot_id": "cdv-programme-2024@20260716T212938748Z",
@@ -510,7 +626,19 @@
       "bytes": 2685589,
       "file": "data/snapshots/programmes/open-vld-partijprogramma-2024/20260716T132540Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § Open Vld (URLs d'origine mortes après le rebranding « Anders. »)",
-      "content_unchanged_from": "open-vld-partijprogramma-2024@20260716T132540Z"
+      "content_unchanged_from": "open-vld-partijprogramma-2024@20260716T132540Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:58.939Z",
+          "note": "Programme fédéral (federaal/verkiezingen/kamer présents) ; millésime non imprimé dans le PDF — 2024 établi par provenance externe : capture Wayback mai 2024 + timestamp upload nationbuilder mai 2024 + concordance presse (VRT 03/2024, becijferd groeiplan ~24 mds). Complétude OK (toc.within, pages.within).",
+          "snapshot_sha256": "866e3fd9c82b40d0086ac0b9d68af3f3b303a3f4ca2e8c0ffcedf2cb27895e90"
+        }
+      ]
     },
     {
       "snapshot_id": "open-vld-becijferd-groeiplan-2024@20260716T212945907Z",
@@ -526,7 +654,19 @@
       "bytes": 332122,
       "file": "data/snapshots/programmes/open-vld-becijferd-groeiplan-2024/20260716T132542Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § Open Vld (URLs d'origine mortes après le rebranding « Anders. »)",
-      "content_unchanged_from": "open-vld-becijferd-groeiplan-2024@20260716T132542Z"
+      "content_unchanged_from": "open-vld-becijferd-groeiplan-2024@20260716T132542Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:58.939Z",
+          "note": "Programme fédéral (federaal/verkiezingen/kamer présents) ; millésime non imprimé dans le PDF — 2024 établi par provenance externe : capture Wayback mai 2024 + timestamp upload nationbuilder mai 2024 + concordance presse (VRT 03/2024, becijferd groeiplan ~24 mds). Complétude OK (toc.within, pages.within).",
+          "snapshot_sha256": "4c6103c3bffd3418ca785cc8fb4f2cfa78ba90ccbc2210ac707204219a14a597"
+        }
+      ]
     },
     {
       "snapshot_id": "groen-programme-2024@20260716T212947186Z",
@@ -542,7 +682,19 @@
       "bytes": 2626062,
       "file": "data/snapshots/programmes/groen-programme-2024/20260716T132543Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § Groen",
-      "content_unchanged_from": "groen-programme-2024@20260716T132543Z"
+      "content_unchanged_from": "groen-programme-2024@20260716T132543Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-18T22:17:47.068Z",
+          "note": "Couverture « Verkiezingsprogramma » + 2024 vérifiée ; programme fédéral du 9 juin 2024.",
+          "snapshot_sha256": "5278c08ca9b9d75fe8325600a45e5d84f119b30a6224e17fc46252dcf1fa7f15"
+        }
+      ]
     },
     {
       "snapshot_id": "pvda-programme-2024@20260716T212947992Z",
