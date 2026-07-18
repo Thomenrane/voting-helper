@@ -105,6 +105,14 @@ Absence de l'année (ou année isolée), ou niveau non affirmé par une phrase f
      débordement **non contredit** (taille hors tolérance = troncature corroborée,
      ou compte de pages indisponible). (les-engagés : TDM cohérente 19…701 sur
      355 p., mais `pages.within` PASSE → UNCERTAIN, pas FAIL.)
+
+  La détection (`detectTocLastPage`) n'applique QUE le filtre de magnitude ; tout
+  débordement sub-5× remonte comme `exceeds`, et c'est la corroboration ci-dessus
+  qui tranche. Ce partage est **nécessaire** : `toc-bounds` est le seul contrôle
+  capable d'attraper une **troncature de queue restant dans la tolérance de taille**
+  (perte ≤ 15 % : `pages.within` PASSE quand même). Un tel débordement doit donc
+  toujours remonter à la détection, sinon il échapperait aux deux contrôles
+  (fail-open) — il est escaladé en UNCERTAIN, jamais avalé en PASS silencieux.
 - **Pages/taille.** Le nombre réel de pages doit être dans une tolérance de
   l'attendu (± 15 %, plancher de 5 pages). Hors tolérance (p. ex. la synthèse
   MR de 100 p. servie à la place du programme complet de 311 p.) → **UNCERTAIN**.
