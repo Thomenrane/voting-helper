@@ -102,11 +102,28 @@ Chaque run committe `data/positions/proposals/<parti>.coverage.md` :
 
 - le **nombre de chunks examinés** (preuve que le balayage est exhaustif) ;
 - par énoncé, les **chunks ayant produit un candidat** (✅ vérifié / ❌ rejeté) ;
-- par « non documentée », les **pages où le sujet apparaît lexicalement** ;
-- un **FLAG explicite** (⚠️) sur toute « non documentée » ayant des occurrences
-  lexicales : le relecteur **doit** vérifier ce silence.
+- par énoncé non publié, les **pages où le sujet apparaît lexicalement** ;
+- un **FLAG explicite** (⚠️) sur tout énoncé **non publié** ayant des
+  occurrences lexicales : le relecteur **doit** le vérifier.
 
-Les silences signalés sont aussi repris en tête du corps de PR
+Un énoncé est « non publié » quand la fusion n'a produit aucun enregistrement.
+Deux cas mènent au même silence côté utilisateur, et sont donc tous deux
+signalés :
+
+- **« non documentée »** (`no_position`) — aucune position codée, mais le sujet
+  apparaît : mention *« aucune position codée mais le sujet apparaît… — À
+  VÉRIFIER »*.
+- **« citation rejetée »** (`rejected`, notamment `found_elsewhere` : citation
+  verbatim correcte mais mauvaise page) — une position candidate existait mais
+  n'a pas survécu à la vérification : mention *« position candidate rejetée —
+  citation retrouvée à une autre page ? — À VÉRIFIER »*.
+
+Le flag couvre donc **tous** les énoncés non publiés à occurrence lexicale, pas
+seulement les `no_position` : un `rejected` non signalé apparaîtrait comme un
+silence à l'utilisateur alors que la position est bien dans le programme —
+exactement le faux négatif que ce ticket combat.
+
+Les énoncés signalés sont aussi repris en tête du corps de PR
 (`<parti>.review.md`). Objectif : vérifier un silence en 30 secondes au lieu
 de relire 120 pages.
 
