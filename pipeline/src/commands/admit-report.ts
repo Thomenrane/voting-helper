@@ -3,20 +3,26 @@
  * par parti (#42), depuis le manifeste des programmes (#21).
  *
  * Pour chaque parti du registre d'identité attendue, calcule le verdict
- * PASS/UNCERTAIN/FAIL (auto-identification + complétude) et écrit deux
- * artefacts committés, cohérents avec la transparence #26 :
+ * PASS/UNCERTAIN/FAIL/NON MATÉRIALISÉ (auto-identification + complétude) et
+ * écrit deux artefacts committés, cohérents avec la transparence #26 :
  *   docs/admission/statut-verification.md    (lisible par un humain)
  *   data/admission/statut-verification.json  (lisible par machine)
  *
- * Sans réseau ni clé : purement dérivé du manifeste committé et, quand les
- * couches texte sont matérialisées localement (binaires gitignorés), de leur
- * contenu vérifié contre l'empreinte #21. Conservateur : une couche texte
- * indisponible laisse le parti en UNCERTAIN, jamais faussement PASS.
+ * Sans réseau ni clé : purement dérivé du manifeste committé et, quand le
+ * binaire brut d'un parti est présent localement (binaires gitignorés),
+ * MATÉRIALISE sa couche texte — re-dérivée du snapshot épinglé, intégrité
+ * vérifiée contre l'empreinte #21 — pour publier le VRAI verdict (#46). Un
+ * binaire absent laisse le parti en NON MATÉRIALISÉ (distinct d'un doute
+ * réel), jamais faussement PASS.
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
-import { admitPartyFromManifest, fileLayerLoader } from '../admission/admission-service.ts';
+import {
+  admitPartyFromManifest,
+  fileLayerLoader,
+  manifestAsOfDate,
+} from '../admission/admission-service.ts';
 import { EXPECTED_IDENTITIES } from '../admission/expected-identity.ts';
 import {
   buildStatusReport,
@@ -47,7 +53,9 @@ async function main(): Promise<void> {
     verdicts.push(await admitPartyFromManifest(manifest, expected, loadLayer));
   }
 
-  const generatedAt = new Date().toISOString().slice(0, 10);
+  // Déterministe (#46) : la date du snapshot épinglé, PAS une horloge de build —
+  // régénérer sans nouvelle donnée reproduit un artefact byte-identique.
+  const generatedAt = manifestAsOfDate(manifest);
   const report = buildStatusReport(verdicts, generatedAt);
 
   const mdPath = join(repoRoot, MD_RELATIVE_PATH);
@@ -60,7 +68,7 @@ async function main(): Promise<void> {
   const counts = countStatuses(verdicts);
   console.log(
     `Statut d'admission généré : ${counts.PASS} PASS, ${counts.UNCERTAIN} UNCERTAIN, ` +
-      `${counts.FAIL} FAIL (${verdicts.length} partis).`,
+      `${counts.FAIL} FAIL, ${counts.NOT_MATERIALIZED} NON MATÉRIALISÉ (${verdicts.length} partis).`,
   );
   console.log(`  ${MD_RELATIVE_PATH}`);
   console.log(`  ${JSON_RELATIVE_PATH}`);
