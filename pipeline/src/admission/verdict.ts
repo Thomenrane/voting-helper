@@ -59,11 +59,21 @@ export type AdmissionCheck =
 
 /**
  * Contrôles RATIFIABLES par une attestation humaine (#50) : ceux dont le
- * constat peut valoir UNCERTAIN (doute réel escaladable). `parts-inventory` et
- * `toc-bounds` en sont exclus — ils ne produisent que PASS ou FAIL, et un FAIL
- * (prouvé-faux) n'est jamais ratifiable.
+ * constat peut valoir UNCERTAIN (doute réel escaladable). L'invariant du système
+ * est « UNCERTAIN <=> ratifiable » : tout contrôle capable d'émettre un UNCERTAIN
+ * y figure. `parts-inventory` en est exclu — il ne produit que PASS ou FAIL.
+ * `toc-bounds` y figure depuis #49 : outre PASS/FAIL, il émet un UNCERTAIN quand
+ * un débordement de TDM est contredit par un compte de pages conforme à l'attendu
+ * (`toc.exceeds-uncorroborated`) — doute réel escaladable. Un FAIL toc-bounds
+ * (troncature corroborée, prouvé-faux) reste NON ratifiable : le garde-fou
+ * d'`admitParty` n'attest­e jamais qu'un UNCERTAIN.
  */
-export const ATTESTABLE_CHECKS = ['auto-id-year', 'auto-id-level', 'page-tolerance'] as const;
+export const ATTESTABLE_CHECKS = [
+  'auto-id-year',
+  'auto-id-level',
+  'page-tolerance',
+  'toc-bounds',
+] as const;
 
 /** Vrai si un `check` (chaîne libre, ex. issue de la CLI) est ratifiable. */
 export function isAttestableCheck(check: string): check is AdmissionCheck {
@@ -272,13 +282,33 @@ function chaptersReason(input: PartyAdmissionInput): AdmissionReason {
   };
 }
 
-/** Une seule TOC qui déborde suffit à conclure à la troncature (FAIL). */
-function tocReason(input: PartyAdmissionInput): AdmissionReason {
+/**
+ * Une TOC qui déborde les pages réelles conclut à la troncature (FAIL) — SAUF
+ * si le débordement est contredit par un compte de pages conforme à l'attendu
+ * (#49). Un document réellement tronqué raterait aussi le contrôle de taille :
+ * quand `pages.within` PASSE (le compte réel — mesure fiable — correspond à
+ * l'attendu), un `toc.exceeds` est presque toujours un artefact d'extraction
+ * (TDM multi-colonnes / points de conduite), pas une preuve de troncature.
+ * On réserve alors le FAIL au débordement NON contredit (troncature corroborée
+ * ou compte de pages indisponible) et on escalade le cas contredit à l'humain
+ * (UNCERTAIN ratifiable) plutôt que de rejeter à tort une source complète.
+ *
+ * `pageCountConfirmsComplete` = le contrôle taille du parti vaut `pages.within`.
+ */
+function tocReason(input: PartyAdmissionInput, pageCountConfirmsComplete: boolean): AdmissionReason {
   let sawToc = false;
   for (const doc of input.documents) {
     if (doc.actualPages === null) continue;
     const bounds = checkTocWithinBounds(doc.tocLastPage, doc.actualPages);
     if (bounds.status === 'exceeds') {
+      if (pageCountConfirmsComplete) {
+        return {
+          check: 'toc-bounds',
+          severity: 'UNCERTAIN',
+          code: 'toc.exceeds-uncorroborated',
+          human: `Table des matières de '${doc.source_id}' référençant la page ${String(bounds.tocLastPage)} au-delà des ${bounds.actualPages} pages réelles, MAIS le nombre de pages est conforme à l'attendu (contrôle taille PASS) : signal de troncature contredit par le compte de pages — probable artefact d'extraction d'une TDM multi-colonnes → à vérifier par un humain plutôt qu'un échec.`,
+        };
+      }
       return {
         check: 'toc-bounds',
         severity: 'FAIL',
@@ -393,13 +423,17 @@ function attestReason(reason: AdmissionReason, att: ReasonAttestation): Admissio
  * tous les critères soient nettement satisfaits.
  */
 export function admitParty(input: PartyAdmissionInput): PartyAdmissionVerdict {
+  // Le contrôle taille est résolu AVANT le contrôle TOC : un débordement de TDM
+  // contredit par un compte de pages conforme à l'attendu (`pages.within`) est
+  // un artefact, pas une troncature (#49). Les deux signaux se corroborent.
+  const pages = pagesReason(input);
   const baseReasons: AdmissionReason[] = [
     yearReason(input),
     levelReason(input),
     partsReason(input),
     chaptersReason(input),
-    tocReason(input),
-    pagesReason(input),
+    tocReason(input, pages.code === 'pages.within'),
+    pages,
   ];
   const attested = resolveAttestedChecks(input);
   const reasons = baseReasons.map((reason) => {

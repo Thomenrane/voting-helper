@@ -97,6 +97,32 @@ Absence de l'année (ou année isolée), ou niveau non affirmé par une phrase f
   page qu'elle référence doit être ≤ au nombre réel de pages. Une TOC qui
   déborde révèle une **troncature** → **FAIL**. Absence de TOC exploitable :
   contrôle non concluant (neutre), jamais un échec en soi.
+
+  **Robustesse aux TDM multi-colonnes / à points de conduite (#49).** Sur ces
+  mises en page, la linéarisation (unpdf) préfixe parfois un vrai numéro de page
+  d'un chiffre parasite issu de la colonne voisine (57 → 9957) ; le brut
+  `Math.max` capterait l'artefact et déclencherait un faux `toc.exceeds`. Deux
+  garde-fous, sans jamais neutraliser la détection de troncature réelle :
+  1. **Plausibilité de magnitude** — une référence au-delà de `pages réelles × 5`
+     est physiquement impossible pour une TDM : artefact certain, écarté avant le
+     max. (cd&v : 41 réfs sur 49 en 4010…9957, toutes écartées → TOC dans les
+     bornes.)
+  2. **Corroboration par le compte de pages** — un `toc.exceeds` **contredit** par
+     un contrôle de taille conforme (`pages.within` : un document réellement
+     tronqué raterait aussi le compte de pages) n'est plus un **FAIL** mais un
+     **UNCERTAIN** ratifiable (`toc.exceeds-uncorroborated`) → escalade humaine,
+     pas rejet d'une source complète. Le FAIL `toc.exceeds` reste réservé au
+     débordement **non contredit** (taille hors tolérance = troncature corroborée,
+     ou compte de pages indisponible). (les-engagés : TDM cohérente 19…701 sur
+     355 p., mais `pages.within` PASSE → UNCERTAIN, pas FAIL.)
+
+  La détection (`detectTocLastPage`) n'applique QUE le filtre de magnitude ; tout
+  débordement sub-5× remonte comme `exceeds`, et c'est la corroboration ci-dessus
+  qui tranche. Ce partage est **nécessaire** : `toc-bounds` est le seul contrôle
+  capable d'attraper une **troncature de queue restant dans la tolérance de taille**
+  (perte ≤ 15 % : `pages.within` PASSE quand même). Un tel débordement doit donc
+  toujours remonter à la détection, sinon il échapperait aux deux contrôles
+  (fail-open) — il est escaladé en UNCERTAIN, jamais avalé en PASS silencieux.
 - **Pages/taille.** Le nombre réel de pages doit être dans une tolérance de
   l'attendu (± 15 %, plancher de 5 pages). Hors tolérance (p. ex. la synthèse
   MR de 100 p. servie à la place du programme complet de 311 p.) → **UNCERTAIN**.
@@ -161,12 +187,15 @@ Sans réseau ni clé, sans `--file` (le document est déjà snapshoté).
 ### Ce qu'une attestation peut et ne peut PAS outrepasser
 
 - **Seul un critère UNCERTAIN est ratifiable.** Un critère **FAIL** (prouvé-faux
-  — partie manquante, TOC qui déborde) ou **NON MATÉRIALISÉ** (binaire absent,
-  non évalué) est **refusé** : on corrige le document ou on matérialise le
-  snapshot d'abord, on ne « ratifie » jamais un échec ou un contrôle non
-  exécuté. Les contrôles qui ne produisent que PASS/FAIL (`parts-inventory`,
-  `toc-bounds`) ne sont pas ratifiables du tout ; seuls le sont ceux qui peuvent
-  valoir UNCERTAIN : `auto-id-year`, `auto-id-level`, `page-tolerance`.
+  — partie manquante, TOC qui déborde de façon corroborée) ou **NON MATÉRIALISÉ**
+  (binaire absent, non évalué) est **refusé** : on corrige le document ou on
+  matérialise le snapshot d'abord, on ne « ratifie » jamais un échec ou un
+  contrôle non exécuté. `parts-inventory` ne produit que PASS/FAIL : non
+  ratifiable. Sont ratifiables les contrôles qui peuvent valoir UNCERTAIN :
+  `auto-id-year`, `auto-id-level`, `page-tolerance`, et depuis #49 `toc-bounds`
+  — ce dernier uniquement dans son cas UNCERTAIN (`toc.exceeds-uncorroborated` :
+  débordement contredit par le compte de pages). Un **FAIL** `toc.exceeds`
+  (troncature corroborée) reste non ratifiable, comme les autres FAIL.
 - **Périmètre du critère.** Une attestation ne ratifie que le(s) critère(s)
   **nommé(s)**. Les autres continuent d'être évalués normalement : un
   `toc.exceeds` réel reste FAIL même si `auto-id-level` est attesté, et le parti
@@ -254,6 +283,12 @@ conception**, pour escalade humaine :
   bon texte de référence ? Question éditoriale, pas mécanique.
 - **Une TOC absente ou non structurée** : la troncature ne peut alors pas être
   détectée par ce contrôle.
+- **Une TDM multi-colonnes dont le débordement résiste aux garde-fous #49** : quand
+  la linéarisation produit une séquence de numéros cohérente mais gonflée
+  (les-engagés : 19…701 sur 355 p.) et que le compte de pages confirme la
+  complétude, le signal de troncature est contredit sans être mécaniquement
+  réfutable — `toc.exceeds-uncorroborated` reste **UNCERTAIN** (ratifiable),
+  jamais un FAIL automatique.
 
 Ce résidu est **publié**, pas caché : le statut par parti expose exactement quel
 critère bloque, pour que la contestation et la review humaine s'y appliquent.
