@@ -136,6 +136,45 @@ et **estimation de tokens et de coût**. Un balayage complet du PS (1 220 pages,
 3,5 caractères/token), soit un ordre de grandeur de quelques euros — l'ordre de
 grandeur, pas une vérité comptable.
 
+## Mode d'extraction sans clé (`--emit` → remplissage → `--ingest`)
+
+L'étape LLM peut être **externalisée en deux temps**, sans changer la moindre
+garantie : le balayage exhaustif, la complétude, la vérification mécanique des
+citations, la fusion et le rapport de couverture restent la vraie machinerie.
+Seul *qui produit les sorties LLM* change (stratégie du corpus par abonnement :
+un agent ou un humain joue le LLM, coût marginal nul).
+
+1. **`extract:positions --emit <fichier>`** exécute la vraie orchestration
+   *jusqu'à la frontière LLM* et écrit le **plan de balayage + les prompts par
+   chunk** (un chunk de contexte chacun, tous les énoncés groupés). Déterministe,
+   **aucun appel API, sans clé**. Le fichier est un JSON
+   `kind: voting-helper/extraction-emit` : `party_id`, `model`, `chunk_chars`,
+   `statement_ids`, et `chunks[]` où chaque entrée porte `index`, l'identité du
+   chunk (`source_id`, `first_page`, `last_page`, `chars`) et les prompts
+   `system` / `user` exacts — identiques byte pour byte à la voie live.
+2. **Remplissage externe.** Un LLM (agent sur abonnement, humain, ou API) produit
+   **une réponse structurée par chunk** dans le format déjà attendu par le
+   parseur strict (un tableau JSON, un objet par énoncé). Le fichier de réponses
+   est un JSON `kind: voting-helper/extraction-responses` : `party_id` et
+   `responses[]`, chaque réponse reprenant l'identité du chunk émis
+   (`index`, `source_id`, `first_page`, `last_page`) plus `answer` (le texte
+   brut du modèle).
+3. **`extract:positions --ingest <fichier>`** ré-entre la **même** orchestration
+   avec ces réponses injectées via le seam `LLMClient` : parsing strict +
+   complet, `verifyCitation`, `mergeCandidates`, rapport de couverture. **Un
+   chunk manquant, en trop, d'identité incohérente, ou un énoncé omis dans une
+   réponse → erreur dure** : la complétude bout-à-bout est préservée (leçons
+   #32/#34/#39). Les artefacts produits (`<parti>.positions.yaml` `en_attente`
+   et `<parti>.coverage.md`) sont **identiques** à ceux d'une passe live pour
+   les mêmes sorties LLM ; le coût affiché est nul (aucun token dépensé).
+
+Le déterminisme du round-trip est testé : pour les mêmes sorties LLM,
+`emit → remplissage → ingest` rend un YAML et un `coverage.md` byte-identiques à
+la voie live (`offline-extraction.test.ts`). Le seam `LLMClient` étant
+injectable, jouer le LLM sans clé ne demande plus de **répliquer**
+l'orchestration dans un driver jetable (ce que le pilote N-VA #41 avait dû
+faire) : il suffit d'émettre, remplir, ré-ingérer.
+
 ## Résidu irréductible (publié)
 
 Comme la limite du préfiltre lexical des votes est déjà publiée, celle-ci
