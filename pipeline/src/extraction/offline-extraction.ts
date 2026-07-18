@@ -23,6 +23,8 @@
  * For the same LLM outputs, `emit → fill → ingest` yields byte-identical YAML
  * and coverage artefacts to a live pass (see offline-extraction.test.ts).
  */
+import { createHash } from 'node:crypto';
+
 import type { Statement } from '@voting-helper/data';
 
 import type { LLMClient } from './llm-client.ts';
@@ -34,6 +36,17 @@ import {
   type LayerInput,
   type PartyExtractionResult,
 } from './position-extractor.ts';
+
+/**
+ * Deterministic short fingerprint of a chunk's exact text — the emit↔ingest
+ * content anchor. Identity by `(source_id, first_page, last_page)` alone cannot
+ * catch a layer re-derived with the SAME page boundaries but DIFFERENT text; a
+ * frozen answer written against the old text would then pass the identity guard
+ * silently. Binding the answer to this hash makes that a hard error instead.
+ */
+export function chunkTextHash(text: string): string {
+  return createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 16);
+}
 
 /** File markers — a wrong-shaped file fails loudly instead of misbehaving. */
 export const EMIT_KIND = 'voting-helper/extraction-emit';
@@ -49,6 +62,8 @@ export interface EmitChunk {
   first_page: number;
   last_page: number;
   chars: number;
+  /** Short SHA-256 of the exact chunk text — the emit↔ingest content anchor. */
+  text_sha256: string;
   /** Exact system prompt the live path sends for this chunk. */
   system: string;
   /** Exact user prompt (statements grouped + the chunk text) for this chunk. */
@@ -75,6 +90,8 @@ export interface ChunkResponse {
   source_id: string;
   first_page: number;
   last_page: number;
+  /** Short SHA-256 of the chunk text this answer was written against (from emit). */
+  text_sha256: string;
   /** Raw model answer for this chunk — the JSON array `parseExtractionResponse` reads. */
   answer: string;
 }
@@ -84,6 +101,8 @@ export interface ResponsesFile {
   kind: typeof RESPONSES_KIND;
   version: number;
   party_id: string;
+  /** Chunk budget the emit used — the ingest sweep must reproduce it exactly. */
+  chunk_chars: number;
   responses: ChunkResponse[];
 }
 
@@ -113,6 +132,7 @@ export function buildEmitFile(options: BuildEmitOptions): EmitFile {
       first_page: chunk.firstPage,
       last_page: chunk.lastPage,
       chars: chunk.text.length,
+      text_sha256: chunkTextHash(chunk.text),
       system,
       user,
     };
@@ -149,11 +169,13 @@ export function scaffoldResponsesFile(emit: EmitFile): ResponsesFile {
     kind: RESPONSES_KIND,
     version: OFFLINE_FORMAT_VERSION,
     party_id: emit.party_id,
+    chunk_chars: emit.chunk_chars,
     responses: emit.chunks.map((chunk): ChunkResponse => ({
       index: chunk.index,
       source_id: chunk.source_id,
       first_page: chunk.first_page,
       last_page: chunk.last_page,
+      text_sha256: chunk.text_sha256,
       answer: '',
     })),
   };
@@ -184,6 +206,10 @@ export function parseResponsesFile(text: string, file = '<responses>'): Response
   if (typeof record['party_id'] !== 'string' || record['party_id'].length === 0) {
     throw fieldError(file, 'party_id must be a non-empty string.');
   }
+  const chunkChars = record['chunk_chars'];
+  if (typeof chunkChars !== 'number' || !Number.isInteger(chunkChars) || chunkChars < 1) {
+    throw fieldError(file, 'chunk_chars must be a positive integer (carried from the emit).');
+  }
   if (!Array.isArray(record['responses'])) {
     throw fieldError(file, 'responses must be an array.');
   }
@@ -196,6 +222,7 @@ export function parseResponsesFile(text: string, file = '<responses>'): Response
     const sourceId = r['source_id'];
     const firstPage = r['first_page'];
     const lastPage = r['last_page'];
+    const textSha256 = r['text_sha256'];
     const answer = r['answer'];
     if (typeof index !== 'number' || !Number.isInteger(index) || index < 0) {
       throw fieldError(file, `responses[${i}].index must be a non-negative integer.`);
@@ -209,6 +236,9 @@ export function parseResponsesFile(text: string, file = '<responses>'): Response
     if (typeof lastPage !== 'number' || !Number.isInteger(lastPage) || lastPage < firstPage) {
       throw fieldError(file, `responses[${i}].last_page must be an integer >= first_page.`);
     }
+    if (typeof textSha256 !== 'string' || textSha256.length === 0) {
+      throw fieldError(file, `responses[${i}].text_sha256 must be a non-empty string (from the emit).`);
+    }
     if (typeof answer !== 'string' || answer.trim().length === 0) {
       throw fieldError(
         file,
@@ -216,12 +246,20 @@ export function parseResponsesFile(text: string, file = '<responses>'): Response
           'every emitted chunk must be filled.',
       );
     }
-    return { index, source_id: sourceId, first_page: firstPage, last_page: lastPage, answer };
+    return {
+      index,
+      source_id: sourceId,
+      first_page: firstPage,
+      last_page: lastPage,
+      text_sha256: textSha256,
+      answer,
+    };
   });
   return {
     kind: RESPONSES_KIND,
     version: OFFLINE_FORMAT_VERSION,
     party_id: record['party_id'],
+    chunk_chars: chunkChars,
     responses,
   };
 }
@@ -267,6 +305,13 @@ export async function ingestPositions(
       `Responses file is for party '${responses.party_id}', but --party is '${partyId}'.`,
     );
   }
+  if (responses.chunk_chars !== maxChunkChars) {
+    throw new Error(
+      `Responses file was emitted with chunk_chars ${responses.chunk_chars}, but this sweep uses ` +
+        `${maxChunkChars} — chunk_chars has changed since the emit. Re-emit the plan against the ` +
+        'current settings.',
+    );
+  }
 
   const chunks = layers.flatMap((input) => chunkLayer(input, maxChunkChars));
   const byIndex = new Map<number, ChunkResponse>();
@@ -298,6 +343,17 @@ export async function ingestPositions(
         `Responses file chunk ${index} identity mismatch: expected ${identity}, got ` +
           `${response.source_id} p.${response.first_page}-${response.last_page} — ` +
           're-emit the plan against the current text layer.',
+      );
+    }
+    // Content anchor: the frozen answer must be bound to the EXACT chunk text it
+    // was written against. A layer re-derived with the same page boundaries but
+    // different text keeps the identity above yet diverges here — a hard error.
+    const expectedHash = chunkTextHash(chunk.text);
+    if (response.text_sha256 !== expectedHash) {
+      throw new Error(
+        `Responses file chunk ${index} (${identity}) text hash mismatch: answer was written ` +
+          `against text ${response.text_sha256}, current chunk text is ${expectedHash} — the text ` +
+          'of this chunk has changed since the emit. Re-emit the plan against the current layer.',
       );
     }
     return response.answer;

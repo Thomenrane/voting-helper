@@ -150,21 +150,26 @@ un agent ou un humain joue le LLM, coût marginal nul).
    **aucun appel API, sans clé**. Le fichier est un JSON
    `kind: voting-helper/extraction-emit` : `party_id`, `model`, `chunk_chars`,
    `statement_ids`, et `chunks[]` où chaque entrée porte `index`, l'identité du
-   chunk (`source_id`, `first_page`, `last_page`, `chars`) et les prompts
-   `system` / `user` exacts — identiques byte pour byte à la voie live.
+   chunk (`source_id`, `first_page`, `last_page`, `chars`), un **hash court et
+   déterministe du texte du chunk** (`text_sha256`, l'ancre de contenu) et les
+   prompts `system` / `user` exacts — identiques byte pour byte à la voie live.
 2. **Remplissage externe.** Un LLM (agent sur abonnement, humain, ou API) produit
    **une réponse structurée par chunk** dans le format déjà attendu par le
    parseur strict (un tableau JSON, un objet par énoncé). Le fichier de réponses
-   est un JSON `kind: voting-helper/extraction-responses` : `party_id` et
-   `responses[]`, chaque réponse reprenant l'identité du chunk émis
-   (`index`, `source_id`, `first_page`, `last_page`) plus `answer` (le texte
-   brut du modèle).
+   est un JSON `kind: voting-helper/extraction-responses` : `party_id`,
+   `chunk_chars` et `responses[]`, chaque réponse reprenant l'identité du chunk
+   émis (`index`, `source_id`, `first_page`, `last_page`, `text_sha256`) plus
+   `answer` (le texte brut du modèle).
 3. **`extract:positions --ingest <fichier>`** ré-entre la **même** orchestration
    avec ces réponses injectées via le seam `LLMClient` : parsing strict +
    complet, `verifyCitation`, `mergeCandidates`, rapport de couverture. **Un
-   chunk manquant, en trop, d'identité incohérente, ou un énoncé omis dans une
-   réponse → erreur dure** : la complétude bout-à-bout est préservée (leçons
-   #32/#34/#39). Les artefacts produits (`<parti>.positions.yaml` `en_attente`
+   chunk manquant, en trop, d'identité incohérente, un `text_sha256` divergent
+   (le texte du chunk a changé depuis l'emit), un `chunk_chars` différent, ou un
+   énoncé omis dans une réponse → erreur dure** : la complétude bout-à-bout est
+   préservée (leçons #32/#34/#39). Le `text_sha256` est la vraie garantie que la
+   réponse figée correspond au texte exact qu'on a montré au modèle — une
+   couche re-dérivée aux mêmes frontières de pages mais au texte différent est
+   ainsi rejetée, là où l'identité `(source_id, pages)` seule passerait. Les artefacts produits (`<parti>.positions.yaml` `en_attente`
    et `<parti>.coverage.md`) sont **identiques** à ceux d'une passe live pour
    les mêmes sorties LLM ; le coût affiché est nul (aucun token dépensé).
 

@@ -8,6 +8,7 @@ import type { LLMClient, LLMRequest } from './llm-client.ts';
 import {
   buildEmitFile,
   buildReplayClient,
+  chunkTextHash,
   EMIT_KIND,
   ingestPositions,
   OFFLINE_FORMAT_VERSION,
@@ -114,11 +115,13 @@ function responsesFromAnswers(partyId: string, answers: string[]): ResponsesFile
     kind: RESPONSES_KIND,
     version: OFFLINE_FORMAT_VERSION,
     party_id: partyId,
+    chunk_chars: MAX_CHARS,
     responses: chunks.map((chunk, index) => ({
       index,
       source_id: chunk.input.layer.source_id,
       first_page: chunk.firstPage,
       last_page: chunk.lastPage,
+      text_sha256: chunkTextHash(chunk.text),
       answer: answers[index] ?? '',
     })),
   };
@@ -141,12 +144,14 @@ describe('buildEmitFile', () => {
     expect(emit.chunk_chars).toBe(MAX_CHARS);
     expect(emit.chunks).toHaveLength(chunks.length);
     expect(chunks.length).toBeGreaterThan(1); // the sweep really is multi-chunk
-    // Each emitted prompt is the real live prompt, with both statements grouped.
-    for (const chunk of emit.chunks) {
+    // Each emitted prompt is the real live prompt, with both statements grouped,
+    // and carries the deterministic content anchor of its chunk text.
+    emit.chunks.forEach((chunk, i) => {
       expect(chunk.user).toContain('s1 : Prolonger les centrales');
       expect(chunk.user).toContain('s2 : Supprimer la TVA');
       expect(chunk.system).toContain('VERBATIM');
-    }
+      expect(chunk.text_sha256).toBe(chunkTextHash(chunks[i]!.text));
+    });
     expect(emit.chunks.map((c) => c.index)).toEqual([...chunks.keys()]);
   });
 
@@ -175,7 +180,11 @@ describe('scaffoldResponsesFile', () => {
     });
     const scaffold = scaffoldResponsesFile(emit);
     expect(scaffold.kind).toBe(RESPONSES_KIND);
+    expect(scaffold.chunk_chars).toBe(emit.chunk_chars);
     expect(scaffold.responses.map((r) => r.index)).toEqual(emit.chunks.map((c) => c.index));
+    expect(scaffold.responses.map((r) => r.text_sha256)).toEqual(
+      emit.chunks.map((c) => c.text_sha256),
+    );
     expect(scaffold.responses.every((r) => r.answer === '')).toBe(true);
     // renders to valid JSON round-trippable back through the parser once filled.
     expect(renderResponsesFile(scaffold)).toContain(RESPONSES_KIND);
@@ -258,6 +267,37 @@ describe('ingestPositions (hard completeness)', () => {
         maxChunkChars: MAX_CHARS,
       }),
     ).rejects.toThrow(/identity mismatch/);
+  });
+
+  it('hard-errors when the chunk text changed since the emit (hash mismatch)', async () => {
+    const file = responsesFromAnswers('demo', answersForSweep());
+    file.responses[0]!.text_sha256 = 'deadbeefdeadbeef'; // frozen against different text
+    await expect(
+      ingestPositions({
+        partyId: 'demo',
+        partyName: 'Demo',
+        statements: STATEMENTS,
+        layers: [LAYER],
+        model: 'live-model',
+        responses: file,
+        maxChunkChars: MAX_CHARS,
+      }),
+    ).rejects.toThrow(/text of this chunk has changed since the emit/);
+  });
+
+  it('hard-errors when chunk_chars changed since the emit', async () => {
+    const file = responsesFromAnswers('demo', answersForSweep()); // emitted at MAX_CHARS
+    await expect(
+      ingestPositions({
+        partyId: 'demo',
+        partyName: 'Demo',
+        statements: STATEMENTS,
+        layers: [LAYER],
+        model: 'live-model',
+        responses: file,
+        maxChunkChars: MAX_CHARS + 1, // sweep uses a different budget
+      }),
+    ).rejects.toThrow(/chunk_chars has changed since the emit/);
   });
 
   it('hard-errors when an answer omits a requested statement (strict completeness)', async () => {
