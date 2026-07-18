@@ -1,5 +1,6 @@
 /**
- * `npm run extract:positions -- --party <id> [--model <id>] [--dry-run]`
+ * `npm run extract:positions -- --party <id> [--model <id>]`
+ *   `[--dry-run | --emit <file> | --ingest <file>]`
  *
  * Auditable coverage sweep (#39). Extracts one party's positions on the
  * current statements (demo fixtures until the editorial 35 exist) from its
@@ -11,18 +12,29 @@
  * chunk produced a verified citation. A deterministic, keyless lexical scan
  * then flags any silence whose subject still occurs in the programme.
  *
- * Writes:
+ * Four modes share the one real orchestration (#43):
+ *   (live)            calls the injected LLM client — needs ANTHROPIC_API_KEY.
+ *   --dry-run         prints the sweep plan (bounded chunks, chars, token/cost
+ *                     estimate) WITHOUT calling the LLM. Keyless.
+ *   --emit <file>     runs the sweep up to the LLM boundary and writes the plan
+ *                     + per-chunk prompts to <file>. No API call. Keyless. A
+ *                     subscription agent / human / API then fills the responses.
+ *   --ingest <file>   consumes those externally-produced answers and re-enters
+ *                     the SAME orchestration (strict+complete parsing,
+ *                     verifyCitation, mergeCandidates, coverage) — a missing
+ *                     chunk or an omitted statement is a HARD ERROR. Keyless.
+ *
+ * Writes (live + ingest):
  *   data/positions/proposals/<party>.positions.yaml  (statut en_attente/rejete)
  *   data/positions/proposals/<party>.review.md       (batch-PR review body)
  *   data/positions/proposals/<party>.coverage.md      (auditable coverage)
- * The run cost (tokens, USD, ≈EUR) is printed at the end.
+ * The run cost (tokens, USD, ≈EUR) is printed at the end (zero for --ingest).
  *
- * The API key comes exclusively from ANTHROPIC_API_KEY. With --dry-run the
- * command prepares the layers and prints the sweep plan (bounded chunks =
- * grouped LLM calls, chars, token/cost estimate) WITHOUT calling the LLM — it
- * never invents model output.
+ * The LLM client is INJECTED (createAnthropicClient by default); the API key
+ * comes exclusively from ANTHROPIC_API_KEY, read only on the live path. --emit,
+ * --ingest and --dry-run never build a client and never invent model output.
  */
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -32,11 +44,25 @@ import { buildPartyAdmissionInput, type DocumentSignals } from '../admission/evi
 import { getExpectedIdentity } from '../admission/expected-identity.ts';
 import { assertPartyAdmitted } from '../admission/gate.ts';
 import { admitParty } from '../admission/verdict.ts';
-import { extractPositions, type LayerInput } from '../extraction/position-extractor.ts';
+import {
+  extractPositions,
+  type LayerInput,
+  type PartyExtractionResult,
+} from '../extraction/position-extractor.ts';
 import { buildCoverageReport, renderCoverageReport } from '../extraction/coverage-report.ts';
 import { computeRunCost, formatRunCost } from '../extraction/cost.ts';
 import { scanLayersForStatement } from '../extraction/lexical-scan.ts';
-import { createAnthropicClient, DEFAULT_EXTRACTION_MODEL } from '../extraction/llm-client.ts';
+import {
+  createAnthropicClient,
+  DEFAULT_EXTRACTION_MODEL,
+  type LLMClient,
+} from '../extraction/llm-client.ts';
+import {
+  buildEmitFile,
+  ingestPositions,
+  parseResponsesFile,
+  renderEmitFile,
+} from '../extraction/offline-extraction.ts';
 import { renderPositionsYaml, toPartyPositions } from '../extraction/positions-yaml.ts';
 import { countOutcomes, renderReviewSummary } from '../extraction/report.ts';
 import { formatSweepPlan, planSweep } from '../extraction/sweep-plan.ts';
@@ -49,22 +75,46 @@ import { fail, resolveRepoRoot } from './command-support.ts';
 const MANIFEST_RELATIVE_PATH = 'data/manifests/programmes.manifest.json';
 const PROPOSALS_DIR = 'data/positions/proposals';
 
-async function main(): Promise<void> {
+/** Injectable dependencies — the seam that makes the LLM client swappable (#43). */
+export interface ExtractPositionsDeps {
+  /** Live-path LLM client factory; defaults to the real Anthropic client. */
+  clientFactory?: (model: string) => LLMClient;
+  /** Clock, injectable so runs are reproducible in tests. */
+  now?: () => Date;
+}
+
+export async function runExtractPositions(deps: ExtractPositionsDeps = {}): Promise<void> {
+  const clientFactory = deps.clientFactory ?? createAnthropicClient;
+  const now = deps.now ?? ((): Date => new Date());
   const { values } = parseArgs({
     options: {
       party: { type: 'string' },
       model: { type: 'string', default: DEFAULT_EXTRACTION_MODEL },
       'dry-run': { type: 'boolean', default: false },
+      emit: { type: 'string' },
+      ingest: { type: 'string' },
     },
   });
   if (values.party === undefined) {
     throw new Error(
-      "Missing --party. Usage: npm run extract:positions -- --party ps [--model claude-sonnet-5] [--dry-run]",
+      'Missing --party. Usage: npm run extract:positions -- --party ps ' +
+        '[--model claude-sonnet-5] [--dry-run | --emit <file> | --ingest <file>]',
     );
+  }
+  const emitPath = values.emit;
+  const ingestPath = values.ingest;
+  const dryRun = values['dry-run'];
+  const activeModes = [dryRun && '--dry-run', emitPath && '--emit', ingestPath && '--ingest'].filter(
+    Boolean,
+  );
+  if (activeModes.length > 1) {
+    throw new Error(`Modes ${activeModes.join(', ')} are mutually exclusive — pick one.`);
   }
   const party = getPartyProgramme(values.party);
   const model = values.model;
-  const dryRun = values['dry-run'];
+  // Only the live and ingest paths produce real proposal artefacts and attest
+  // layers; --emit and --dry-run are keyless planning steps that mutate nothing.
+  const persistLayers = !(dryRun || emitPath !== undefined);
 
   const repoRoot = resolveRepoRoot();
   const manifestPath = join(repoRoot, MANIFEST_RELATIVE_PATH);
@@ -90,27 +140,28 @@ async function main(): Promise<void> {
   console.log(`Preparing text layers for ${party.name} (${pdfSources.length} document(s))…`);
   const layers: LayerInput[] = [];
   for (const source of pdfSources) {
-    // A dry-run mutates nothing: missing layers are derived in memory only.
+    // Keyless planning modes (--dry-run, --emit) mutate nothing: missing layers
+    // are derived in memory only, never attested.
     const { layer, manifest: next } = await ensureTextLayer(
       repoRoot,
       manifest,
       source,
       undefined,
-      { persist: !dryRun },
+      { persist: persistLayers },
     );
     manifest = next;
     layers.push(layer.input);
     const state = layer.created
-      ? dryRun
-        ? ' (derived in memory — dry-run, not attested)'
-        : ' (derived + attested)'
+      ? persistLayers
+        ? ' (derived + attested)'
+        : ' (derived in memory — planning only, not attested)'
       : ' (reused)';
     console.log(
       `  ${layer.created ? '+' : '='} ${layer.entry.snapshot_id} — ` +
         `${layer.input.layer.page_count} pages${state}`,
     );
   }
-  if (!dryRun) {
+  if (persistLayers) {
     await saveManifest(manifestPath, manifest);
   }
 
@@ -152,21 +203,64 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Fail-closed : refuse tout parti non-PASS avant toute extraction.
+  if (emitPath !== undefined) {
+    // Run the sweep up to the LLM boundary and freeze the per-chunk prompts.
+    const emit = buildEmitFile({
+      partyId: party.party_id,
+      partyName: party.name,
+      model,
+      statements: STATEMENTS,
+      layers,
+    });
+    await writeFile(emitPath, renderEmitFile(emit));
+    console.log(
+      `\nEmitted ${emit.chunks.length} chunk prompt(s) (${STATEMENTS.length} statements grouped ` +
+        `per chunk) to ${emitPath} — no LLM call.`,
+    );
+    console.log(
+      'Fill one structured answer per chunk (same JSON shape the live path parses), then run ' +
+        `'npm run extract:positions -- --party ${party.party_id} --ingest <responses-file>'.`,
+    );
+    return;
+  }
+
+  // Porte d'admission FAIL-CLOSED (#42) : placée AVANT le bloc partagé
+  // live+ingest, elle couvre les DEUX chemins producteurs de positions — un
+  // parti non-PASS ne peut produire de positions ni en live ni via --ingest.
+  // (--dry-run et --emit sont sortis plus haut : ils ne produisent aucune
+  // position.) Le seul chemin de sortie reste la ré-entrée humaine.
   assertPartyAdmitted(verdict);
 
-  const client = createAnthropicClient(model);
-  console.log(`Extracting with ${model}…`);
-  const result = await extractPositions({
-    partyId: party.party_id,
-    partyName: party.name,
-    statements: STATEMENTS,
-    layers,
-    client,
-    log: (line) => console.log(line),
-  });
+  // Live and ingest share the single real orchestration; only who produces the
+  // per-chunk LLM outputs differs. Ingest replays externally-filled answers
+  // (keyless), live calls the injected client (needs ANTHROPIC_API_KEY).
+  let result: PartyExtractionResult;
+  if (ingestPath !== undefined) {
+    const responses = parseResponsesFile(await readFile(ingestPath, 'utf8'), ingestPath);
+    console.log(`Ingesting external answers from ${ingestPath} (keyless — no LLM call)…`);
+    result = await ingestPositions({
+      partyId: party.party_id,
+      partyName: party.name,
+      statements: STATEMENTS,
+      layers,
+      model,
+      responses,
+      log: (line) => console.log(line),
+    });
+  } else {
+    const client = clientFactory(model);
+    console.log(`Extracting with ${model}…`);
+    result = await extractPositions({
+      partyId: party.party_id,
+      partyName: party.name,
+      statements: STATEMENTS,
+      layers,
+      client,
+      log: (line) => console.log(line),
+    });
+  }
 
-  const runDateIso = new Date().toISOString().slice(0, 10);
+  const runDateIso = now().toISOString().slice(0, 10);
   const [year, month, day] = runDateIso.split('-');
   const runDateDisplay = `${day}/${month}/${year}`;
   const positions = toPartyPositions(party.party_id, result.outcomes, runDateIso);
@@ -237,4 +331,4 @@ async function main(): Promise<void> {
   console.log(`Next: npm run positions:pr -- --party ${party.party_id}`);
 }
 
-main().catch(fail);
+runExtractPositions().catch(fail);
