@@ -1,21 +1,21 @@
 {
-  "generated_at": "2026-07-18",
+  "generated_at": "2026-07-16",
   "parties": [
     {
       "party_id": "cdv",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -39,19 +39,19 @@
     },
     {
       "party_id": "defi",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -75,19 +75,19 @@
     },
     {
       "party_id": "ecolo",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -111,19 +111,19 @@
     },
     {
       "party_id": "groen",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -147,19 +147,19 @@
     },
     {
       "party_id": "les-engages",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -183,19 +183,19 @@
     },
     {
       "party_id": "mr",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -219,19 +219,19 @@
     },
     {
       "party_id": "nva",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -255,19 +255,19 @@
     },
     {
       "party_id": "open-vld",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -291,19 +291,19 @@
     },
     {
       "party_id": "ps",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -327,19 +327,19 @@
     },
     {
       "party_id": "ptb-pvda",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -363,19 +363,19 @@
     },
     {
       "party_id": "vlaams-belang",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",
@@ -399,19 +399,19 @@
     },
     {
       "party_id": "vooruit",
-      "status": "UNCERTAIN",
+      "status": "NOT_MATERIALIZED",
       "reasons": [
         {
           "check": "auto-id-year",
-          "severity": "UNCERTAIN",
-          "code": "year.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+          "severity": "NOT_MATERIALIZED",
+          "code": "year.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "auto-id-level",
-          "severity": "UNCERTAIN",
-          "code": "level.not-evaluated",
-          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+          "severity": "NOT_MATERIALIZED",
+          "code": "level.not-materialized",
+          "human": "Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n'a pas pu être évalué — ce n'est pas un doute, c'est un contrôle non exécuté."
         },
         {
           "check": "parts-inventory",

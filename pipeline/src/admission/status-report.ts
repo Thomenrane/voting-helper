@@ -21,16 +21,26 @@ export interface StatusCounts {
   PASS: number;
   UNCERTAIN: number;
   FAIL: number;
+  NOT_MATERIALIZED: number;
 }
 
 export function countStatuses(verdicts: readonly PartyAdmissionVerdict[]): StatusCounts {
-  const counts: StatusCounts = { PASS: 0, UNCERTAIN: 0, FAIL: 0 };
+  const counts: StatusCounts = { PASS: 0, UNCERTAIN: 0, FAIL: 0, NOT_MATERIALIZED: 0 };
   for (const verdict of verdicts) counts[verdict.status] += 1;
   return counts;
 }
 
-/** Ordonne les partis par sévérité décroissante (FAIL, UNCERTAIN, PASS) puis id. */
-const SEVERITY_ORDER: Record<AdmissionStatus, number> = { FAIL: 0, UNCERTAIN: 1, PASS: 2 };
+/**
+ * Ordonne les partis par sévérité décroissante puis id : FAIL, UNCERTAIN,
+ * NOT_MATERIALIZED, PASS (#46 — la non-matérialisation entre le doute et le
+ * succès, honnête sur ce qui n'a pas encore été évalué).
+ */
+const SEVERITY_ORDER: Record<AdmissionStatus, number> = {
+  FAIL: 0,
+  UNCERTAIN: 1,
+  NOT_MATERIALIZED: 2,
+  PASS: 3,
+};
 
 export function buildStatusReport(
   verdicts: readonly PartyAdmissionVerdict[],
@@ -53,6 +63,7 @@ const BADGE: Record<AdmissionStatus, string> = {
   PASS: '✅ PASS',
   UNCERTAIN: '🟠 UNCERTAIN',
   FAIL: '⛔ FAIL',
+  NOT_MATERIALIZED: '⚪ NON MATÉRIALISÉ',
 };
 
 /** Statut publié, en markdown lisible par un humain. */
@@ -71,8 +82,15 @@ export function renderStatusMarkdown(report: StatusReport): string {
     'document via `npm run admit:source`, qui re-passe la porte). **FAIL** est',
     'réservé au prouvé-faux (partie manquante, document tronqué).',
     '',
-    `**Bilan :** ${counts.PASS} PASS · ${counts.UNCERTAIN} UNCERTAIN · ${counts.FAIL} FAIL ` +
-      `(${report.parties.length} partis).`,
+    '**NON MATÉRIALISÉ** (#46) est distinct d\'un doute : le binaire brut n\'est',
+    'pas disponible localement, donc la couche texte n\'a pas pu être matérialisée',
+    'et l\'auto-identification n\'a pas été évaluée. Ce n\'est ni un doute de niveau',
+    'réel, ni un échec — c\'est « pas encore évalué faute de binaire ». Quand le',
+    'binaire est présent, `admit:report` re-dérive la couche depuis le snapshot',
+    'épinglé (intégrité SHA-256 #21) et publie le VRAI PASS/UNCERTAIN/FAIL.',
+    '',
+    `**Bilan :** ${counts.PASS} PASS · ${counts.UNCERTAIN} UNCERTAIN · ${counts.FAIL} FAIL · ` +
+      `${counts.NOT_MATERIALIZED} NON MATÉRIALISÉ (${report.parties.length} partis).`,
     '',
     '| Parti | Verdict | Résumé |',
     '|---|---|---|',

@@ -10,11 +10,24 @@
  *   positivement confirmé.
  * - FAIL réservé au prouvé-faux : une partie manquante (incomplétude) ou une
  *   TOC qui déborde les pages réelles (troncature). L'ambigu — année ou niveau
- *   non affirmés, taille hors tolérance, évidence indisponible — est UNCERTAIN
- *   (→ escalade humaine), pas FAIL.
+ *   non affirmés, taille hors tolérance — est UNCERTAIN (→ escalade humaine),
+ *   pas FAIL.
+ *
+ * QUATRIÈME ÉTAT — NOT_MATERIALIZED (#46) : « source non matérialisée
+ * localement ». Distinct d'un vrai UNCERTAIN. Quand le binaire brut du parti
+ * n'est pas disponible localement, la couche texte ne peut pas être
+ * matérialisée : l'auto-identification (et, faute de pages attestées, la
+ * taille) ne sont pas ÉVALUÉES — ce n'est ni un doute de niveau réel, ni un
+ * échec, c'est « pas encore évalué faute de binaire ». Ce cas ne doit plus se
+ * confondre avec un UNCERTAIN (doute réel : édition/niveau non affirmés,
+ * synthèse au lieu du complet). Les codes de raison portent la distinction :
+ * `*.not-materialized` (couche absente) vs `year.absent`/`level.absent`/
+ * `pages.outside` (couche présente, critère non satisfait).
  *
  * Le statut global est la pire sévérité rencontrée : un seul FAIL → FAIL ;
- * sinon un seul UNCERTAIN → UNCERTAIN ; sinon PASS.
+ * sinon un seul UNCERTAIN (doute réel) → UNCERTAIN ; sinon si quoi que ce soit
+ * n'a pas pu être matérialisé → NOT_MATERIALIZED ; sinon PASS. Un doute réel
+ * prime donc sur la non-matérialisation : il n'est jamais masqué.
  */
 import type { AutoIdResult } from './auto-identification.ts';
 import {
@@ -24,7 +37,13 @@ import {
 } from './completeness.ts';
 import type { ExpectedIdentity } from './expected-identity.ts';
 
-export type AdmissionStatus = 'PASS' | 'UNCERTAIN' | 'FAIL';
+/**
+ * Sévérité d'un constat / verdict publié d'un parti.
+ * - `PASS` / `UNCERTAIN` / `FAIL` : calculés sur une couche réellement présente.
+ * - `NOT_MATERIALIZED` (#46) : le binaire brut est absent localement, la couche
+ *   texte n'a pas pu être matérialisée — critère non évalué (pas un doute réel).
+ */
+export type AdmissionStatus = 'PASS' | 'UNCERTAIN' | 'FAIL' | 'NOT_MATERIALIZED';
 
 /** Contrôles produisant une raison de verdict. */
 export type AdmissionCheck =
@@ -53,7 +72,11 @@ export interface PartyAdmissionVerdict {
 /** Évidence d'admission pour UN document (une partie du programme). */
 export interface DocumentEvidence {
   source_id: string;
-  /** Résultat d'auto-identification, ou `null` si non évalué (couche texte indisponible). */
+  /**
+   * Résultat d'auto-identification, ou `null` si la couche texte n'a pas pu
+   * être matérialisée localement (binaire brut absent) → contrôle NON évalué,
+   * distinct d'un doute réel (#46).
+   */
   autoId: AutoIdResult | null;
   /** Pages réelles de ce document, ou `null` si inconnu. */
   actualPages: number | null;
@@ -68,10 +91,16 @@ export interface PartyAdmissionInput {
   presentSourceIds: readonly string[];
 }
 
-/** Pire sévérité de la liste (FAIL > UNCERTAIN > PASS). */
+/**
+ * Pire sévérité de la liste : FAIL > UNCERTAIN > NOT_MATERIALIZED > PASS (#46).
+ * Un doute réel (UNCERTAIN) prime sur la non-matérialisation, de sorte qu'un
+ * vrai doute n'est jamais masqué par une couche absente ; la non-matérialisation
+ * ne l'emporte que sur PASS (rien à signaler d'autre).
+ */
 function worst(reasons: readonly AdmissionReason[]): AdmissionStatus {
   if (reasons.some((r) => r.severity === 'FAIL')) return 'FAIL';
   if (reasons.some((r) => r.severity === 'UNCERTAIN')) return 'UNCERTAIN';
+  if (reasons.some((r) => r.severity === 'NOT_MATERIALIZED')) return 'NOT_MATERIALIZED';
   return 'PASS';
 }
 
@@ -91,9 +120,9 @@ function yearReason(input: PartyAdmissionInput): AdmissionReason {
   if (evaluated.length === 0) {
     return {
       check: 'auto-id-year',
-      severity: 'UNCERTAIN',
-      code: 'year.not-evaluated',
-      human: "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée.",
+      severity: 'NOT_MATERIALIZED',
+      code: 'year.not-materialized',
+      human: "Couche texte non matérialisée localement (binaire brut absent) : l'année n'a pas pu être évaluée — ce n'est pas un doute, c'est un contrôle non exécuté.",
     };
   }
   if (evaluated.some((d) => d.autoId?.yearPresent === true)) {
@@ -117,9 +146,9 @@ function levelReason(input: PartyAdmissionInput): AdmissionReason {
   if (evaluated.length === 0) {
     return {
       check: 'auto-id-level',
-      severity: 'UNCERTAIN',
-      code: 'level.not-evaluated',
-      human: 'Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n\'a pas pu être confirmé.',
+      severity: 'NOT_MATERIALIZED',
+      code: 'level.not-materialized',
+      human: 'Couche texte non matérialisée localement (binaire brut absent) : le niveau fédéral n\'a pas pu être évalué — ce n\'est pas un doute, c\'est un contrôle non exécuté.',
     };
   }
   if (evaluated.some((d) => d.autoId?.levelPresent === true)) {
@@ -217,9 +246,9 @@ function pagesReason(input: PartyAdmissionInput): AdmissionReason {
   }
   return {
     check: 'page-tolerance',
-    severity: 'UNCERTAIN',
-    code: 'pages.not-evaluated',
-    human: 'Nombre de pages réel indisponible (couche texte non dérivée) : taille non confirmée.',
+    severity: 'NOT_MATERIALIZED',
+    code: 'pages.not-materialized',
+    human: 'Nombre de pages réel indisponible (couche texte non matérialisée localement et aucune page attestée au manifeste) : taille non évaluée.',
   };
 }
 

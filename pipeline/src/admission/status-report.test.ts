@@ -33,18 +33,31 @@ const FAIL_VERDICT: PartyAdmissionVerdict = {
   ],
 };
 
-const VERDICTS = [PASS_VERDICT, UNCERTAIN_VERDICT, FAIL_VERDICT];
+const NOT_MATERIALIZED_VERDICT: PartyAdmissionVerdict = {
+  party_id: 'ecolo',
+  status: 'NOT_MATERIALIZED',
+  reasons: [
+    {
+      check: 'auto-id-level',
+      severity: 'NOT_MATERIALIZED',
+      code: 'level.not-materialized',
+      human: 'binaire brut absent',
+    },
+  ],
+};
+
+const VERDICTS = [PASS_VERDICT, UNCERTAIN_VERDICT, FAIL_VERDICT, NOT_MATERIALIZED_VERDICT];
 
 describe('countStatuses', () => {
-  it('compte par statut', () => {
-    expect(countStatuses(VERDICTS)).toEqual({ PASS: 1, UNCERTAIN: 1, FAIL: 1 });
+  it('compte par statut, y compris NOT_MATERIALIZED', () => {
+    expect(countStatuses(VERDICTS)).toEqual({ PASS: 1, UNCERTAIN: 1, FAIL: 1, NOT_MATERIALIZED: 1 });
   });
 });
 
 describe('buildStatusReport', () => {
-  it('ordonne par sévérité décroissante (FAIL, UNCERTAIN, PASS)', () => {
+  it('ordonne par sévérité décroissante (FAIL, UNCERTAIN, NOT_MATERIALIZED, PASS)', () => {
     const report = buildStatusReport(VERDICTS, '2026-07-18');
-    expect(report.parties.map((p) => p.party_id)).toEqual(['defi', 'nva', 'ps']);
+    expect(report.parties.map((p) => p.party_id)).toEqual(['defi', 'nva', 'ecolo', 'ps']);
     expect(report.generated_at).toBe('2026-07-18');
   });
 
@@ -60,7 +73,7 @@ describe('renderStatusJson', () => {
     const json = renderStatusJson(buildStatusReport(VERDICTS, '2026-07-18'));
     expect(json.endsWith('\n')).toBe(true);
     const parsed = JSON.parse(json) as { generated_at: string; parties: PartyAdmissionVerdict[] };
-    expect(parsed.parties).toHaveLength(3);
+    expect(parsed.parties).toHaveLength(4);
     expect(parsed.parties[0]?.status).toBe('FAIL');
   });
 });
@@ -70,9 +83,14 @@ describe('renderStatusMarkdown', () => {
 
   it('publie le bilan, un tableau et le détail par parti', () => {
     expect(md).toContain('Statut de vérification des sources');
-    expect(md).toContain('1 PASS · 1 UNCERTAIN · 1 FAIL');
+    expect(md).toContain('1 PASS · 1 UNCERTAIN · 1 FAIL · 1 NON MATÉRIALISÉ');
     expect(md).toContain('| Parti | Verdict | Résumé |');
     expect(md).toContain('## Détail par parti');
+  });
+
+  it('publie le quatrième état, distinct d\'un doute (#46)', () => {
+    expect(md).toContain('NON MATÉRIALISÉ');
+    expect(md).toContain('level.not-materialized');
   });
 
   it('affiche le verdict et les raisons machine+humain', () => {

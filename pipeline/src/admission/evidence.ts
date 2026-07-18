@@ -8,9 +8,10 @@
  * alimentent le MÊME verdict conservateur :
  *
  * - couche texte disponible → auto-ID + TOC réellement évaluées ;
- * - couche texte indisponible (HTML des chapitres web, ou couche non dérivée
- *   localement) → auto-ID/TOC non évaluées ; seules les pages connues du
- *   manifeste servent. Le verdict traite l'évidence absente en UNCERTAIN.
+ * - couche texte non matérialisée (HTML des chapitres web, ou binaire brut
+ *   absent localement) → auto-ID/TOC non évaluées ; seules les pages attestées
+ *   au manifeste servent. Le verdict traite la couche absente en
+ *   NOT_MATERIALIZED (distinct d'un doute réel, #46), jamais faussement PASS.
  */
 import { checkLayerAutoIdentification, firstPagesText } from './auto-identification.ts';
 import { detectTocLastPage } from './completeness.ts';
