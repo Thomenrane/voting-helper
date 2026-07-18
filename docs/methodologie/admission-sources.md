@@ -184,6 +184,45 @@ contestation.
 par parti. C'est la surface de transparence (cohérente avec #26) qui alimente
 le canal de contestation.
 
+## Sources web-chapitres : matérialisation et contrôle (#51)
+
+PTB-PVDA — le parti unitaire qui ne publie **aucun PDF national** — expose son
+programme comme un **index web de chapitres** (`ptb.be/programme`,
+`pvda.be/programma`). L'investigation #51 a établi que l'index n'est qu'une
+**table de liens** (aucun contenu inline) : le corpus réel vit dans une page par
+chapitre (48 FR + 47 NL). La couche texte par page (#22) étant PDF-only, ces
+partis restaient **NON MATÉRIALISÉ** — absents du corpus pour une pure raison de
+format. #51 lève ce blocage sans dégrader aucune garantie :
+
+1. **Crawl borné (`snapshot:programme-chapters`).** Depuis l'index snapshoté
+   (intégrité #21 vérifiée), on extrait les liens de chapitres avec une
+   **allowlist stricte** : même origine que l'index, exactement **un** segment
+   sous le chemin de programme (`/programme/<slug>`, `/programma/<slug>`), slugs
+   path-safe, dédupliqués, ordonnés, **plafonnés** (`MAX_CHAPTERS_PER_INDEX`).
+   Aucune découverte libre, aucune récursion. Chaque chapitre est snapshoté par
+   la **même** machinerie #21 (entrée datée immuable, empreinte SHA-256).
+2. **Couche texte par chapitre.** Chaque chapitre = une « page » de la même
+   structure `ProgrammeTextLayer` que le PDF — l'admission et l'extraction
+   restent **agnostiques à la source**. L'extraction HTML→texte retire le
+   boilerplate (nav/menus/pied de page/bannière cookie du thème `drupack`) et
+   conserve le `<main>`. Chaque page-chapitre est **ancrée au SHA-256 de son
+   propre snapshot** ; l'empreinte de la couche est un composite déterministe de
+   ces empreintes.
+3. **Intégrité fail-closed.** La couche n'est matérialisée que si **tous** les
+   chapitres sont présents localement **et** authentiques (octets concordant
+   avec l'empreinte committée). Un chapitre manquant (crawl partiel) ou
+   **falsifié** ⇒ **aucune** couche ⇒ retour à NON MATÉRIALISÉ, jamais un verdict
+   faussé.
+4. **Verdict réel.** Une fois les chapitres crawlés, `admit:report` matérialise
+   la couche et rend un **vrai** PASS/UNCERTAIN/FAIL (auto-identification année +
+   niveau sur le texte des chapitres). Les contrôles à pagination
+   (`toc-bounds`, `page-tolerance`) restent `not-applicable`/neutres — la
+   complétude s'appuie sur l'inventaire des chapitres attendus, pas sur un
+   nombre de pages.
+
+Tant que le crawl n'a pas tourné (chapitres non encore snapshotés), le parti
+reste honnêtement **NON MATÉRIALISÉ** — distinct d'un doute réel.
+
 ## Résidu irréductible
 
 Certains cas ne sont pas mécaniquement tranchables et restent **UNCERTAIN par
@@ -192,9 +231,11 @@ conception**, pour escalade humaine :
 - **Un document authentique mais au périmètre ambigu** : le programme N-VA
   combine plusieurs niveaux ; « le volet fédéral est-il celui-ci ? » ne se
   décide pas sur les seules premières pages.
-- **Une structure sans pagination** (`web-chapters`, PTB/PVDA) : la couche texte
-  par page ne couvre pas le HTML (limitation #22) ; l'auto-identification et la
-  détection de troncature n'y sont pas exécutables.
+- **Une structure sans pagination** (`web-chapters`, PTB/PVDA) : les contrôles à
+  pagination (tolérance de pages, TOC) n'y sont pas applicables — par
+  construction, et non par défaut de matérialisation (voir « Sources
+  web-chapitres » ci-dessous). L'auto-identification, elle, **est** exécutée sur
+  le texte des chapitres depuis #51.
 - **Une refonte/édition intermédiaire** entre deux congrès : intègre-t-elle le
   bon texte de référence ? Question éditoriale, pas mécanique.
 - **Une TOC absente ou non structurée** : la troncature ne peut alors pas être
