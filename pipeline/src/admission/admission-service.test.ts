@@ -37,7 +37,9 @@ function withSnapshot(
     sha256: `${id}`.padEnd(64, '0'),
     bytes: 10,
     snapshotsDir: 'data/snapshots/programmes',
-    quality,
+    // Spread conditionnel : `exactOptionalPropertyTypes` interdit de passer
+    // `quality: undefined` (l'option prod dans admit-source.ts fait de même).
+    ...(quality !== undefined ? { quality } : {}),
   });
   return appendSnapshot(manifest, entry);
 }
