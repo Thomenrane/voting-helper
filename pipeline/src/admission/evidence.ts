@@ -54,7 +54,10 @@ export function documentEvidence(
       source_id: signals.source_id,
       autoId: checkLayerAutoIdentification(layer, expected),
       actualPages: layer.page_count,
-      tocLastPage: detectTocLastPage(firstPagesText(layer, ADMISSION_TOC_PAGES)),
+      // #49 : borne la détection au nombre réel de pages pour écarter les
+      // artefacts des TDM multi-colonnes (faux toc.exceeds), sans neutraliser
+      // la détection de troncature cohérente.
+      tocLastPage: detectTocLastPage(firstPagesText(layer, ADMISSION_TOC_PAGES), layer.page_count),
       ...attested,
     };
   }

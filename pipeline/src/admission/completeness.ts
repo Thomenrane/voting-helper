@@ -56,6 +56,30 @@ export function checkPartsInventory(
 export const TOC_MIN_ENTRIES = 3;
 
 /**
+ * Facteur de plausibilité d'une référence de page. Sur une TDM multi-colonnes
+ * linéarisée, un vrai numéro de page ressort préfixé d'un chiffre parasite de
+ * la colonne voisine (57 → 9957, cf. #49). Une entrée référençant une page
+ * au-delà de `actualPages × TOC_MAX_PLAUSIBLE_FACTOR` est physiquement
+ * impossible (une TDM ne pointe pas vers une page d'un ordre de grandeur
+ * au-delà du document) : c'est un artefact d'extraction, jamais une troncature.
+ *
+ * Le facteur reste > à la troncature réaliste maximale : au-delà, l'écart
+ * ferait aussi échouer le contrôle Pages/taille (#42), qui prend alors le
+ * relais — les deux signaux restent cohérents.
+ */
+export const TOC_MAX_PLAUSIBLE_FACTOR = 5;
+
+/**
+ * Fraction minimale de références débordantes (parmi les références plausibles)
+ * pour conclure à une troncature *cohérente*. Une vraie TDM de document tronqué
+ * — écrite pour le document complet — liste de nombreuses entrées au-delà du
+ * réel. Un débordement isolé (un seul artefact de concaténation noyé dans des
+ * dizaines d'entrées propres, ex. les-engagés 701) reste sous ce seuil et est
+ * écarté. Distingue le prouvé-tronqué du faux positif de mise en page.
+ */
+export const TOC_EXCEEDANCE_MIN_FRACTION = 0.25;
+
+/**
  * Une entrée de table des matières : un libellé (contenant au moins une
  * lettre), un séparateur de points de conduite OU d'au moins deux espaces,
  * puis un numéro de page final (1 à 4 chiffres). Ancrée en fin de ligne pour
@@ -65,10 +89,29 @@ const TOC_ENTRY = /^\s*(?=.*\p{L})(.*\S)[.… \t]{2,}(\d{1,4})\s*$/u;
 
 /**
  * Détecte une TOC dans le texte fourni (typiquement les premières pages) et
- * renvoie la plus grande page référencée, ou `null` si aucune TOC plausible
+ * renvoie la dernière page qu'elle référence, ou `null` si aucune TOC plausible
  * (moins de TOC_MIN_ENTRIES entrées). Pur et déterministe.
+ *
+ * `actualPages` (nombre réel de pages du document) rend la détection robuste
+ * aux TDM multi-colonnes / à points de conduite (#49). Sur ces mises en page,
+ * un vrai numéro de page ressort parfois préfixé d'un chiffre parasite de la
+ * colonne voisine (57 → 9957) : `Math.max` capterait l'artefact et déclencherait
+ * un faux `toc.exceeds`. Deux garde-fous complémentaires, appliqués seulement
+ * quand `actualPages` est connu :
+ *
+ * 1. **Plausibilité de magnitude** — toute référence au-delà de
+ *    `actualPages × TOC_MAX_PLAUSIBLE_FACTOR` est écartée (artefact certain :
+ *    une TDM ne pointe pas un ordre de grandeur au-delà du document).
+ * 2. **Cohérence du débordement** — un débordement n'est retenu comme
+ *    troncature que si une fraction ≥ TOC_EXCEEDANCE_MIN_FRACTION des références
+ *    plausibles dépasse `actualPages`. Un débordement isolé est un artefact et
+ *    est borné au réel.
+ *
+ * Invariant de sûreté : une TDM cohérente référençant de nombreuses pages
+ * au-delà du réel (vraie troncature) débordera toujours. Seul le faux positif
+ * de mise en page est neutralisé. Sans `actualPages`, comportement brut (max).
  */
-export function detectTocLastPage(text: string): number | null {
+export function detectTocLastPage(text: string, actualPages: number | null = null): number | null {
   const references: number[] = [];
   for (const line of text.split(/\r?\n/u)) {
     const match = TOC_ENTRY.exec(line);
@@ -77,7 +120,19 @@ export function detectTocLastPage(text: string): number | null {
     if (Number.isFinite(page)) references.push(page);
   }
   if (references.length < TOC_MIN_ENTRIES) return null;
-  return Math.max(...references);
+  if (actualPages === null) return Math.max(...references);
+
+  // 1. Écarte les artefacts d'un ordre de grandeur au-delà du document.
+  const plausible = references.filter((page) => page <= actualPages * TOC_MAX_PLAUSIBLE_FACTOR);
+  if (plausible.length === 0) return null; // TDM entièrement illisible → non concluant.
+
+  // 2. Un débordement n'est une troncature que s'il est cohérent (non isolé).
+  const over = plausible.filter((page) => page > actualPages);
+  if (over.length / plausible.length >= TOC_EXCEEDANCE_MIN_FRACTION) {
+    return Math.max(...plausible);
+  }
+  const inBounds = plausible.filter((page) => page <= actualPages);
+  return inBounds.length > 0 ? Math.max(...inBounds) : Math.max(...plausible);
 }
 
 export type TocStatus = 'no-toc' | 'within' | 'exceeds';
