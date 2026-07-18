@@ -61,23 +61,18 @@ export const TOC_MIN_ENTRIES = 3;
  * la colonne voisine (57 → 9957, cf. #49). Une entrée référençant une page
  * au-delà de `actualPages × TOC_MAX_PLAUSIBLE_FACTOR` est physiquement
  * impossible (une TDM ne pointe pas vers une page d'un ordre de grandeur
- * au-delà du document) : c'est un artefact d'extraction, jamais une troncature.
+ * au-delà du document) : c'est un artefact d'extraction certain, jamais une
+ * troncature. C'est le SEUL filtrage appliqué à la détection.
  *
- * Le facteur reste > à la troncature réaliste maximale : au-delà, l'écart
- * ferait aussi échouer le contrôle Pages/taille (#42), qui prend alors le
- * relais — les deux signaux restent cohérents.
+ * Il ne cherche PAS à distinguer une vraie troncature d'un faux positif : tout
+ * débordement sub-5× (les-engagés 701 sur 355 comme une vraie troncature de
+ * queue) REMONTE comme `exceeds`. La distinction troncature-réelle vs artefact
+ * de mise en page est portée par la COUCHE VERDICT (corroboration `pages.within`
+ * → UNCERTAIN vs `pages.outside` → FAIL, cf. `verdict.ts`), pas ici — sinon un
+ * document réellement tronqué mais dans la tolérance de taille passerait au
+ * travers des deux contrôles (fail-open).
  */
 export const TOC_MAX_PLAUSIBLE_FACTOR = 5;
-
-/**
- * Fraction minimale de références débordantes (parmi les références plausibles)
- * pour conclure à une troncature *cohérente*. Une vraie TDM de document tronqué
- * — écrite pour le document complet — liste de nombreuses entrées au-delà du
- * réel. Un débordement isolé (un seul artefact de concaténation noyé dans des
- * dizaines d'entrées propres, ex. les-engagés 701) reste sous ce seuil et est
- * écarté. Distingue le prouvé-tronqué du faux positif de mise en page.
- */
-export const TOC_EXCEEDANCE_MIN_FRACTION = 0.25;
 
 /**
  * Une entrée de table des matières : un libellé (contenant au moins une
@@ -92,24 +87,21 @@ const TOC_ENTRY = /^\s*(?=.*\p{L})(.*\S)[.… \t]{2,}(\d{1,4})\s*$/u;
  * renvoie la dernière page qu'elle référence, ou `null` si aucune TOC plausible
  * (moins de TOC_MIN_ENTRIES entrées). Pur et déterministe.
  *
- * `actualPages` (nombre réel de pages du document) rend la détection robuste
- * aux TDM multi-colonnes / à points de conduite (#49). Sur ces mises en page,
- * un vrai numéro de page ressort parfois préfixé d'un chiffre parasite de la
- * colonne voisine (57 → 9957) : `Math.max` capterait l'artefact et déclencherait
- * un faux `toc.exceeds`. Deux garde-fous complémentaires, appliqués seulement
- * quand `actualPages` est connu :
+ * `actualPages` (nombre réel de pages du document) filtre les artefacts d'ordre
+ * de grandeur des TDM multi-colonnes / à points de conduite (#49) : sur ces
+ * mises en page, un vrai numéro de page ressort parfois préfixé d'un chiffre
+ * parasite de la colonne voisine (57 → 9957), et `Math.max` capterait
+ * l'artefact. Toute référence au-delà de `actualPages × TOC_MAX_PLAUSIBLE_FACTOR`
+ * est donc écartée (une TDM ne pointe jamais un ordre de grandeur au-delà du
+ * document) ; la dernière page est le max des références plausibles restantes.
  *
- * 1. **Plausibilité de magnitude** — toute référence au-delà de
- *    `actualPages × TOC_MAX_PLAUSIBLE_FACTOR` est écartée (artefact certain :
- *    une TDM ne pointe pas un ordre de grandeur au-delà du document).
- * 2. **Cohérence du débordement** — un débordement n'est retenu comme
- *    troncature que si une fraction ≥ TOC_EXCEEDANCE_MIN_FRACTION des références
- *    plausibles dépasse `actualPages`. Un débordement isolé est un artefact et
- *    est borné au réel.
+ * C'est le SEUL filtrage ici. La détection ne tranche PAS troncature-réelle vs
+ * faux-positif : tout débordement sub-5× remonte tel quel comme `exceeds`. La
+ * COUCHE VERDICT (corroboration `pages.within` → UNCERTAIN vs `pages.outside` →
+ * FAIL) porte cette distinction — condition nécessaire pour attraper une
+ * troncature de queue restant dans la tolérance de taille (sinon fail-open).
  *
- * Invariant de sûreté : une TDM cohérente référençant de nombreuses pages
- * au-delà du réel (vraie troncature) débordera toujours. Seul le faux positif
- * de mise en page est neutralisé. Sans `actualPages`, comportement brut (max).
+ * Sans `actualPages`, comportement brut (max) — aucun filtrage possible.
  */
 export function detectTocLastPage(text: string, actualPages: number | null = null): number | null {
   const references: number[] = [];
@@ -122,17 +114,11 @@ export function detectTocLastPage(text: string, actualPages: number | null = nul
   if (references.length < TOC_MIN_ENTRIES) return null;
   if (actualPages === null) return Math.max(...references);
 
-  // 1. Écarte les artefacts d'un ordre de grandeur au-delà du document.
+  // Écarte les seuls artefacts d'un ordre de grandeur au-delà du document ;
+  // les débordements sub-5× remontent comme `exceeds` (tranchés au verdict).
   const plausible = references.filter((page) => page <= actualPages * TOC_MAX_PLAUSIBLE_FACTOR);
   if (plausible.length === 0) return null; // TDM entièrement illisible → non concluant.
-
-  // 2. Un débordement n'est une troncature que s'il est cohérent (non isolé).
-  const over = plausible.filter((page) => page > actualPages);
-  if (over.length / plausible.length >= TOC_EXCEEDANCE_MIN_FRACTION) {
-    return Math.max(...plausible);
-  }
-  const inBounds = plausible.filter((page) => page <= actualPages);
-  return inBounds.length > 0 ? Math.max(...inBounds) : Math.max(...plausible);
+  return Math.max(...plausible);
 }
 
 export type TocStatus = 'no-toc' | 'within' | 'exceeds';

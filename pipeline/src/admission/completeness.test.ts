@@ -94,22 +94,41 @@ describe('detectTocLastPage — robustesse aux TDM multi-colonnes / points de co
     expect(checkTocWithinBounds(detectTocLastPage(toc, 442), 442).status).toBe('within');
   });
 
-  it('ignore un débordement isolé de faible facteur (les-engagés : 701 sur 355 p.)', () => {
+  it('un débordement sub-5× (les-engagés : 701 sur 355 p.) REMONTE comme exceeds — tranché au verdict, pas ici', () => {
     const entries = ['Sommaire'];
     for (let page = 5; page <= 350; page += 10) {
       entries.push(`Chapitre référencé ........................ ${String(page)}`);
     }
-    // Un unique artefact de concaténation (701 ≈ 1,97× le réel), noyé dans des
-    // dizaines d'entrées propres → doit être écarté, pas déclencher exceeds.
+    // 701 ≈ 1,97× le réel : sous le facteur ×5, donc NON filtré par la détection.
+    // Il remonte comme exceeds ; c'est la corroboration `pages.within` au verdict
+    // qui le classera UNCERTAIN (et non un faux FAIL ni un PASS silencieux).
     entries.push('Titre parasité par la colonne voisine ..... 701');
     const toc = entries.join('\n');
-    expect(detectTocLastPage(toc, 355)).toBe(345);
-    expect(checkTocWithinBounds(detectTocLastPage(toc, 355), 355).status).toBe('within');
+    expect(detectTocLastPage(toc, 355)).toBe(701);
+    expect(checkTocWithinBounds(detectTocLastPage(toc, 355), 355).status).toBe('exceeds');
   });
 
-  it('conserve la détection de troncature réelle : débordement cohérent → exceeds (invariant de sûreté)', () => {
+  it('troncature de queue DANS la tolérance de taille (peu d\'entrées débordent) → exceeds, PAS avalé (anti fail-open)', () => {
+    // Document réellement tronqué de 8 % (120 → 110 p.) : la TDM, écrite pour le
+    // document complet, référence encore les pages coupées (jusqu'à 116). Seules
+    // 2 des 31 entrées dépassent 110 (6,5 %). Un garde-fou de « fraction » aurait
+    // borné ce cas à `within` → PASS silencieux (fail-open). La détection ne le
+    // fait plus : 116 remonte comme exceeds (le verdict l'escaladera).
+    const entries = ['Inhoud'];
+    for (let page = 4; page <= 108; page += 4) {
+      entries.push(`Hoofdstuk ................................. ${String(page)}`);
+    }
+    entries.push('Voorlaatste ............................... 113');
+    entries.push('Besluit ................................... 116');
+    const toc = entries.join('\n');
+    const last = detectTocLastPage(toc, 110);
+    expect(last).toBe(116);
+    expect(checkTocWithinBounds(last, 110).status).toBe('exceeds');
+  });
+
+  it('conserve la détection de troncature réelle : débordement large → exceeds (invariant de sûreté)', () => {
     // Document réellement tronqué : la TDM (écrite pour un document complet)
-    // référence de façon cohérente de nombreuses pages au-delà du réel.
+    // référence de nombreuses pages au-delà du réel.
     const entries = ['Table des matières'];
     for (let page = 20; page <= 300; page += 20) {
       entries.push(`Chapitre ................................... ${String(page)}`);
