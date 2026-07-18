@@ -98,6 +98,78 @@ describe('buildCoverageReport', () => {
     expect(report.flagged_count).toBe(0);
   });
 
+  it('flags a « rejetée » (found_elsewhere) with lexical occurrences as a rejected candidate', () => {
+    const rejected = candidate({
+      statement_id: 's2',
+      citation_page: 40,
+      verdict: { status: 'found_elsewhere', pages: [12, 87] },
+    });
+    const report = buildCoverageReport({
+      partyId: 'demo',
+      statements: STATEMENTS,
+      outcomes: [
+        { kind: 'position', statement_id: 's1', position: 2, citation: candidate({}) },
+        { kind: 'rejected', statement_id: 's2', candidates: [rejected] },
+      ],
+      candidates: [candidate({}), rejected],
+      chunks: CHUNKS,
+      lexicalScans: [
+        { statement_id: 's1', keywords: ['cotisations'], hits: [] },
+        {
+          statement_id: 's2',
+          keywords: ['train', 'billets'],
+          hits: [{ source_id: 'doc', page: 3, terms: ['train', 'billets'] }],
+        },
+      ],
+    });
+    const s2 = report.statements.find((s) => s.statement_id === 's2');
+    expect(s2?.flagged).toBe(true);
+    expect(s2?.flag_kind).toBe('rejected_candidate');
+    expect(report.flagged_count).toBe(1);
+  });
+
+  it('does NOT flag a « rejetée » with no lexical occurrence', () => {
+    const rejected = candidate({ statement_id: 's2', verdict: { status: 'not_found' } });
+    const report = buildCoverageReport({
+      partyId: 'demo',
+      statements: STATEMENTS,
+      outcomes: [
+        { kind: 'position', statement_id: 's1', position: 2, citation: candidate({}) },
+        { kind: 'rejected', statement_id: 's2', candidates: [rejected] },
+      ],
+      candidates: [candidate({}), rejected],
+      chunks: CHUNKS,
+      lexicalScans: [
+        { statement_id: 's1', keywords: ['cotisations'], hits: [] },
+        { statement_id: 's2', keywords: ['train'], hits: [] },
+      ],
+    });
+    const s2 = report.statements.find((s) => s.statement_id === 's2');
+    expect(s2?.flagged).toBe(false);
+    expect(s2?.flag_kind).toBeNull();
+    expect(report.flagged_count).toBe(0);
+  });
+
+  it('tags a flagged « non documentée » as a lexical silence', () => {
+    const report = buildCoverageReport({
+      partyId: 'demo',
+      statements: [STATEMENTS[1]!],
+      outcomes: [{ kind: 'no_position', statement_id: 's2' }],
+      candidates: [],
+      chunks: CHUNKS,
+      lexicalScans: [
+        {
+          statement_id: 's2',
+          keywords: ['train', 'billets'],
+          hits: [{ source_id: 'doc', page: 3, terms: ['train', 'billets'] }],
+        },
+      ],
+    });
+    const s2 = report.statements[0];
+    expect(s2?.flagged).toBe(true);
+    expect(s2?.flag_kind).toBe('lexical_silence');
+  });
+
   it('does NOT flag a documented position even if the subject occurs lexically', () => {
     const report = buildCoverageReport({
       partyId: 'demo',
@@ -169,5 +241,45 @@ describe('renderCoverageReport', () => {
     expect(md).toContain('⚠️ `s2`');
     expect(md).toContain('doc p.3');
     expect(md).toContain('| `s1` |'); // documented statement listed without flag
+  });
+
+  it('renders distinct verification mentions for rejected vs lexical-silence flags', () => {
+    const rejected = candidate({
+      statement_id: 's1',
+      citation_page: 40,
+      verdict: { status: 'found_elsewhere', pages: [12] },
+    });
+    const report = buildCoverageReport({
+      partyId: 'demo',
+      statements: STATEMENTS,
+      outcomes: [
+        { kind: 'rejected', statement_id: 's1', candidates: [rejected] },
+        { kind: 'no_position', statement_id: 's2' },
+      ],
+      candidates: [rejected],
+      chunks: CHUNKS,
+      lexicalScans: [
+        {
+          statement_id: 's1',
+          keywords: ['cotisations', 'salaires'],
+          hits: [{ source_id: 'doc', page: 1, terms: ['cotisations', 'salaires'] }],
+        },
+        {
+          statement_id: 's2',
+          keywords: ['train', 'billets'],
+          hits: [{ source_id: 'doc', page: 3, terms: ['train', 'billets'] }],
+        },
+      ],
+    });
+    const md = renderCoverageReport(report, {
+      partyName: 'Demo',
+      model: 'claude-sonnet-5',
+      runDate: '17/07/2026',
+      statements: STATEMENTS,
+    });
+    expect(md).toContain('Silences signalés (à vérifier) : **2**');
+    expect(md).toContain('position candidate rejetée — citation retrouvée à une autre page ?');
+    expect(md).toContain('aucune position codée mais le sujet apparaît');
+    expect(md).toContain('À VÉRIFIER');
   });
 });

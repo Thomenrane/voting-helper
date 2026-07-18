@@ -8,6 +8,7 @@ import type { Statement } from '@voting-helper/data';
 import type { RunCost } from './cost.ts';
 import { formatRunCost } from './cost.ts';
 import type { CoverageReport } from './coverage-report.ts';
+import { coverageFlagMention } from './coverage-report.ts';
 import type { PartyExtractionResult, StatementOutcome } from './position-extractor.ts';
 
 function truncate(text: string, max = 160): string {
@@ -72,23 +73,25 @@ function renderCoverageFlags(coverage: CoverageReport, byId: Map<string, Stateme
     return [
       ...header,
       '',
-      'Aucun silence suspect : aucune « non documentée » n’a d’occurrence lexicale.',
+      'Aucun silence suspect : aucun énoncé non publié n’a d’occurrence lexicale.',
     ];
   }
   return [
     ...header,
     '',
-    `⚠️ **${flagged.length} silence(s) à vérifier** — « non documentée » dont le scan lexical`,
-    'retrouve le sujet dans le programme. La review DOIT confirmer qu’aucune position n’a été manquée :',
+    `⚠️ **${flagged.length} silence(s) à vérifier** — énoncés non publiés (sans position codée OU`,
+    'citation rejetée) dont le scan lexical retrouve le sujet dans le programme. La review DOIT',
+    'confirmer qu’aucune position n’a été manquée :',
     '',
     ...flagged.map((s) => {
       const texte = byId.get(s.statement_id)?.texte_fr ?? s.statement_id;
+      const mention = coverageFlagMention(s.flag_kind ?? 'lexical_silence');
       const pages = s.lexical_pages
         .slice(0, 8)
         .map((p) => `${p.source_id} p.${p.page}`)
         .join(', ');
       const more = s.lexical_pages.length > 8 ? ` … +${s.lexical_pages.length - 8}` : '';
-      return `- ⚠️ \`${s.statement_id}\` — ${texte}\n  Pages à occurrence lexicale : ${pages}${more}`;
+      return `- ⚠️ \`${s.statement_id}\` — ${texte}\n  ${mention}\n  Pages à occurrence lexicale : ${pages}${more}`;
     }),
   ];
 }

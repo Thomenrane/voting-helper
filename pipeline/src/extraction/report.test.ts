@@ -140,6 +140,54 @@ describe('renderReviewSummary', () => {
     expect(withElsewhere).toContain('retrouvée p. 12, 87 mais pas p. 40');
   });
 
+  it('surfaces a rejected statement with lexical occurrences as a flagged silence', () => {
+    const rejectedElsewhere: PositionCandidate = {
+      ...CANDIDATE,
+      statement_id: 's2',
+      citation_page: 40,
+      verdict: { status: 'found_elsewhere', pages: [12, 87] },
+    };
+    const coverage = buildCoverageReport({
+      partyId: 'demo',
+      statements: STATEMENTS,
+      outcomes: [
+        { kind: 'position', statement_id: 's1', position: 2, citation: CANDIDATE },
+        { kind: 'rejected', statement_id: 's2', candidates: [rejectedElsewhere] },
+        { kind: 'no_position', statement_id: 's3' },
+      ],
+      candidates: [CANDIDATE, rejectedElsewhere],
+      chunks: RESULT.chunks,
+      lexicalScans: [
+        { statement_id: 's1', keywords: ['cotisations'], hits: [] },
+        {
+          statement_id: 's2',
+          keywords: ['tva', 'train'],
+          hits: [{ source_id: 'demo-doc', page: 8, terms: ['tva', 'train'] }],
+        },
+        { statement_id: 's3', keywords: ['reacteurs'], hits: [] },
+      ],
+    });
+    const withRejected = renderReviewSummary({
+      partyName: 'Parti Démo',
+      model: 'claude-sonnet-5',
+      runDate: '16/07/2026',
+      statements: STATEMENTS,
+      result: {
+        ...RESULT,
+        outcomes: [
+          { kind: 'position', statement_id: 's1', position: 2, citation: CANDIDATE },
+          { kind: 'rejected', statement_id: 's2', candidates: [rejectedElsewhere] },
+          { kind: 'no_position', statement_id: 's3' },
+        ],
+      },
+      cost: { input_tokens: 1, output_tokens: 1 },
+      coverage,
+    });
+    expect(withRejected).toContain('⚠️ `s2`');
+    expect(withRejected).toContain('position candidate rejetée — citation retrouvée à une autre page ?');
+    expect(withRejected).toContain('demo-doc p.8');
+  });
+
   it('states that human PR review is the validation and shows the cost', () => {
     expect(summary).toContain('review humaine');
     expect(summary).toContain('en_attente');

@@ -41,16 +41,31 @@ export interface LexicalPageRef {
   term_count: number;
 }
 
+/**
+ * Why a non-published statement is flagged for human verification.
+ *  - `lexical_silence` — outcome `no_position`: no position was coded, yet the
+ *    subject occurs in the programme (a possible missed position).
+ *  - `rejected_candidate` — outcome `rejected`: a citation WAS proposed but did
+ *    not survive verification (notably `found_elsewhere`: verbatim quote on the
+ *    wrong page) so nothing was published, even though the subject is present.
+ *
+ * Both end up UNPUBLISHED and both deserve a human look — #39's false negative.
+ */
+export type CoverageFlagKind = 'lexical_silence' | 'rejected_candidate';
+
 export interface StatementCoverage {
   statement_id: string;
   outcome_kind: StatementOutcome['kind'];
   candidate_chunks: CandidateChunk[];
   lexical_pages: LexicalPageRef[];
   /**
-   * True when the statement is « non documentée » YET the lexical scan found
-   * its subject somewhere — a silence a human MUST verify.
+   * True when the statement ends UNPUBLISHED (`no_position` OR `rejected`) YET
+   * the lexical scan found its subject somewhere — a silence a human MUST
+   * verify. `flag_kind` says which of the two shapes it is.
    */
   flagged: boolean;
+  /** Non-null iff `flagged` — distinguishes the two verification cases. */
+  flag_kind: CoverageFlagKind | null;
 }
 
 export interface CoverageReport {
@@ -117,12 +132,24 @@ export function buildCoverageReport(input: BuildCoverageInput): CoverageReport {
       page: hit.page,
       term_count: hit.terms.length,
     }));
+    // A statement is UNPUBLISHED when its merge outcome produced no record:
+    // `no_position` (nothing coded) or `rejected` (a candidate was proposed but
+    // failed verification). Both look like a silence to the user, so both are
+    // flagged when the subject occurs lexically — #39's false negative.
+    const isUnpublished = outcomeKind === 'no_position' || outcomeKind === 'rejected';
+    const flagged = isUnpublished && lexical_pages.length > 0;
+    const flag_kind: CoverageFlagKind | null = !flagged
+      ? null
+      : outcomeKind === 'rejected'
+        ? 'rejected_candidate'
+        : 'lexical_silence';
     return {
       statement_id: statement.id,
       outcome_kind: outcomeKind,
       candidate_chunks: candidateChunksFor(statement.id, candidates),
       lexical_pages,
-      flagged: outcomeKind === 'no_position' && lexical_pages.length > 0,
+      flagged,
+      flag_kind,
     };
   });
 
@@ -133,6 +160,17 @@ export function buildCoverageReport(input: BuildCoverageInput): CoverageReport {
     statements: statementCoverage,
     flagged_count: statementCoverage.filter((s) => s.flagged).length,
   };
+}
+
+/**
+ * The leading verification mention for a flagged statement — single source of
+ * truth so `<parti>.coverage.md` and `<parti>.review.md` word it identically.
+ * The occurrence pages are appended by each renderer (they cap differently).
+ */
+export function coverageFlagMention(flagKind: CoverageFlagKind): string {
+  return flagKind === 'rejected_candidate'
+    ? 'position candidate rejetée — citation retrouvée à une autre page ? — À VÉRIFIER'
+    : 'aucune position codée mais le sujet apparaît dans le programme — À VÉRIFIER';
 }
 
 /** Display cap on the per-statement lexical page list (exact count always shown). */
@@ -180,14 +218,16 @@ export function renderCoverageReport(report: CoverageReport, meta: CoverageMeta)
   const flagged = report.statements.filter((s) => s.flagged);
   const flaggedSection =
     flagged.length === 0
-      ? ['Aucun silence suspect : aucune « non documentée » n’a d’occurrence lexicale.']
+      ? ['Aucun silence suspect : aucun énoncé non publié n’a d’occurrence lexicale.']
       : [
-          `**${flagged.length} silence(s) à vérifier** — « non documentée » avec occurrences`,
-          'lexicales du sujet : le relecteur DOIT confirmer qu’aucune position n’a été manquée.',
+          `**${flagged.length} silence(s) à vérifier** — énoncés non publiés (sans position codée`,
+          'OU citation rejetée) avec occurrences lexicales du sujet : le relecteur DOIT confirmer',
+          'qu’aucune position n’a été manquée.',
           '',
           ...flagged.map((s) => {
             const texte = byId.get(s.statement_id)?.texte_fr ?? s.statement_id;
-            return `- ⚠️ \`${s.statement_id}\` — ${texte}\n  Pages à occurrence : ${formatLexicalPages(s.lexical_pages)}`;
+            const mention = coverageFlagMention(s.flag_kind ?? 'lexical_silence');
+            return `- ⚠️ \`${s.statement_id}\` — ${texte}\n  ${mention}\n  Pages à occurrence : ${formatLexicalPages(s.lexical_pages)}`;
           }),
         ];
 
