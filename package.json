@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspace site",
+    "admit:attest": "node pipeline/src/commands/admit-attest.ts",
     "admit:report": "node pipeline/src/commands/admit-report.ts",
     "admit:source": "node pipeline/src/commands/admit-source.ts",
     "extract:positions": "node pipeline/src/commands/extract-positions.ts",
