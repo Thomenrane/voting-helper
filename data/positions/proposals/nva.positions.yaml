@@ -1,0 +1,60 @@
+# Positions N-VA — pilote couverture auditable (#39) du 18/07/2026 (seam LLM joué par l'agent).
+# Statuts: en_attente = à valider en review de PR; rejete = citation non retrouvée
+# mécaniquement, jamais publiée. Balayage exhaustif de la couche texte attestée; chaque
+# citation vérifiée mécaniquement. Généré par le pilote — ne pas éditer à la main hors review.
+positions:
+  - party_id: nva
+    statement_id: s1
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-18
+  - party_id: nva
+    statement_id: s2
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-18
+  - party_id: nva
+    statement_id: s3
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-18
+  - party_id: nva
+    statement_id: s4
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-18
+  - party_id: nva
+    statement_id: s5
+    position: 2
+    citation:
+      texte: We kiezen voor het maximaal behoud van de bestaande kerncentrales en we
+        bereiden de bouw van nieuwe kerncentrales voor, eventueel in
+        samenwerking met buurlanden.
+      url_source: https://www.n-va.be/sites/n-va.be/files/2024-04/Verkiezingsprogramma.pdf
+      ref_snapshot: nva-programme-2024@20260716T212932871Z
+      page: 23
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-18
+  - party_id: nva
+    statement_id: s6
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-18
+  - party_id: nva
+    statement_id: s7
+    position: 1
+    citation:
+      texte: Daarom pleiten we ervoor om raadplegingen bij een mentale zorgverlener
+        voor jongeren voor het grootste deel terug te betalen.
+      url_source: https://www.n-va.be/sites/n-va.be/files/2024-04/Verkiezingsprogramma.pdf
+      ref_snapshot: nva-programme-2024@20260716T212932871Z
+      page: 32
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-18
+  - party_id: nva
+    statement_id: s8
+    votes_lies: []
+    statut: en_attente
+    derniere_revision: 2026-07-18
