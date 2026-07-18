@@ -20,7 +20,7 @@ const NVA = getExpectedIdentity('nva');
 describe('documentEvidence — depuis une couche texte', () => {
   it('dérive auto-ID, pages réelles et dernière page de TOC', () => {
     const pages = [
-      'Programme fédéral — élections du 9 juin 2024',
+      'Programme pour les élections fédérales du 9 juin 2024',
       [
         'Table des matières',
         'Introduction ......... 3',

@@ -100,7 +100,7 @@ describe('admitPartyFromManifest', () => {
       characters: 1000,
       empty_pages: 0,
     });
-    const pages = ['Programme fédéral — élections du 9 juin 2024'];
+    const pages = ['Programme pour les élections fédérales du 9 juin 2024'];
     while (pages.length < 120) pages.push(`page ${pages.length + 1}`);
     const loader = async (): Promise<ProgrammeTextLayer | null> =>
       layerOf('nva-programme-2024', ...pages);

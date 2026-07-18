@@ -46,23 +46,36 @@ niveau fédéral**, dans les deux langues (FR + NL). La normalisation est
 partagée avec le reste du pipeline (`foldForLexical`) : la comparaison est
 insensible à la casse et aux accents.
 
-Le choix des marqueurs de niveau est **délibérément conservateur** : seuls des
-termes fédéraux **explicites** comptent (« fédéral/federaal », « élections
-fédérales/federale verkiezingen », « Chambre des représentants / Kamer van
-volksvertegenwoordigers »). Une formulation générique — « verkiezingsprogramma
-2024 », « élections 2024 » — n'affirme **aucun** niveau : le 9 juin 2024, les
-scrutins fédéral, régional et européen ont eu lieu le même jour. Un intitulé
-régional-framé qui ne cite pas explicitement le fédéral ne satisfait donc pas
-nettement ce critère.
+Le choix des marqueurs de niveau est **délibérément conservateur** : le
+document doit **se déclarer** programme fédéral, pas seulement **mentionner** le
+fédéral. Seules des **phrases fortes d'auto-désignation** comptent — «
+élections fédérales », « Chambre des représentants », « federale verkiezingen »,
+« kamer van volksvertegenwoordigers » (et variantes proches). Les **jetons nus**
+(« fédéral », « federale », « federaal », « Chambre », « Kamer ») sont
+**exclus** : ils apparaissent dans quasiment tout document politique belge, y
+compris un programme régional/nationaliste flamand qui *parle* du fédéral (« de
+federale overheid », « federale regering », « in de Kamer ») sans en être un ;
+les compter donnerait un faux `level.present` — donc un faux PASS — sur
+exactement les cas durs. Une formulation générique — « verkiezingsprogramma
+2024 », « élections 2024 » — n'affirme **aucun** niveau non plus : le 9 juin
+2024, les scrutins fédéral, régional et européen ont eu lieu le même jour.
+
+L'**année** attendue ne suffit pas isolée (« budget 2024 » ne dit rien) : elle
+doit apparaître **à proximité** d'un marqueur d'auto-désignation de programme
+(« programme », « programma », « verkiezingsprogramma »).
 
 > **Cas tranché — N-VA « Voor Vlaamse Welvaart ».** L'année 2024 est présente,
 > mais le titre est framé « flamand » et le document combine des volets
-> flamand, fédéral et européen : le niveau fédéral n'est pas affirmé nettement
-> dans les premières pages. Verdict conservateur : **UNCERTAIN**, jamais un
-> PASS par défaut → un humain confirme (voir « ré-entrée » ci-dessous).
+> flamand, fédéral et européen. Même quand ses premières pages **discutent** du
+> fédéral (« de federale overheid », « federale regering », « in de Kamer »),
+> aucune **phrase forte d'auto-désignation fédérale** n'y figure : le niveau
+> fédéral n'est pas affirmé nettement. Verdict conservateur : **UNCERTAIN**,
+> jamais un PASS par défaut → un humain confirme (voir « ré-entrée »
+> ci-dessous). C'est précisément le durcissement qui empêche un faux PASS sur ce
+> cas.
 
-Absence de l'année, ou niveau non affirmé → le critère n'est pas nettement
-satisfait → **UNCERTAIN**.
+Absence de l'année (ou année isolée), ou niveau non affirmé par une phrase forte
+→ le critère n'est pas nettement satisfait → **UNCERTAIN**.
 
 ### 2. Complétude
 
