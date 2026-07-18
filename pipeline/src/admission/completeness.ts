@@ -56,6 +56,25 @@ export function checkPartsInventory(
 export const TOC_MIN_ENTRIES = 3;
 
 /**
+ * Facteur de plausibilité d'une référence de page. Sur une TDM multi-colonnes
+ * linéarisée, un vrai numéro de page ressort préfixé d'un chiffre parasite de
+ * la colonne voisine (57 → 9957, cf. #49). Une entrée référençant une page
+ * au-delà de `actualPages × TOC_MAX_PLAUSIBLE_FACTOR` est physiquement
+ * impossible (une TDM ne pointe pas vers une page d'un ordre de grandeur
+ * au-delà du document) : c'est un artefact d'extraction certain, jamais une
+ * troncature. C'est le SEUL filtrage appliqué à la détection.
+ *
+ * Il ne cherche PAS à distinguer une vraie troncature d'un faux positif : tout
+ * débordement sub-5× (les-engagés 701 sur 355 comme une vraie troncature de
+ * queue) REMONTE comme `exceeds`. La distinction troncature-réelle vs artefact
+ * de mise en page est portée par la COUCHE VERDICT (corroboration `pages.within`
+ * → UNCERTAIN vs `pages.outside` → FAIL, cf. `verdict.ts`), pas ici — sinon un
+ * document réellement tronqué mais dans la tolérance de taille passerait au
+ * travers des deux contrôles (fail-open).
+ */
+export const TOC_MAX_PLAUSIBLE_FACTOR = 5;
+
+/**
  * Une entrée de table des matières : un libellé (contenant au moins une
  * lettre), un séparateur de points de conduite OU d'au moins deux espaces,
  * puis un numéro de page final (1 à 4 chiffres). Ancrée en fin de ligne pour
@@ -65,10 +84,26 @@ const TOC_ENTRY = /^\s*(?=.*\p{L})(.*\S)[.… \t]{2,}(\d{1,4})\s*$/u;
 
 /**
  * Détecte une TOC dans le texte fourni (typiquement les premières pages) et
- * renvoie la plus grande page référencée, ou `null` si aucune TOC plausible
+ * renvoie la dernière page qu'elle référence, ou `null` si aucune TOC plausible
  * (moins de TOC_MIN_ENTRIES entrées). Pur et déterministe.
+ *
+ * `actualPages` (nombre réel de pages du document) filtre les artefacts d'ordre
+ * de grandeur des TDM multi-colonnes / à points de conduite (#49) : sur ces
+ * mises en page, un vrai numéro de page ressort parfois préfixé d'un chiffre
+ * parasite de la colonne voisine (57 → 9957), et `Math.max` capterait
+ * l'artefact. Toute référence au-delà de `actualPages × TOC_MAX_PLAUSIBLE_FACTOR`
+ * est donc écartée (une TDM ne pointe jamais un ordre de grandeur au-delà du
+ * document) ; la dernière page est le max des références plausibles restantes.
+ *
+ * C'est le SEUL filtrage ici. La détection ne tranche PAS troncature-réelle vs
+ * faux-positif : tout débordement sub-5× remonte tel quel comme `exceeds`. La
+ * COUCHE VERDICT (corroboration `pages.within` → UNCERTAIN vs `pages.outside` →
+ * FAIL) porte cette distinction — condition nécessaire pour attraper une
+ * troncature de queue restant dans la tolérance de taille (sinon fail-open).
+ *
+ * Sans `actualPages`, comportement brut (max) — aucun filtrage possible.
  */
-export function detectTocLastPage(text: string): number | null {
+export function detectTocLastPage(text: string, actualPages: number | null = null): number | null {
   const references: number[] = [];
   for (const line of text.split(/\r?\n/u)) {
     const match = TOC_ENTRY.exec(line);
@@ -77,7 +112,13 @@ export function detectTocLastPage(text: string): number | null {
     if (Number.isFinite(page)) references.push(page);
   }
   if (references.length < TOC_MIN_ENTRIES) return null;
-  return Math.max(...references);
+  if (actualPages === null) return Math.max(...references);
+
+  // Écarte les seuls artefacts d'un ordre de grandeur au-delà du document ;
+  // les débordements sub-5× remontent comme `exceeds` (tranchés au verdict).
+  const plausible = references.filter((page) => page <= actualPages * TOC_MAX_PLAUSIBLE_FACTOR);
+  if (plausible.length === 0) return null; // TDM entièrement illisible → non concluant.
+  return Math.max(...plausible);
 }
 
 export type TocStatus = 'no-toc' | 'within' | 'exceeds';

@@ -113,17 +113,60 @@ describe('admitParty — FAIL réservé au prouvé-faux', () => {
     expect(parts?.human).toContain('defi-axe-4-2024');
   });
 
-  it('TOC qui déborde les pages réelles → FAIL (troncature)', () => {
-    const mr = getExpectedIdentity('mr');
+  it('TOC qui déborde les pages réelles → FAIL (troncature corroborée par pages hors tolérance)', () => {
+    const mr = getExpectedIdentity('mr'); // 311 p. attendues
     const verdict = admitParty({
       expected: mr,
+      // actual 100 p. << 311 attendues → pages.outside : la troncature est
+      // corroborée par le compte de pages, le débordement de TDM reste FAIL.
       documents: [
         { source_id: 'mr-programme-2024', autoId: PASS_AUTO_ID, actualPages: 100, tocLastPage: 311 },
       ],
       presentSourceIds: ['mr-programme-2024'],
     });
+    expect(verdict.reasons.find((r) => r.check === 'page-tolerance')?.code).toBe('pages.outside');
     expect(verdict.status).toBe('FAIL');
     expect(verdict.reasons.find((r) => r.check === 'toc-bounds')?.code).toBe('toc.exceeds');
+  });
+
+  it('TOC qui déborde MAIS compte de pages conforme → UNCERTAIN, pas FAIL (faux positif TDM multi-colonnes, #49)', () => {
+    // Signature cd&v / les-engagés : le compte de pages passe (document complet)
+    // alors que la TDM linéarisée référence une page au-delà du réel (artefact
+    // de colonne). Les deux signaux se contredisent → escalade humaine, pas un
+    // rejet fail-closed d'une source complète.
+    const input = fullPassInput(); // N-VA, 120 p. attendues
+    const verdict = admitParty({
+      ...input,
+      documents: [{ ...input.documents[0]!, actualPages: 120, tocLastPage: 240 }],
+    });
+    expect(verdict.reasons.find((r) => r.check === 'page-tolerance')?.code).toBe('pages.within');
+    const toc = verdict.reasons.find((r) => r.check === 'toc-bounds');
+    expect(toc?.severity).toBe('UNCERTAIN');
+    expect(toc?.code).toBe('toc.exceeds-uncorroborated');
+    expect(verdict.status).toBe('UNCERTAIN');
+  });
+
+  it('le débordement de TDM contredit (UNCERTAIN) est ratifiable par une attestation humaine (#49/#50)', () => {
+    const sha = 'f'.repeat(64);
+    const input = fullPassInput();
+    const verdict = admitParty({
+      ...input,
+      documents: [
+        {
+          ...input.documents[0]!,
+          actualPages: 120,
+          tocLastPage: 240,
+          snapshotSha256: sha,
+          attestations: [
+            { by: 'humain', at: '2026-07-18T00:00:00Z', note: 'document vérifié complet', criteria: ['toc-bounds'], snapshot_sha256: sha },
+          ],
+        },
+      ],
+    });
+    const toc = verdict.reasons.find((r) => r.check === 'toc-bounds');
+    expect(toc?.code).toBe('toc.attested');
+    expect(toc?.severity).toBe('PASS');
+    expect(verdict.status).toBe('PASS');
   });
 
   it('un FAIL prime sur les UNCERTAIN (pire-cas)', () => {

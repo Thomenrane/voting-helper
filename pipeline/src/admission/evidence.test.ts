@@ -40,6 +40,34 @@ describe('documentEvidence — depuis une couche texte', () => {
     expect(evidence.tocLastPage).toBe(40);
   });
 
+  it('bout-en-bout (#49) : troncature de queue DANS la tolérance de taille → jamais PASS, UNCERTAIN escaladé', () => {
+    // N-VA : 120 p. attendues (tolérance ±18). Document réellement tronqué à
+    // 110 p. (perte 8 %, DANS la tolérance → `pages.within` PASSE). La TDM,
+    // écrite pour le document complet, référence encore les pages coupées
+    // (jusqu'à 116). C'est LE cas qu'aucun contrôle de taille n'attrape : seul
+    // `toc-bounds` peut le voir. detectTocLastPage doit remonter 116 (exceeds),
+    // et la corroboration doit classer UNCERTAIN — surtout PAS un PASS silencieux.
+    const toc = ['Inhoud'];
+    for (let page = 4; page <= 108; page += 4) toc.push(`Hoofdstuk ......... ${String(page)}`);
+    toc.push('Voorlaatste ......... 113');
+    toc.push('Besluit ............. 116');
+    const pages = ['Programme pour les élections fédérales du 9 juin 2024', toc.join('\n')];
+    while (pages.length < 110) pages.push(`Inhoud pagina ${pages.length + 1}`);
+    const input = buildPartyAdmissionInput(
+      NVA,
+      [{ source_id: 'nva-programme-2024', layer: layerOf('nva-programme-2024', ...pages), knownPages: null }],
+      ['nva-programme-2024'],
+    );
+    const verdict = admitParty(input);
+    expect(input.documents[0]?.tocLastPage).toBe(116); // détection : exceeds, non avalé
+    expect(verdict.reasons.find((r) => r.check === 'page-tolerance')?.code).toBe('pages.within');
+    const tocReason = verdict.reasons.find((r) => r.check === 'toc-bounds');
+    expect(tocReason?.severity).toBe('UNCERTAIN');
+    expect(tocReason?.code).toBe('toc.exceeds-uncorroborated');
+    expect(verdict.status).not.toBe('PASS');
+    expect(verdict.status).toBe('UNCERTAIN');
+  });
+
   it('sans couche texte : auto-ID/TOC non évaluées, pages = knownPages', () => {
     const evidence = documentEvidence(
       { source_id: 'nva-programme-2024', layer: null, knownPages: 120 },
