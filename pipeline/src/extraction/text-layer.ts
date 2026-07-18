@@ -76,6 +76,18 @@ export interface TextLayerQuality extends Record<string, number> {
   empty_pages: number;
 }
 
+/**
+ * Media types a `ProgrammeTextLayer` can be built from — the single source of
+ * truth shared by the extraction command's source filter and `ensureTextLayer`'s
+ * dispatch: PDF (#22) and web-chapter HTML (#51).
+ */
+export const TEXT_LAYER_MEDIA_TYPES = ['application/pdf', 'text/html'] as const;
+
+/** True when a source's media type carries a materializable text layer. */
+export function supportsTextLayer(mediaType: string): boolean {
+  return (TEXT_LAYER_MEDIA_TYPES as readonly string[]).includes(mediaType);
+}
+
 /** Derives the per-page text layer from raw PDF bytes. Deterministic. */
 export async function buildTextLayer(
   sourceId: string,
