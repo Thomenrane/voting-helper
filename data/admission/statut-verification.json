@@ -1,0 +1,437 @@
+{
+  "generated_at": "2026-07-18",
+  "parties": [
+    {
+      "party_id": "cdv",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 1 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (442) dans la tolérance de l'attendu (442 ± 67)."
+        }
+      ]
+    },
+    {
+      "party_id": "defi",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 5 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (292) dans la tolérance de l'attendu (292 ± 44)."
+        }
+      ]
+    },
+    {
+      "party_id": "ecolo",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 1 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (338) dans la tolérance de l'attendu (338 ± 51)."
+        }
+      ]
+    },
+    {
+      "party_id": "groen",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 1 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (45) dans la tolérance de l'attendu (45 ± 7)."
+        }
+      ]
+    },
+    {
+      "party_id": "les-engages",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 1 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (355) dans la tolérance de l'attendu (355 ± 54)."
+        }
+      ]
+    },
+    {
+      "party_id": "mr",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 1 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (311) dans la tolérance de l'attendu (311 ± 47)."
+        }
+      ]
+    },
+    {
+      "party_id": "nva",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 1 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (120) dans la tolérance de l'attendu (120 ± 18)."
+        }
+      ]
+    },
+    {
+      "party_id": "open-vld",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 2 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (186) dans la tolérance de l'attendu (186 ± 28)."
+        }
+      ]
+    },
+    {
+      "party_id": "ps",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 1 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (1220) dans la tolérance de l'attendu (1220 ± 183)."
+        }
+      ]
+    },
+    {
+      "party_id": "ptb-pvda",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 2 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.not-applicable",
+          "human": "Pas de pagination attendue (chapitres web) — contrôle de taille non applicable (neutre)."
+        }
+      ]
+    },
+    {
+      "party_id": "vlaams-belang",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 1 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (100) dans la tolérance de l'attendu (100 ± 15)."
+        }
+      ]
+    },
+    {
+      "party_id": "vooruit",
+      "status": "UNCERTAIN",
+      "reasons": [
+        {
+          "check": "auto-id-year",
+          "severity": "UNCERTAIN",
+          "code": "year.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : l'année n'a pas pu être confirmée."
+        },
+        {
+          "check": "auto-id-level",
+          "severity": "UNCERTAIN",
+          "code": "level.not-evaluated",
+          "human": "Auto-identification non exécutée (couche texte indisponible) : le niveau fédéral n'a pas pu être confirmé."
+        },
+        {
+          "check": "parts-inventory",
+          "severity": "PASS",
+          "code": "parts.complete",
+          "human": "Les 1 partie(s) déclarée(s) sont présentes."
+        },
+        {
+          "check": "toc-bounds",
+          "severity": "PASS",
+          "code": "toc.none",
+          "human": "Aucune table des matières exploitable détectée — contrôle de troncature non concluant (neutre)."
+        },
+        {
+          "check": "page-tolerance",
+          "severity": "PASS",
+          "code": "pages.within",
+          "human": "Nombre de pages (288) dans la tolérance de l'attendu (288 ± 44)."
+        }
+      ]
+    }
+  ]
+}
