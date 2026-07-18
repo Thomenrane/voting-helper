@@ -24,7 +24,11 @@ import { readFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { admitPartyFromManifest, fileLayerLoader } from '../admission/admission-service.ts';
+import {
+  admitPartyFromManifest,
+  fileChapterInventoryLoader,
+  fileLayerLoader,
+} from '../admission/admission-service.ts';
 import { getExpectedIdentity } from '../admission/expected-identity.ts';
 import { ensureTextLayer } from '../extraction/text-layer-store.ts';
 import {
@@ -134,7 +138,12 @@ async function main(): Promise<void> {
   }
 
   // Re-passe la porte d'admission.
-  const verdict = await admitPartyFromManifest(manifest, expected, fileLayerLoader(repoRoot, manifest));
+  const verdict = await admitPartyFromManifest(
+    manifest,
+    expected,
+    fileLayerLoader(repoRoot, manifest),
+    fileChapterInventoryLoader(repoRoot, manifest),
+  );
   console.log(`\nNouveau verdict d'admission pour '${partyId}' : ${verdict.status}`);
   for (const reason of verdict.reasons) {
     console.log(`  - [${reason.severity}] ${reason.code} — ${reason.human}`);

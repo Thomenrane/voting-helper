@@ -7,11 +7,21 @@
  * extracts its text (chrome stripped), and assembles the `ProgrammeTextLayer`
  * (chapter = page). This is the HTML sibling of `fileLayerLoader`'s PDF path.
  *
+ * COMPLETENESS is enforced here — the single choke point both admission and
+ * extraction go through — so a partial crawl can never silently yield a layer
+ * over an INCOMPLETE programme: the EXPECTED chapter inventory is re-derived
+ * from the committed index snapshot (`extractChapterLinks`), and materialization
+ * refuses any strict subset. Transparency (which slugs are missing) is published
+ * separately by the `chapters-inventory` admission check, which consumes
+ * `chapterInventory` below.
+ *
  * Fail-closed and conservative — returns `null` (layer NON MATÉRIALISÉE, never
  * a false verdict) when:
  * - no chapter has been snapshotted yet (crawl not run);
- * - any chapter binary is missing locally (binaries are gitignored; partial
- *   crawl → the layer can't be proven complete);
+ * - the expected inventory can't be established (index binary absent/corrupt);
+ * - the snapshotted chapters are a strict subset of the expected ones
+ *   (partial crawl — proven incomplete);
+ * - any chapter binary is missing locally (binaries are gitignored);
  * - any chapter is corrupt (its bytes diverge from the committed fingerprint —
  *   a falsified HTML never yields a layer).
  */
@@ -21,11 +31,13 @@ import { join } from 'node:path';
 
 import {
   latestSnapshot,
+  verifySnapshotIntegrity,
   type SnapshotEntry,
   type SnapshotManifest,
 } from '../snapshot/manifest.ts';
 import { sha256Hex } from '../snapshot/snapshot-store.ts';
-import { chapterSourceIdPrefix } from '../sources/html-chapters.ts';
+import { chapterSourceIdPrefix, extractChapterLinks } from '../sources/html-chapters.ts';
+import type { ChapterInventory } from '../admission/completeness.ts';
 import { buildHtmlChapterLayer, extractChapterText, type ChapterSnapshot } from './html-text-layer.ts';
 import type { ProgrammeTextLayer } from './text-layer.ts';
 
@@ -53,17 +65,67 @@ function slugOf(indexSourceId: string, chapterSourceId: string): string {
 }
 
 /**
+ * Derives the chapter inventory (`ChapterInventory`, defined in the admission
+ * completeness module) for one index source, or `null` when it cannot
+ * be established — the index snapshot is missing, its binary is absent locally
+ * (binaries gitignored), corrupt, or lists no chapter. Reading the committed
+ * index snapshot (integrity-verified) is the single source of truth for the
+ * EXPECTED chapters, consistent with "materialize from pinned snapshots".
+ */
+export async function chapterInventory(
+  repoRoot: string,
+  manifest: SnapshotManifest,
+  indexSourceId: string,
+): Promise<ChapterInventory | null> {
+  const index = latestSnapshot(manifest, indexSourceId);
+  if (index === undefined) return null;
+  const absPath = join(repoRoot, index.file);
+  if (!existsSync(absPath)) return null;
+  const bytes = await readFile(absPath);
+  try {
+    verifySnapshotIntegrity(index, sha256Hex(bytes));
+  } catch {
+    return null;
+  }
+  let expected: string[];
+  try {
+    expected = extractChapterLinks(new TextDecoder().decode(bytes), index.origin_url).map(
+      (link) => link.slug,
+    );
+  } catch {
+    return null; // e.g. crawl-bound exceeded — inventory not establishable
+  }
+  if (expected.length === 0) return null;
+  const present = chapterEntries(manifest, indexSourceId).map((entry) =>
+    slugOf(indexSourceId, entry.source_id),
+  );
+  const presentSet = new Set(present);
+  const expectedSorted = [...expected].sort((a, b) => a.localeCompare(b));
+  return {
+    expected: expectedSorted,
+    present: [...present].sort((a, b) => a.localeCompare(b)),
+    missing: expectedSorted.filter((slug) => !presentSet.has(slug)),
+  };
+}
+
+/**
  * Materializes the HTML chapter text layer for one index source, or `null` when
- * it cannot be proven complete-and-authentic (see module header). Reads bytes
- * and verifies each chapter's integrity against the committed #21 fingerprint.
+ * it cannot be proven complete-and-authentic (see module header). Enforces the
+ * chapter inventory (no strict subset) then verifies each chapter's integrity
+ * against the committed #21 fingerprint.
  */
 export async function materializeHtmlChapterLayer(
   repoRoot: string,
   manifest: SnapshotManifest,
   indexSourceId: string,
 ): Promise<ProgrammeTextLayer | null> {
+  const inventory = await chapterInventory(repoRoot, manifest, indexSourceId);
+  // No establishable inventory, or a strict subset snapshotted (partial crawl):
+  // never materialize a layer over a provably-incomplete programme (fail-closed).
+  if (inventory === null || inventory.present.length === 0 || inventory.missing.length > 0) {
+    return null;
+  }
   const entries = chapterEntries(manifest, indexSourceId);
-  if (entries.length === 0) return null;
   const chapters: ChapterSnapshot[] = [];
   for (const entry of entries) {
     const absPath = join(repoRoot, entry.file);

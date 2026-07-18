@@ -19,7 +19,10 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { materializeHtmlChapterLayer } from '../extraction/chapter-layer-store.ts';
+import {
+  chapterInventory,
+  materializeHtmlChapterLayer,
+} from '../extraction/chapter-layer-store.ts';
 import { buildTextLayer, type ProgrammeTextLayer } from '../extraction/text-layer.ts';
 import {
   latestSnapshot,
@@ -28,6 +31,7 @@ import {
   type SnapshotManifest,
 } from '../snapshot/manifest.ts';
 import { sha256Hex } from '../snapshot/snapshot-store.ts';
+import type { ChapterInventory } from './completeness.ts';
 import { buildPartyAdmissionInput, type DocumentSignals } from './evidence.ts';
 import type { ExpectedIdentity } from './expected-identity.ts';
 import { admitParty, type PartyAdmissionVerdict } from './verdict.ts';
@@ -39,17 +43,28 @@ import { admitParty, type PartyAdmissionVerdict } from './verdict.ts';
  */
 export type LayerLoader = (entry: SnapshotEntry) => Promise<ProgrammeTextLayer | null>;
 
+/**
+ * Établit l'inventaire des chapitres d'un snapshot d'index HTML (#51), ou `null`
+ * (non applicable / non évaluable). Injecté pour garder la logique
+ * manifeste→signaux testable hors système de fichiers.
+ */
+export type ChapterInventoryLoader = (entry: SnapshotEntry) => Promise<ChapterInventory | null>;
+
 export interface PartySignals {
   signals: DocumentSignals[];
   /** `source_id` bruts réellement attestés — l'inventaire des parties. */
   presentSourceIds: string[];
 }
 
+/** Inventaire de chapitres neutre par défaut — sources paginées / tests sans HTML. */
+const NO_INVENTORY: ChapterInventoryLoader = async () => null;
+
 /** Rassemble les signaux d'admission d'un parti depuis le manifeste. */
 export async function collectPartySignals(
   manifest: SnapshotManifest,
   expected: ExpectedIdentity,
   loadLayer: LayerLoader,
+  loadInventory: ChapterInventoryLoader = NO_INVENTORY,
 ): Promise<PartySignals> {
   const signals: DocumentSignals[] = [];
   const presentSourceIds: string[] = [];
@@ -66,6 +81,9 @@ export async function collectPartySignals(
     // Matérialise la couche depuis le snapshot BRUT épinglé quand il est
     // présent localement (intégrité #21 vérifiée dans le loader).
     const layer = raw !== undefined ? await loadLayer(raw) : null;
+    // Inventaire des chapitres (#51) : complétude attendu-vs-snapshoté d'une
+    // source web-chapitres, `null` pour un PDF ou un index non évaluable.
+    const inventory = raw !== undefined ? await loadInventory(raw) : null;
     signals.push({
       source_id: part.source_id,
       layer,
@@ -74,6 +92,7 @@ export async function collectPartySignals(
       // verdict n'honore une attestation que si son empreinte égale celle-ci.
       snapshotSha256: raw?.sha256 ?? null,
       attestations: raw?.criteria_attestations ?? [],
+      chapterInventory: inventory,
     });
   }
   return { signals, presentSourceIds };
@@ -84,8 +103,14 @@ export async function admitPartyFromManifest(
   manifest: SnapshotManifest,
   expected: ExpectedIdentity,
   loadLayer: LayerLoader,
+  loadInventory: ChapterInventoryLoader = NO_INVENTORY,
 ): Promise<PartyAdmissionVerdict> {
-  const { signals, presentSourceIds } = await collectPartySignals(manifest, expected, loadLayer);
+  const { signals, presentSourceIds } = await collectPartySignals(
+    manifest,
+    expected,
+    loadLayer,
+    loadInventory,
+  );
   return admitParty(buildPartyAdmissionInput(expected, signals, presentSourceIds));
 }
 
@@ -123,6 +148,23 @@ export function fileLayerLoader(repoRoot: string, manifest?: SnapshotManifest): 
       return materializeHtmlChapterLayer(repoRoot, manifest, entry.source_id);
     }
     return null;
+  };
+}
+
+/**
+ * Fabrique de `ChapterInventoryLoader` : pour un snapshot d'index HTML (#51),
+ * établit l'inventaire des chapitres (attendus ré-extraits de l'index committé,
+ * intégrité #21 vérifiée, vs. snapshotés) — la référence de complétude qui
+ * alimente le contrôle `chapters-inventory`. `null` pour un PDF ou un index non
+ * évaluable localement (binaire absent / corrompu).
+ */
+export function fileChapterInventoryLoader(
+  repoRoot: string,
+  manifest: SnapshotManifest,
+): ChapterInventoryLoader {
+  return async (entry: SnapshotEntry): Promise<ChapterInventory | null> => {
+    if (entry.media_type !== 'text/html') return null;
+    return chapterInventory(repoRoot, manifest, entry.source_id);
   };
 }
 

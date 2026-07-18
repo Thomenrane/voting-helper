@@ -4,7 +4,11 @@ import { dirname, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { admitPartyFromManifest, fileLayerLoader } from '../admission/admission-service.ts';
+import {
+  admitPartyFromManifest,
+  fileChapterInventoryLoader,
+  fileLayerLoader,
+} from '../admission/admission-service.ts';
 import { getExpectedIdentity } from '../admission/expected-identity.ts';
 import {
   appendSnapshot,
@@ -67,17 +71,27 @@ const CHAPTER = (heading: string, body: string): string =>
   `<html><body><nav class="menu__main">MENU</nav><main><h1>${heading}</h1>` +
   `<p>${body}</p></main><footer class="footer__x">chrome</footer></body></html>`;
 
+/** Index HTML listing exactly `slugs` as chapter links (the expected inventory). */
+const INDEX_HTML = (path: string, slugs: string[]): string =>
+  `<html><body>${slugs.map((s) => `<a href="${path}/${s}">${s}</a>`).join('')}</body></html>`;
+
+/**
+ * Seeds an index and the chapter snapshots. The index links `expectedSlugs` when
+ * given, else exactly the crawled chapters (complete). Passing MORE expected
+ * slugs than crawled models a PARTIAL crawl (incomplete inventory).
+ */
 async function seedIndexWithChapters(
   indexId: string,
   origin: string,
   path: string,
   chapters: { slug: string; heading: string; body: string }[],
+  expectedSlugs?: string[],
 ): Promise<SnapshotManifest> {
   let manifest = emptyManifest('t', 'n');
   manifest = await seedHtml(
     manifest,
     htmlSource(indexId, `${origin}${path}`),
-    '<html><body><a href="' + path + '/x">x</a></body></html>',
+    INDEX_HTML(path, expectedSlugs ?? chapters.map((c) => c.slug)),
     '2026-07-16T13:00:00.000Z',
   );
   for (const chapter of chapters) {
@@ -131,6 +145,21 @@ describe('materializeHtmlChapterLayer', () => {
     expect(await materializeHtmlChapterLayer(repoRoot, manifest, 'ptb-programme-2024')).toBeNull();
   });
 
+  it('returns null on a partial crawl — snapshotted chapters are a strict subset of expected', async () => {
+    // Index links 3 chapters; only 2 are snapshotted (the crawl 40/48 case).
+    const manifest = await seedIndexWithChapters(
+      'ptb-programme-2024',
+      'https://www.ptb.be',
+      '/programme',
+      [
+        { slug: 'agriculture', heading: 'Agriculture', body: 'a' },
+        { slug: 'justice-fiscale', heading: 'Justice', body: 'b' },
+      ],
+      ['agriculture', 'justice-fiscale', 'securite-sociale'],
+    );
+    expect(await materializeHtmlChapterLayer(repoRoot, manifest, 'ptb-programme-2024')).toBeNull();
+  });
+
   it('returns null when a chapter is falsified (committed fingerprint diverges)', async () => {
     const manifest = await seedIndexWithChapters('ptb-programme-2024', 'https://www.ptb.be', '/programme', [
       { slug: 'agriculture', heading: 'Agriculture', body: 'x' },
@@ -170,29 +199,77 @@ describe('admission of PTB-PVDA once chapters are crawled (#51)', () => {
         '2026-07-16T13:10:00.000Z',
       );
     }
-    // The pvda index snapshot itself.
+    // The pvda index snapshot itself, listing its two chapters.
     manifest = await seedHtml(
       manifest,
       htmlSource('pvda-programme-2024', 'https://www.pvda.be/programma'),
-      '<html></html>',
+      INDEX_HTML('/programma', ['fiscale-rechtvaardigheid', 'inleiding']),
       '2026-07-16T13:00:00.000Z',
     );
     return manifest;
   }
 
-  it('renders a real verdict (auto-id evaluated), no longer NON MATÉRIALISÉ', async () => {
+  it('renders a real verdict (auto-id + chapters-inventory evaluated), no longer NON MATÉRIALISÉ', async () => {
     const manifest = await seedPtbPvda();
     const verdict = await admitPartyFromManifest(
       manifest,
       getExpectedIdentity('ptb-pvda'),
       fileLayerLoader(repoRoot, manifest),
+      fileChapterInventoryLoader(repoRoot, manifest),
     );
     expect(verdict.status).not.toBe('NOT_MATERIALIZED');
     const level = verdict.reasons.find((r) => r.check === 'auto-id-level');
     const year = verdict.reasons.find((r) => r.check === 'auto-id-year');
     expect(level?.code).not.toBe('level.not-materialized');
     expect(year?.code).not.toBe('year.not-materialized');
+    // Inventaire complet des chapitres (miroir de parts.complete).
+    expect(verdict.reasons.find((r) => r.check === 'chapters-inventory')?.code).toBe(
+      'chapters.complete',
+    );
     expect(verdict.status).toBe('PASS');
+  });
+
+  it('crawl PARTIEL (un chapitre attendu manquant) → FAIL chapters.incomplete, JAMAIS un PASS silencieux', async () => {
+    // ptb: l'index attend 3 chapitres, seuls 2 sont crawlés (40/48 en miniature).
+    let manifest = await seedIndexWithChapters(
+      'ptb-programme-2024',
+      'https://www.ptb.be',
+      '/programme',
+      [
+        { slug: 'introduction', heading: 'Introduction', body: 'Programme 2024 élections fédérales.' },
+        { slug: 'justice-fiscale', heading: 'Justice', body: 'Taxe.' },
+      ],
+      ['introduction', 'justice-fiscale', 'securite-sociale'], // 3 attendus, 1 manquant
+    );
+    // pvda complet, pour isoler l'incomplétude sur ptb.
+    for (const chapter of [
+      { slug: 'inleiding', heading: 'Inleiding', body: 'Programma 2024 federale verkiezingen.' },
+    ]) {
+      manifest = await seedHtml(
+        manifest,
+        htmlSource(chapterSourceId('pvda-programme-2024', chapter.slug), `https://www.pvda.be/programma/${chapter.slug}`),
+        CHAPTER(chapter.heading, chapter.body),
+        '2026-07-16T13:10:00.000Z',
+      );
+    }
+    manifest = await seedHtml(
+      manifest,
+      htmlSource('pvda-programme-2024', 'https://www.pvda.be/programma'),
+      INDEX_HTML('/programma', ['inleiding']),
+      '2026-07-16T13:00:00.000Z',
+    );
+
+    const verdict = await admitPartyFromManifest(
+      manifest,
+      getExpectedIdentity('ptb-pvda'),
+      fileLayerLoader(repoRoot, manifest),
+      fileChapterInventoryLoader(repoRoot, manifest),
+    );
+    expect(verdict.status).not.toBe('PASS'); // le point du MAJOR : jamais PASS sur incomplet
+    expect(verdict.status).toBe('FAIL');
+    const chapters = verdict.reasons.find((r) => r.check === 'chapters-inventory');
+    expect(chapters?.code).toBe('chapters.incomplete');
+    expect(chapters?.human).toContain('securite-sociale'); // slug manquant listé (transparent)
   });
 
   it('a falsified chapter yields no layer → back to NON MATÉRIALISÉ (fail-closed)', async () => {
@@ -214,6 +291,7 @@ describe('admission of PTB-PVDA once chapters are crawled (#51)', () => {
       tampered,
       getExpectedIdentity('ptb-pvda'),
       fileLayerLoader(repoRoot, tampered),
+      fileChapterInventoryLoader(repoRoot, tampered),
     );
     expect(verdict.status).toBe('NOT_MATERIALIZED');
   });

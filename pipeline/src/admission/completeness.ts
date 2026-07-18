@@ -49,6 +49,70 @@ export function checkPartsInventory(
 }
 
 // ---------------------------------------------------------------------------
+// 1.bis Inventaire des chapitres web (#51)
+// ---------------------------------------------------------------------------
+
+/**
+ * Inventaire des chapitres d'UNE source web-chapitres : les slugs ATTENDUS
+ * (ré-extraits du snapshot d'index committé) vs. les slugs réellement
+ * SNAPSHOTÉS, et l'écart. C'est la référence de complétude d'un `web-chapters`,
+ * l'exact miroir de `PartsInventoryResult` pour les `n-booklets` : un
+ * sous-ensemble strict est une incomplétude prouvée (crawl partiel).
+ */
+export interface ChapterInventory {
+  /** Slugs de chapitres liés par l'index (triés). */
+  expected: string[];
+  /** Slugs de chapitres effectivement snapshotés (triés). */
+  present: string[];
+  /** Slugs attendus non snapshotés — un sous-ensemble strict ⇒ crawl partiel. */
+  missing: string[];
+}
+
+export type ChaptersInventoryStatus =
+  | 'not-applicable'
+  | 'not-materialized'
+  | 'complete'
+  | 'incomplete';
+
+export interface ChaptersInventoryResult {
+  status: ChaptersInventoryStatus;
+  /** Slugs manquants, agrégés sur tous les documents web-chapitres du parti. */
+  missing: string[];
+  /** Total de chapitres attendus, agrégé (0 quand non applicable). */
+  expectedTotal: number;
+}
+
+/**
+ * Agrège les inventaires de chapitres des documents d'un parti en un constat de
+ * complétude. Conservateur et fail-closed :
+ * - aucun inventaire fourni (source paginée, ou inventaire non évaluable) →
+ *   `not-applicable` (neutre) ;
+ * - des chapitres attendus mais AUCUN snapshoté (crawl non lancé) →
+ *   `not-materialized` (honnête : pas encore évalué, pas un échec) ;
+ * - au moins un chapitre snapshoté mais des attendus manquants (sous-ensemble
+ *   strict) → `incomplete` (prouvé-incomplet, comme `parts.incomplete`) ;
+ * - tous les attendus présents → `complete`.
+ */
+export function checkChaptersInventory(
+  inventories: readonly ChapterInventory[],
+): ChaptersInventoryResult {
+  const evaluable = inventories.filter((inventory) => inventory.expected.length > 0);
+  if (evaluable.length === 0) {
+    return { status: 'not-applicable', missing: [], expectedTotal: 0 };
+  }
+  const missing = evaluable.flatMap((inventory) => inventory.missing);
+  const anyPresent = evaluable.some((inventory) => inventory.present.length > 0);
+  const expectedTotal = evaluable.reduce((total, inventory) => total + inventory.expected.length, 0);
+  if (missing.length === 0) {
+    return { status: 'complete', missing: [], expectedTotal };
+  }
+  if (!anyPresent) {
+    return { status: 'not-materialized', missing, expectedTotal };
+  }
+  return { status: 'incomplete', missing, expectedTotal };
+}
+
+// ---------------------------------------------------------------------------
 // 2. Table des matières → dernière page référencée
 // ---------------------------------------------------------------------------
 
