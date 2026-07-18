@@ -105,7 +105,9 @@ stables) et par **humain**. Deux principes :
   FAIL.
 
 Le statut global est la pire sévérité rencontrée (un FAIL → FAIL ; sinon un
-UNCERTAIN → UNCERTAIN ; sinon PASS).
+UNCERTAIN → UNCERTAIN ; sinon PASS). Un critère UNCERTAIN **ratifié** par une
+attestation humaine valide (voir `admit:attest` ci-dessous) devient PASS
+**attesté** ; un FAIL ou un NON MATÉRIALISÉ n'est jamais ratifiable.
 
 ## Le chemin de ré-entrée humain (garde-fou)
 
@@ -121,6 +123,58 @@ intervient. La commande `npm run admit:source` (`admit-source.ts`) :
    `npm run admit:report` ;
 4. re-dérive la couche texte du nouveau document et **re-passe la porte** ;
 5. le nouveau verdict est imprimé. Si toujours non-PASS, la porte reste fermée.
+
+## La ratification d'un critère (attestation humaine) — `admit:attest`
+
+`admit:source` **remplace** un document ; il ne répond pas au cas où le document
+est **déjà le bon** mais où la porte n'arrive pas à **auto-confirmer** un
+critère. Cas réel : le scrutin du 9 juin 2024 était fédéral, régional et
+européen le même jour, si bien que la plupart des couvertures disent «
+Élections du 9 juin 2024 » ou « Verkiezingsprogramma 2024 » sans le mot «
+fédéral ». Le document est correct, mais `auto-id-level` reste **UNCERTAIN**, et
+re-fournir le même bon PDF via `admit:source` ne change rien.
+
+`npm run admit:attest` est le chemin de **ratification** : un humain vérifie le
+document et **ratifie un critère UNCERTAIN précis**, ce qui le fait passer à
+**PASS attesté** — publié *distinctement* d'un PASS automatique.
+
+```
+npm run admit:attest -- --party ps --criteria auto-id-level \
+  --by "Thomas" --note "Couverture « Élections du 9 juin 2024 » vérifiée à la main"
+```
+
+La commande recalcule le verdict courant, attache une **attestation de critère**
+(qui, quand, note, et le **SHA-256** du snapshot épinglé) au snapshot brut
+**actuellement épinglé** du parti, sauvegarde le manifeste et re-passe la porte.
+Sans réseau ni clé, sans `--file` (le document est déjà snapshoté).
+
+### Ce qu'une attestation peut et ne peut PAS outrepasser
+
+- **Seul un critère UNCERTAIN est ratifiable.** Un critère **FAIL** (prouvé-faux
+  — partie manquante, TOC qui déborde) ou **NON MATÉRIALISÉ** (binaire absent,
+  non évalué) est **refusé** : on corrige le document ou on matérialise le
+  snapshot d'abord, on ne « ratifie » jamais un échec ou un contrôle non
+  exécuté. Les contrôles qui ne produisent que PASS/FAIL (`parts-inventory`,
+  `toc-bounds`) ne sont pas ratifiables du tout ; seuls le sont ceux qui peuvent
+  valoir UNCERTAIN : `auto-id-year`, `auto-id-level`, `page-tolerance`.
+- **Périmètre du critère.** Une attestation ne ratifie que le(s) critère(s)
+  **nommé(s)**. Les autres continuent d'être évalués normalement : un
+  `toc.exceeds` réel reste FAIL même si `auto-id-level` est attesté, et le parti
+  ne sort **pas** PASS (l'agrégation pire-cas est préservée).
+- **Liée à l'empreinte.** L'attestation référence le SHA-256 du snapshot au
+  moment de la ratification. Si le document change (re-fetch / remplacement via
+  `admit:source`), l'empreinte courante diverge, l'attestation est **invalidée**
+  et le critère **redevient UNCERTAIN**. On ne peut pas attester le document A
+  puis lui substituer B en gardant le PASS.
+
+### Comment elle est publiée
+
+`admit:report` marque un tel verdict **`✅ PASS (attesté)`**, distinct d'un `✅
+PASS` automatique, compte les partis attestés dans le bilan, et liste chaque
+critère ratifié avec **attestant, date et note** — dans le résumé du tableau et
+le détail par parti. Le lecteur voit ainsi ce qui est **machine** (auto-confirmé)
+vs **humain** (ratifié). Le JSON machine porte la trace d'attestation pour la
+contestation.
 
 ## Statut publié
 
@@ -154,15 +208,17 @@ critère bloque, pour que la contestation et la review humaine s'y appliquent.
 Pour lever un UNCERTAIN persistant sur l'identité d'une source (typiquement « ce
 document est-il bien votre programme fédéral 2024 complet ? »), l'option la plus
 robuste est de **demander confirmation directe au parti** et d'archiver la
-réponse comme attestation via le chemin de ré-entrée. C'est une démarche
-**opérationnelle documentée**, hors code : elle transforme un doute mécanique
-irréductible en une attestation humaine sourcée et publiée. À réserver aux cas
-où l'auto-identification et la review ne suffisent pas à trancher.
+réponse comme attestation. Selon le cas, on ratifie alors le critère UNCERTAIN
+via `admit:attest` (le document épinglé est le bon) ou on re-fournit le document
+via `admit:source` (il faut le remplacer). C'est une démarche **opérationnelle
+documentée** : elle transforme un doute mécanique irréductible en une
+attestation humaine sourcée et publiée. À réserver aux cas où
+l'auto-identification et la review ne suffisent pas à trancher.
 
 ## État actuel du frontend (mode démo)
 
 L'admission s'exécute côté pipeline (commandes `admit:report`, `admit:source`,
-et la porte câblée dans `extract:positions`). Le statut publié est un document
+`admit:attest`, et la porte câblée dans `extract:positions`). Le statut publié est un document
 committé ; aucune page de site dédiée n'est encore exposée. En l'absence des
 binaires de couche texte en local (gitignorés, #21), le statut de référence est
 conservateur — tous les partis en UNCERTAIN tant que l'auto-identification n'est

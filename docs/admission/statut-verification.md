@@ -17,22 +17,30 @@ réel, ni un échec — c'est « pas encore évalué faute de binaire ». Quand 
 binaire est présent, `admit:report` re-dérive la couche depuis le snapshot
 épinglé (intégrité SHA-256 #21) et publie le VRAI PASS/UNCERTAIN/FAIL.
 
+**PASS (attesté)** (#50) distingue un PASS obtenu par **ratification humaine**
+d'un critère UNCERTAIN — un humain a vérifié le document et l'a ratifié via
+`npm run admit:attest`, l'attestation étant liée à l'empreinte SHA-256 du
+snapshot épinglé. Une attestation ne ratifie que le critère nommé et ne peut
+PAS transformer un FAIL (prouvé-faux) ni un NON MATÉRIALISÉ en PASS ; remplacer
+le document l'invalide. Chaque ratification est publiée ci-dessous (qui, quand,
+pourquoi).
+
 **Bilan :** 0 PASS · 0 UNCERTAIN · 0 FAIL · 12 NON MATÉRIALISÉ (12 partis).
 
 | Parti | Verdict | Résumé |
 |---|---|---|
-| cdv | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| defi | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| ecolo | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| groen | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| les-engages | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| mr | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| nva | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| open-vld | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| ps | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| ptb-pvda | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| vlaams-belang | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
-| vooruit | ⚪ NON MATÉRIALISÉ | year.not-materialized, level.not-materialized |
+| cdv | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| defi | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| ecolo | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| groen | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| les-engages | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| mr | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| nva | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| open-vld | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| ps | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| ptb-pvda | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| vlaams-belang | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
+| vooruit | ⚪ NON MATÉRIALISÉ | year.not-materialized · level.not-materialized |
 
 ## Détail par parti
 

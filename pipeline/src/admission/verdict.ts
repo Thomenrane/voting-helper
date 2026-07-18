@@ -36,6 +36,7 @@ import {
   checkTocWithinBounds,
 } from './completeness.ts';
 import type { ExpectedIdentity } from './expected-identity.ts';
+import type { CriterionAttestation } from '../snapshot/manifest.ts';
 
 /**
  * Sévérité d'un constat / verdict publié d'un parti.
@@ -53,6 +54,26 @@ export type AdmissionCheck =
   | 'toc-bounds'
   | 'page-tolerance';
 
+/**
+ * Contrôles RATIFIABLES par une attestation humaine (#50) : ceux dont le
+ * constat peut valoir UNCERTAIN (doute réel escaladable). `parts-inventory` et
+ * `toc-bounds` en sont exclus — ils ne produisent que PASS ou FAIL, et un FAIL
+ * (prouvé-faux) n'est jamais ratifiable.
+ */
+export const ATTESTABLE_CHECKS = ['auto-id-year', 'auto-id-level', 'page-tolerance'] as const;
+
+/** Vrai si un `check` (chaîne libre, ex. issue de la CLI) est ratifiable. */
+export function isAttestableCheck(check: string): check is AdmissionCheck {
+  return (ATTESTABLE_CHECKS as readonly string[]).includes(check);
+}
+
+/** Trace de ratification portée par une raison PASS attestée (publiée). */
+export interface ReasonAttestation {
+  by: string;
+  at: string;
+  note: string;
+}
+
 export interface AdmissionReason {
   check: AdmissionCheck;
   /** Sévérité de CE constat (contribue au pire-cas global). */
@@ -61,6 +82,11 @@ export interface AdmissionReason {
   code: string;
   /** Raison lisible par un humain (FR). */
   human: string;
+  /**
+   * Présent quand une attestation humaine VALIDE (#50) a levé ce critère
+   * d'UNCERTAIN à PASS. Publié distinctement d'un PASS automatique.
+   */
+  attestation?: ReasonAttestation;
 }
 
 export interface PartyAdmissionVerdict {
@@ -82,6 +108,14 @@ export interface DocumentEvidence {
   actualPages: number | null;
   /** Dernière page référencée par la TOC détectée, ou `null` (aucune/non évaluée). */
   tocLastPage: number | null;
+  /**
+   * SHA-256 (hex) du snapshot brut ACTUELLEMENT épinglé de ce document, ou
+   * `null` si aucun. Sert à valider une attestation de critère (#50) : une
+   * attestation n'est honorée que si son empreinte égale celle-ci.
+   */
+  snapshotSha256?: string | null;
+  /** Attestations de critère portées par le snapshot épinglé de ce document (#50). */
+  attestations?: readonly CriterionAttestation[];
 }
 
 export interface PartyAdmissionInput {
@@ -253,18 +287,75 @@ function pagesReason(input: PartyAdmissionInput): AdmissionReason {
 }
 
 /**
- * Verdict d'admission d'un parti. Émet exactement une raison par contrôle, puis
- * agrège au pire-cas. Conservateur : PASS exige que tous les critères soient
- * nettement satisfaits.
+ * Résout les critères couverts par une attestation humaine VALIDE (#50).
+ *
+ * Une attestation n'est retenue que si son empreinte (`snapshot_sha256`) égale
+ * celle du snapshot ACTUELLEMENT épinglé du document — remplacer le document
+ * invalide l'attestation, le critère redevient UNCERTAIN. Seuls les contrôles
+ * ratifiables (`ATTESTABLE_CHECKS`) sont pris en compte. Le premier ratifiant
+ * rencontré pour un critère fait foi (trace publiée).
+ */
+function resolveAttestedChecks(
+  input: PartyAdmissionInput,
+): Map<AdmissionCheck, ReasonAttestation> {
+  const attested = new Map<AdmissionCheck, ReasonAttestation>();
+  for (const doc of input.documents) {
+    const sha = doc.snapshotSha256 ?? null;
+    if (sha === null) continue;
+    for (const att of doc.attestations ?? []) {
+      if (att.snapshot_sha256 !== sha) continue; // empreinte divergente → ignorée
+      for (const criterion of att.criteria) {
+        if (!isAttestableCheck(criterion) || attested.has(criterion)) continue;
+        attested.set(criterion, { by: att.by, at: att.at, note: att.note });
+      }
+    }
+  }
+  return attested;
+}
+
+/**
+ * Transforme un constat UNCERTAIN ratifié en PASS attesté — code dédié
+ * (`<préfixe>.attested`), message humain nommant l'attestant, la date et la
+ * note. N'est jamais appliqué à un FAIL ou un NOT_MATERIALIZED.
+ */
+function attestReason(reason: AdmissionReason, att: ReasonAttestation): AdmissionReason {
+  const prefix = reason.code.split('.')[0] ?? reason.check;
+  return {
+    check: reason.check,
+    severity: 'PASS',
+    code: `${prefix}.attested`,
+    human:
+      `Critère ratifié manuellement par ${att.by} le ${att.at.slice(0, 10)} — ${att.note} ` +
+      `(UNCERTAIN levé par attestation humaine, liée à l'empreinte SHA-256 du snapshot épinglé ; ` +
+      `le document reste inchangé).`,
+    attestation: att,
+  };
+}
+
+/**
+ * Verdict d'admission d'un parti. Émet exactement une raison par contrôle,
+ * applique les attestations humaines valides (#50) — un UNCERTAIN ratifié
+ * devient PASS attesté, un FAIL/NOT_MATERIALIZED n'est JAMAIS converti — puis
+ * agrège au pire-cas. Conservateur : sans attestation valide, PASS exige que
+ * tous les critères soient nettement satisfaits.
  */
 export function admitParty(input: PartyAdmissionInput): PartyAdmissionVerdict {
-  const reasons: AdmissionReason[] = [
+  const baseReasons: AdmissionReason[] = [
     yearReason(input),
     levelReason(input),
     partsReason(input),
     tocReason(input),
     pagesReason(input),
   ];
+  const attested = resolveAttestedChecks(input);
+  const reasons = baseReasons.map((reason) => {
+    const att = attested.get(reason.check);
+    // Seul un doute réel (UNCERTAIN) est ratifiable : FAIL et NOT_MATERIALIZED
+    // restent intacts même si une attestation les nomme (garde-fou fail-closed).
+    return reason.severity === 'UNCERTAIN' && att !== undefined
+      ? attestReason(reason, att)
+      : reason;
+  });
   return {
     party_id: input.expected.party_id,
     status: worst(reasons),

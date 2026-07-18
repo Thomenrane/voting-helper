@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   appendSnapshot,
+  attachCriterionAttestation,
   buildSnapshotEntry,
   compactTimestamp,
+  type CriterionAttestation,
   DuplicateSnapshotError,
   emptyManifest,
   latestSnapshot,
@@ -162,6 +164,47 @@ describe('appendSnapshot — immutability', () => {
     expect(second?.content_unchanged_from).toBe(first?.snapshot_id);
     expect(second?.file).toBe(first?.file);
     expect(second?.snapshot_id).not.toBe(first?.snapshot_id);
+  });
+});
+
+describe('attachCriterionAttestation — ratification humaine liée à l\'empreinte (#50)', () => {
+  const ATT: CriterionAttestation = {
+    criteria: ['auto-id-level'],
+    by: 'Thomas',
+    at: '2026-07-18T10:00:00.000Z',
+    note: 'Couverture « Élections du 9 juin 2024 » vérifiée à la main.',
+    snapshot_sha256: 'a'.repeat(64),
+  };
+
+  function seeded(): { manifest: ReturnType<typeof appendSnapshot>; id: string } {
+    const entry = entryAt('2026-07-16T13:07:42.000Z', 'a'.repeat(64));
+    return { manifest: appendSnapshot(emptyManifest('t', 'n'), entry), id: entry.snapshot_id };
+  }
+
+  it('attache l\'attestation à l\'entrée épinglée sans muter l\'entrée d\'origine', () => {
+    const { manifest, id } = seeded();
+    const next = attachCriterionAttestation(manifest, id, ATT);
+    expect(manifest.snapshots[0]?.criteria_attestations).toBeUndefined();
+    expect(next.snapshots[0]?.criteria_attestations).toEqual([ATT]);
+  });
+
+  it('est idempotente sur une re-ratification identique (dedup)', () => {
+    const { manifest, id } = seeded();
+    const once = attachCriterionAttestation(manifest, id, ATT);
+    const twice = attachCriterionAttestation(once, id, { ...ATT, at: '2026-07-19T09:00:00.000Z' });
+    expect(twice.snapshots[0]?.criteria_attestations).toHaveLength(1);
+  });
+
+  it('empile des attestations distinctes (autre critère / autre ratifiant)', () => {
+    const { manifest, id } = seeded();
+    const once = attachCriterionAttestation(manifest, id, ATT);
+    const twice = attachCriterionAttestation(once, id, { ...ATT, criteria: ['auto-id-year'] });
+    expect(twice.snapshots[0]?.criteria_attestations).toHaveLength(2);
+  });
+
+  it('lève si le snapshot ciblé est absent', () => {
+    const { manifest } = seeded();
+    expect(() => attachCriterionAttestation(manifest, 'unknown@x', ATT)).toThrow(/no snapshot/i);
   });
 });
 

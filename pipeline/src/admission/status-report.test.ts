@@ -104,3 +104,65 @@ describe('renderStatusMarkdown', () => {
     expect(md).toContain('admit:source');
   });
 });
+
+describe('renderStatusMarkdown — PASS attesté distinct (#50)', () => {
+  const ATTESTED_VERDICT: PartyAdmissionVerdict = {
+    party_id: 'vooruit',
+    status: 'PASS',
+    reasons: [
+      {
+        check: 'auto-id-level',
+        severity: 'PASS',
+        code: 'level.attested',
+        human: 'Critère ratifié manuellement par Thomas le 2026-07-18 — couverture vérifiée.',
+        attestation: { by: 'Thomas', at: '2026-07-18T10:00:00.000Z', note: 'couverture vérifiée' },
+      },
+      { check: 'auto-id-year', severity: 'PASS', code: 'year.present', human: 'année là' },
+    ],
+  };
+
+  const md = renderStatusMarkdown(buildStatusReport([ATTESTED_VERDICT, PASS_VERDICT], '2026-07-18'));
+
+  it('marque le PASS attesté distinctement d\'un PASS automatique', () => {
+    expect(md).toContain('✅ PASS (attesté)');
+    // Le PS reste un PASS automatique (badge sans « (attesté) »).
+    expect(md).toContain('| ps | ✅ PASS |');
+  });
+
+  it('compte les partis attestés dans le bilan', () => {
+    expect(md).toContain('2 PASS (dont 1 attesté)');
+  });
+
+  it('liste le critère ratifié avec attestant, date et note', () => {
+    expect(md).toContain('level.attested');
+    expect(md).toContain('ratifié par **Thomas** le 2026-07-18');
+    expect(md).toContain('couverture vérifiée');
+  });
+
+  it('explique ce qu\'une attestation ne peut pas outrepasser', () => {
+    expect(md).toContain('admit:attest');
+    expect(md).toContain('ne peut');
+  });
+});
+
+describe('renderStatusJson — l\'attestation est publiée pour la machine (#50)', () => {
+  const ATTESTED_VERDICT: PartyAdmissionVerdict = {
+    party_id: 'vooruit',
+    status: 'PASS',
+    reasons: [
+      {
+        check: 'auto-id-level',
+        severity: 'PASS',
+        code: 'level.attested',
+        human: 'ratifié',
+        attestation: { by: 'Thomas', at: '2026-07-18T10:00:00.000Z', note: 'couverture vérifiée' },
+      },
+    ],
+  };
+
+  it('sérialise la trace d\'attestation dans le JSON', () => {
+    const json = renderStatusJson(buildStatusReport([ATTESTED_VERDICT], '2026-07-18'));
+    const parsed = JSON.parse(json) as { parties: PartyAdmissionVerdict[] };
+    expect(parsed.parties[0]?.reasons[0]?.attestation?.by).toBe('Thomas');
+  });
+});

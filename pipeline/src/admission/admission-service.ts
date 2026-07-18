@@ -65,7 +65,15 @@ export async function collectPartySignals(
     // Matérialise la couche depuis le snapshot BRUT épinglé quand il est
     // présent localement (intégrité #21 vérifiée dans le loader).
     const layer = raw !== undefined ? await loadLayer(raw) : null;
-    signals.push({ source_id: part.source_id, layer, knownPages });
+    signals.push({
+      source_id: part.source_id,
+      layer,
+      knownPages,
+      // Empreinte et attestations de critère (#50) du snapshot épinglé : le
+      // verdict n'honore une attestation que si son empreinte égale celle-ci.
+      snapshotSha256: raw?.sha256 ?? null,
+      attestations: raw?.criteria_attestations ?? [],
+    });
   }
   return { signals, presentSourceIds };
 }

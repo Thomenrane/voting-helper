@@ -37,6 +37,39 @@ export interface SourceAttestation {
   note?: string;
 }
 
+/**
+ * Human ratification of a specific admission CRITERION (#50). Distinct from
+ * `SourceAttestation` (which vouches for a manually-sourced document): here the
+ * document is already the correct, already-snapshotted one, and a human ratifies
+ * a criterion the gate cannot auto-confirm (e.g. `auto-id-level`, when the June
+ * 9 2024 ballot shared its date across the federal/regional/European levels).
+ *
+ * A criterion attestation is bound to the raw snapshot's SHA-256 at ratification
+ * time: it is honoured ONLY while the pinned snapshot still bears that
+ * fingerprint. Replacing the document (a new snapshot) leaves the old
+ * attestation behind, the criterion reverts to UNCERTAIN — one cannot attest
+ * document A and then substitute B while keeping the PASS.
+ */
+export interface CriterionAttestation {
+  /**
+   * Verdict `check` values ratified by this attestation (e.g. `auto-id-level`,
+   * `auto-id-year`). Only checks that can be UNCERTAIN are ratifiable.
+   */
+  criteria: string[];
+  /** Who ratified the criterion (human name or handle). */
+  by: string;
+  /** ISO 8601 UTC datetime of the ratification. */
+  at: string;
+  /** Free-text justification (why the criterion is genuinely satisfied). */
+  note: string;
+  /**
+   * SHA-256 (hex) of the raw snapshot at ratification time. The attestation is
+   * ignored — the criterion reverts to UNCERTAIN — as soon as the pinned
+   * snapshot's fingerprint diverges from this value.
+   */
+  snapshot_sha256: string;
+}
+
 /** `raw` = bytes as fetched from the source; `derived` = produced by the pipeline. */
 export type SnapshotKind = 'raw' | 'derived';
 
@@ -98,6 +131,13 @@ export interface SnapshotEntry {
    * through the admission re-entry path (#42). Recorded and published.
    */
   attestation?: SourceAttestation;
+  /**
+   * Human criterion ratifications (#50), bound to this snapshot's fingerprint.
+   * Attached in place by `admit:attest` to the currently-pinned raw snapshot;
+   * consumed by the admission verdict to lift a genuinely-satisfied UNCERTAIN
+   * criterion to PASS. Never present on a snapshot that has been superseded.
+   */
+  criteria_attestations?: CriterionAttestation[];
   provenance: string;
 }
 
@@ -246,4 +286,41 @@ export function verifySnapshotIntegrity(entry: SnapshotEntry, actualSha256: stri
   if (entry.sha256 !== actualSha256) {
     throw new SnapshotCorruptionError(entry, actualSha256);
   }
+}
+
+/** Two criterion attestations are equivalent (ignoring the timestamp of the run). */
+function sameCriterionAttestation(a: CriterionAttestation, b: CriterionAttestation): boolean {
+  return (
+    a.by === b.by &&
+    a.note === b.note &&
+    a.snapshot_sha256 === b.snapshot_sha256 &&
+    [...a.criteria].sort().join(',') === [...b.criteria].sort().join(',')
+  );
+}
+
+/**
+ * Attaches a criterion attestation (#50) to an existing snapshot, in place —
+ * metadata annotation, not a byte replacement, so snapshot immutability holds.
+ * Never mutates the input manifest. An identical re-run is idempotent (dedup by
+ * ratifier + note + criteria + fingerprint). Raises when the snapshot is absent.
+ */
+export function attachCriterionAttestation(
+  manifest: SnapshotManifest,
+  snapshotId: string,
+  attestation: CriterionAttestation,
+): SnapshotManifest {
+  let found = false;
+  const snapshots = manifest.snapshots.map((entry) => {
+    if (entry.snapshot_id !== snapshotId) return entry;
+    found = true;
+    const existing = entry.criteria_attestations ?? [];
+    if (existing.some((a) => sameCriterionAttestation(a, attestation))) return entry;
+    return { ...entry, criteria_attestations: [...existing, attestation] };
+  });
+  if (!found) {
+    throw new Error(
+      `Cannot attach a criterion attestation: no snapshot '${snapshotId}' in the manifest.`,
+    );
+  }
+  return { ...manifest, snapshots };
 }
