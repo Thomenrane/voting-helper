@@ -77,18 +77,6 @@ describe('admitParty — conservateur : le doute donne UNCERTAIN, jamais PASS', 
     expect(verdict.reasons.find((r) => r.check === 'auto-id-level')?.code).toBe('level.absent');
   });
 
-  it('auto-ID non évaluée (pas de couche texte) → UNCERTAIN', () => {
-    const input = fullPassInput();
-    const verdict = admitParty({
-      ...input,
-      documents: [{ ...input.documents[0]!, autoId: null }],
-    });
-    expect(verdict.status).toBe('UNCERTAIN');
-    expect(codes({ ...input, documents: [{ ...input.documents[0]!, autoId: null }] })).toContain(
-      'year.not-evaluated',
-    );
-  });
-
   it('pages hors tolérance (synthèse à la place du complet) → UNCERTAIN', () => {
     const mr = getExpectedIdentity('mr'); // 311 p. attendues
     const verdict = admitParty({
@@ -153,8 +141,53 @@ describe('admitParty — FAIL réservé au prouvé-faux', () => {
   });
 });
 
+describe('admitParty — NOT_MATERIALIZED : couche absente, distinct d\'un doute réel (#46)', () => {
+  it('couche non matérialisée → NOT_MATERIALIZED, PAS UNCERTAIN', () => {
+    const input = fullPassInput();
+    const noLayer = { ...input, documents: [{ ...input.documents[0]!, autoId: null }] };
+    const verdict = admitParty(noLayer);
+    expect(verdict.status).toBe('NOT_MATERIALIZED');
+    // Les codes portent explicitement la non-matérialisation (pas .absent).
+    expect(codes(noLayer)).toContain('year.not-materialized');
+    expect(codes(noLayer)).toContain('level.not-materialized');
+    const year = verdict.reasons.find((r) => r.check === 'auto-id-year');
+    expect(year?.severity).toBe('NOT_MATERIALIZED');
+    expect(year?.code).not.toBe('year.absent');
+  });
+
+  it('un vrai doute (level.absent) prime sur la non-matérialisation → UNCERTAIN', () => {
+    // Couche PRÉSENTE mais niveau non affirmé : c'est un doute réel, jamais
+    // confondu avec « non matérialisé ».
+    const input = fullPassInput();
+    const verdict = admitParty({
+      ...input,
+      documents: [
+        { ...input.documents[0]!, autoId: { ...PASS_AUTO_ID, levelPresent: false, matchedLevelTerms: [] } },
+      ],
+    });
+    expect(verdict.status).toBe('UNCERTAIN');
+    expect(verdict.reasons.find((r) => r.check === 'auto-id-level')?.code).toBe('level.absent');
+  });
+
+  it('une taille attestée hors tolérance prime sur la couche absente → UNCERTAIN', () => {
+    // auto-ID non matérialisée MAIS pages attestées (manifeste) hors tolérance :
+    // le doute réel de taille n'est pas masqué par la non-matérialisation.
+    const mr = getExpectedIdentity('mr'); // 311 p. attendues
+    const verdict = admitParty({
+      expected: mr,
+      documents: [
+        { source_id: 'mr-programme-2024', autoId: null, actualPages: 100, tocLastPage: null },
+      ],
+      presentSourceIds: ['mr-programme-2024'],
+    });
+    expect(verdict.status).toBe('UNCERTAIN');
+    expect(verdict.reasons.find((r) => r.check === 'page-tolerance')?.code).toBe('pages.outside');
+    expect(verdict.reasons.find((r) => r.check === 'auto-id-year')?.code).toBe('year.not-materialized');
+  });
+});
+
 describe('admitParty — web-chapters (PTB-PVDA)', () => {
-  it('reste UNCERTAIN : pas de couche texte HTML → auto-ID non évaluée', () => {
+  it('couche texte HTML non matérialisée → NOT_MATERIALIZED (pas un doute réel)', () => {
     const ptb = getExpectedIdentity('ptb-pvda');
     const verdict = admitParty({
       expected: ptb,
@@ -166,7 +199,7 @@ describe('admitParty — web-chapters (PTB-PVDA)', () => {
       })),
       presentSourceIds: ptb.parts.map((p) => p.source_id),
     });
-    expect(verdict.status).toBe('UNCERTAIN');
+    expect(verdict.status).toBe('NOT_MATERIALIZED');
     // La taille n'est pas un blocage (non applicable), les parties sont là.
     expect(verdict.reasons.find((r) => r.check === 'page-tolerance')?.code).toBe(
       'pages.not-applicable',
