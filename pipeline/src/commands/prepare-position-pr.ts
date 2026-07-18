@@ -39,7 +39,8 @@ function partyBatch(repoRoot: string, partyId: string, stamp: string): Batch {
   const party = getPartyProgramme(partyId);
   const yamlRelative = `${PROPOSALS_DIR}/${party.party_id}.positions.yaml`;
   const reviewRelative = `${PROPOSALS_DIR}/${party.party_id}.review.md`;
-  for (const relative of [yamlRelative, reviewRelative]) {
+  const coverageRelative = `${PROPOSALS_DIR}/${party.party_id}.coverage.md`;
+  for (const relative of [yamlRelative, reviewRelative, coverageRelative]) {
     if (!existsSync(join(repoRoot, relative))) {
       throw new Error(
         `'${relative}' is missing — run 'npm run extract:positions -- --party ${party.party_id}' first.`,
@@ -48,7 +49,7 @@ function partyBatch(repoRoot: string, partyId: string, stamp: string): Batch {
   }
   return {
     branch: `positions/${party.party_id}-${stamp}`,
-    files: [yamlRelative, reviewRelative],
+    files: [yamlRelative, reviewRelative, coverageRelative],
     commitMessage:
       `Positions ${party.name} — lot d'extraction (statut en_attente)\n\n` +
       `Propositions générées par extract:positions, citations vérifiées\n` +

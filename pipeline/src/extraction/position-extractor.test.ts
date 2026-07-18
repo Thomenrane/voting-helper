@@ -171,6 +171,8 @@ describe('mergeCandidates', () => {
     source_id: 'doc',
     raw_snapshot_id: 'doc@x',
     url_source: 'https://example.org/doc.pdf',
+    chunk_first_page: page,
+    chunk_last_page: page,
     verdict: { status: 'verified', page, spans_next_page: false },
   });
 
@@ -245,6 +247,40 @@ describe('extractPositions (injected fake client — no network)', () => {
     expect(result.usage).toEqual({ input_tokens: 100, output_tokens: 20 });
     expect(result.outcomes[0]).toMatchObject({ kind: 'position', position: 2 });
     expect(result.outcomes[1]).toEqual({ kind: 'no_position', statement_id: 's2' });
+    // Coverage inventory (#39): every examined chunk and every candidate, with
+    // chunk provenance, are exposed for the coverage report.
+    expect(result.chunks).toEqual([
+      { source_id: 'doc', first_page: 1, last_page: 2, chars: expect.any(Number) },
+    ]);
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]).toMatchObject({
+      statement_id: 's1',
+      chunk_first_page: 1,
+      chunk_last_page: 2,
+    });
+  });
+
+  it('bounds each call to a small chunk — a large document is swept in many chunks', async () => {
+    const bigPage = 'Contenu de programme neutre. '.repeat(400); // ~11k chars
+    const layer = layerOf('big', bigPage, bigPage, bigPage);
+    const client = fakeClient(
+      Array.from({ length: 20 }, () =>
+        JSON.stringify(STATEMENTS.map((s) => ({ statement_id: s.id, position: null, citation: null }))),
+      ),
+    );
+    const result = await extractPositions({
+      partyId: 'demo',
+      partyName: 'Demo',
+      statements: STATEMENTS,
+      layers: [inputOf(layer)],
+      client,
+    });
+    // With the small default budget each page is its own bounded call.
+    expect(result.chunk_count).toBeGreaterThan(1);
+    expect(client.requests.length).toBe(result.chunk_count);
+    for (const request of client.requests) {
+      expect(request.user).not.toContain(bigPage + bigPage); // never two pages of context at once
+    }
   });
 
   it('rejects hallucinated citations mechanically', async () => {

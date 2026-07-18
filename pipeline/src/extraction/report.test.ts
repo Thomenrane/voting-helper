@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Statement } from '@voting-helper/data';
 
+import { buildCoverageReport } from './coverage-report.ts';
 import type { PartyExtractionResult, PositionCandidate } from './position-extractor.ts';
 import { countOutcomes, renderReviewSummary } from './report.ts';
 
@@ -40,12 +41,16 @@ const CANDIDATE: PositionCandidate = {
   source_id: 'demo-doc',
   raw_snapshot_id: 'demo-doc@x',
   url_source: 'https://example.org/demo.pdf',
+  chunk_first_page: 12,
+  chunk_last_page: 12,
   verdict: { status: 'verified', page: 12, spans_next_page: false },
 };
 
 const RESULT: PartyExtractionResult = {
   party_id: 'demo',
   chunk_count: 3,
+  chunks: [{ source_id: 'demo-doc', first_page: 1, last_page: 12, chars: 6000 }],
+  candidates: [CANDIDATE],
   usage: { input_tokens: 1000, output_tokens: 100 },
   outcomes: [
     { kind: 'position', statement_id: 's1', position: 2, citation: CANDIDATE },
@@ -60,6 +65,24 @@ const RESULT: PartyExtractionResult = {
   ],
 };
 
+const COVERAGE = buildCoverageReport({
+  partyId: 'demo',
+  statements: STATEMENTS,
+  outcomes: RESULT.outcomes,
+  candidates: RESULT.candidates,
+  chunks: RESULT.chunks,
+  lexicalScans: [
+    { statement_id: 's1', keywords: ['cotisations'], hits: [] },
+    { statement_id: 's2', keywords: ['tva', 'train'], hits: [] },
+    // s3 is « non documentée » AND has a lexical occurrence → flagged.
+    {
+      statement_id: 's3',
+      keywords: ['reacteurs', 'nucleaires'],
+      hits: [{ source_id: 'demo-doc', page: 5, terms: ['reacteurs', 'nucleaires'] }],
+    },
+  ],
+});
+
 describe('renderReviewSummary', () => {
   const summary = renderReviewSummary({
     partyName: 'Parti Démo',
@@ -68,6 +91,14 @@ describe('renderReviewSummary', () => {
     statements: STATEMENTS,
     result: RESULT,
     cost: { input_tokens: 1000, output_tokens: 100, usd: 0.0045, eur: 0.0039 },
+    coverage: COVERAGE,
+  });
+
+  it('surfaces flagged silences from the coverage report', () => {
+    expect(summary).toContain('Couverture du balayage');
+    expect(summary).toContain('silence(s) à vérifier');
+    expect(summary).toContain('⚠️ `s3`');
+    expect(summary).toContain('demo-doc p.5');
   });
 
   it('shows positions, citations, pages and the verification rate', () => {
@@ -104,8 +135,57 @@ describe('renderReviewSummary', () => {
         ],
       },
       cost: { input_tokens: 1, output_tokens: 1 },
+      coverage: COVERAGE,
     });
     expect(withElsewhere).toContain('retrouvée p. 12, 87 mais pas p. 40');
+  });
+
+  it('surfaces a rejected statement with lexical occurrences as a flagged silence', () => {
+    const rejectedElsewhere: PositionCandidate = {
+      ...CANDIDATE,
+      statement_id: 's2',
+      citation_page: 40,
+      verdict: { status: 'found_elsewhere', pages: [12, 87] },
+    };
+    const coverage = buildCoverageReport({
+      partyId: 'demo',
+      statements: STATEMENTS,
+      outcomes: [
+        { kind: 'position', statement_id: 's1', position: 2, citation: CANDIDATE },
+        { kind: 'rejected', statement_id: 's2', candidates: [rejectedElsewhere] },
+        { kind: 'no_position', statement_id: 's3' },
+      ],
+      candidates: [CANDIDATE, rejectedElsewhere],
+      chunks: RESULT.chunks,
+      lexicalScans: [
+        { statement_id: 's1', keywords: ['cotisations'], hits: [] },
+        {
+          statement_id: 's2',
+          keywords: ['tva', 'train'],
+          hits: [{ source_id: 'demo-doc', page: 8, terms: ['tva', 'train'] }],
+        },
+        { statement_id: 's3', keywords: ['reacteurs'], hits: [] },
+      ],
+    });
+    const withRejected = renderReviewSummary({
+      partyName: 'Parti Démo',
+      model: 'claude-sonnet-5',
+      runDate: '16/07/2026',
+      statements: STATEMENTS,
+      result: {
+        ...RESULT,
+        outcomes: [
+          { kind: 'position', statement_id: 's1', position: 2, citation: CANDIDATE },
+          { kind: 'rejected', statement_id: 's2', candidates: [rejectedElsewhere] },
+          { kind: 'no_position', statement_id: 's3' },
+        ],
+      },
+      cost: { input_tokens: 1, output_tokens: 1 },
+      coverage,
+    });
+    expect(withRejected).toContain('⚠️ `s2`');
+    expect(withRejected).toContain('position candidate rejetée — citation retrouvée à une autre page ?');
+    expect(withRejected).toContain('demo-doc p.8');
   });
 
   it('states that human PR review is the validation and shows the cost', () => {

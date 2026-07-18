@@ -35,7 +35,19 @@ export interface PositionCandidate {
   source_id: string;
   raw_snapshot_id: string;
   url_source: string;
+  /** First page of the chunk that produced this candidate — coverage provenance. */
+  chunk_first_page: number;
+  /** Last page of the chunk that produced this candidate — coverage provenance. */
+  chunk_last_page: number;
   verdict: CitationVerdict;
+}
+
+/** One chunk actually examined during the sweep — the coverage inventory. */
+export interface ExaminedChunk {
+  source_id: string;
+  first_page: number;
+  last_page: number;
+  chars: number;
 }
 
 export type StatementOutcome =
@@ -58,6 +70,10 @@ export interface PartyExtractionResult {
   outcomes: StatementOutcome[];
   usage: LLMUsage;
   chunk_count: number;
+  /** Every chunk examined by the sweep — the auditable coverage inventory. */
+  chunks: ExaminedChunk[];
+  /** Every candidate the model proposed, with chunk provenance and verdict. */
+  candidates: PositionCandidate[];
 }
 
 /** Page-aligned chunk of one document, sized for a single request. */
@@ -68,8 +84,15 @@ export interface LayerChunk {
   text: string;
 }
 
-/** Default chunk budget in characters (~40k tokens of FR/NL text). */
-export const DEFAULT_CHUNK_CHARS = 150_000;
+/**
+ * Default chunk budget in characters — deliberately SMALL (~1.7k tokens of
+ * FR/NL text, a few pages). The sweep is exhaustive (every chunk examined),
+ * so recall does not depend on chunk size; a small, bounded context is the
+ * whole point of #39: the LLM never sees a large document, so it cannot get
+ * "lost in the middle". The statement list is re-sent with every chunk — the
+ * chunk is the expensive context, the statements are amortised across it.
+ */
+export const DEFAULT_CHUNK_CHARS = 6_000;
 
 export function chunkLayer(input: LayerInput, maxChars = DEFAULT_CHUNK_CHARS): LayerChunk[] {
   const chunks: LayerChunk[] = [];
@@ -297,12 +320,19 @@ export async function extractPositions(
   const chunks = layers.flatMap((input) => chunkLayer(input, maxChunkChars));
   let usage: LLMUsage = { input_tokens: 0, output_tokens: 0 };
   const candidates: PositionCandidate[] = [];
+  const examined: ExaminedChunk[] = [];
 
   for (const [index, chunk] of chunks.entries()) {
     log(
       `  chunk ${index + 1}/${chunks.length} — ${chunk.input.layer.source_id} ` +
         `p.${chunk.firstPage}-${chunk.lastPage} (${chunk.text.length} chars)…`,
     );
+    examined.push({
+      source_id: chunk.input.layer.source_id,
+      first_page: chunk.firstPage,
+      last_page: chunk.lastPage,
+      chars: chunk.text.length,
+    });
     const prompt = buildExtractionPrompt(partyName, statements, chunk);
     const response = await client.complete({ ...prompt, maxTokens: maxTokensPerAnswer });
     usage = addUsage(usage, response.usage);
@@ -318,6 +348,8 @@ export async function extractPositions(
         source_id: chunk.input.layer.source_id,
         raw_snapshot_id: chunk.input.raw_snapshot_id,
         url_source: chunk.input.url_source,
+        chunk_first_page: chunk.firstPage,
+        chunk_last_page: chunk.lastPage,
         verdict: verifyCitation(item.citation.texte, item.citation.page, chunk.input.layer),
       });
     }
@@ -328,5 +360,7 @@ export async function extractPositions(
     outcomes: mergeCandidates(statements, candidates),
     usage,
     chunk_count: chunks.length,
+    chunks: examined,
+    candidates,
   };
 }
