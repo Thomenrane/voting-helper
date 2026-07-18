@@ -18,19 +18,52 @@ import { extractText, getDocumentProxy } from 'unpdf';
 import type { SnapshotSource } from '../snapshot/manifest.ts';
 
 export interface TextLayerPage {
-  /** 1-based page number, identical to the PDF's physical page. */
+  /**
+   * 1-based page number. For a PDF layer, identical to the physical page. For
+   * an `html-chapters` layer (#51), the reading-order index of the chapter —
+   * each chapter is one « page » so admission and extraction stay agnostic to
+   * the source format.
+   */
   page: number;
   /** Raw extracted text of the page — NOT normalized (verifier normalizes). */
   text: string;
+  /**
+   * `html-chapters` layers only (#51): the chapter's heading (page title).
+   * Absent on PDF pages — kept optional so PDF layers serialize unchanged.
+   */
+  title?: string;
+  /**
+   * `html-chapters` layers only (#51): SHA-256 (hex) of the HTML snapshot that
+   * backs THIS chapter-page — the per-page integrity anchor. Absent on PDF
+   * pages (a PDF layer carries a single `source_sha256` at the layer level).
+   */
+  source_sha256?: string;
+  /** `html-chapters` layers only (#51): origin URL of the chapter page. */
+  source_url?: string;
 }
+
+/**
+ * Extraction engine, recorded so a future engine change is visible.
+ * - `unpdf`: per-page PDF extraction (#22).
+ * - `html-chapters`: per-chapter web extraction (#51) — one snapshotted HTML
+ *   chapter per page, boilerplate stripped, each page anchored to its own
+ *   snapshot SHA-256.
+ */
+export type TextLayerExtractor = 'unpdf' | 'html-chapters';
 
 export interface ProgrammeTextLayer {
   /** Id of the raw programme source this layer derives from. */
   source_id: string;
-  /** SHA-256 of the raw PDF bytes — the content-stable provenance link. */
+  /**
+   * SHA-256 (hex) tying the layer to its raw content. For a PDF layer, the raw
+   * PDF bytes. For an `html-chapters` layer (#51), a COMPOSITE fingerprint
+   * derived deterministically from the ordered per-chapter snapshot SHA-256s,
+   * so the "raw content changed" reuse check stays valid without a single
+   * underlying binary.
+   */
   source_sha256: string;
   /** Extraction engine, recorded so a future engine change is visible. */
-  extractor: 'unpdf';
+  extractor: TextLayerExtractor;
   page_count: number;
   pages: TextLayerPage[];
 }
@@ -41,6 +74,18 @@ export interface TextLayerQuality extends Record<string, number> {
   characters: number;
   /** Pages with no extractable text (scans, full-page artwork). */
   empty_pages: number;
+}
+
+/**
+ * Media types a `ProgrammeTextLayer` can be built from — the single source of
+ * truth shared by the extraction command's source filter and `ensureTextLayer`'s
+ * dispatch: PDF (#22) and web-chapter HTML (#51).
+ */
+export const TEXT_LAYER_MEDIA_TYPES = ['application/pdf', 'text/html'] as const;
+
+/** True when a source's media type carries a materializable text layer. */
+export function supportsTextLayer(mediaType: string): boolean {
+  return (TEXT_LAYER_MEDIA_TYPES as readonly string[]).includes(mediaType);
 }
 
 /** Derives the per-page text layer from raw PDF bytes. Deterministic. */

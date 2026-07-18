@@ -20,6 +20,7 @@ import { dirname, join } from 'node:path';
 
 import {
   admitPartyFromManifest,
+  fileChapterInventoryLoader,
   fileLayerLoader,
   manifestAsOfDate,
 } from '../admission/admission-service.ts';
@@ -47,10 +48,11 @@ async function main(): Promise<void> {
     throw new Error(`No programme snapshots recorded. Run 'npm run snapshot:programmes' first.`);
   }
 
-  const loadLayer = fileLayerLoader(repoRoot);
+  const loadLayer = fileLayerLoader(repoRoot, manifest);
+  const loadInventory = fileChapterInventoryLoader(repoRoot, manifest);
   const verdicts: PartyAdmissionVerdict[] = [];
   for (const expected of EXPECTED_IDENTITIES) {
-    verdicts.push(await admitPartyFromManifest(manifest, expected, loadLayer));
+    verdicts.push(await admitPartyFromManifest(manifest, expected, loadLayer, loadInventory));
   }
 
   // Déterministe (#46) : la date du snapshot épinglé, PAS une horloge de build —

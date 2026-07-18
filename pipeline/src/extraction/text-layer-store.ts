@@ -21,6 +21,7 @@ import {
   type SnapshotSource,
 } from '../snapshot/manifest.ts';
 import { sha256Hex, writeSnapshotFile } from '../snapshot/snapshot-store.ts';
+import { materializeHtmlChapterLayer } from './chapter-layer-store.ts';
 import type { LayerInput } from './position-extractor.ts';
 import {
   buildTextLayer,
@@ -78,10 +79,18 @@ export async function ensureTextLayer(
   options: EnsureTextLayerOptions = {},
 ): Promise<EnsureTextLayerResult> {
   const persist = options.persist ?? true;
+  // Sources HTML des chapitres web (#51) : couche assemblée par chapitre depuis
+  // les snapshots de chapitres, structure `ProgrammeTextLayer` identique à celle
+  // du PDF — l'extraction (#25) reste agnostique à la source. Aucune couche
+  // dérivée `<id>-text` n'est persistée : la couche est reconstruite depuis les
+  // snapshots de chapitres épinglés (intégrité SHA-256 par page), déterministe.
+  if (source.mediaType === 'text/html') {
+    return ensureHtmlTextLayer(repoRoot, manifest, source);
+  }
   if (source.mediaType !== 'application/pdf') {
     throw new Error(
       `Source '${source.id}' is ${source.mediaType} — the per-page text layer only covers PDF ` +
-        'programmes (see the known-limitation section of the spike doc).',
+        'programmes and web-chapter HTML indexes (#51).',
     );
   }
   const raw = latestSnapshot(manifest, source.id);
@@ -140,4 +149,39 @@ export async function ensureTextLayer(
     manifest: nextManifest,
     layer: { input, entry: appended, created: true },
   };
+}
+
+/**
+ * Materializes an HTML web-chapter source's text layer (#51) from its pinned
+ * chapter snapshots — one chapter = one page, each anchored to its own SHA-256.
+ * The manifest is returned untouched (nothing is derived-and-attested: the
+ * layer is a deterministic reconstruction from the chapter snapshots). The
+ * layer's citation provenance points at the index snapshot; per-page
+ * `source_sha256` carries the true chapter integrity.
+ *
+ * Throws with an actionable message when the chapters are not (fully/authentic-
+ * ally) snapshotted — the crawl must run first (`npm run snapshot:programme-chapters`).
+ */
+async function ensureHtmlTextLayer(
+  repoRoot: string,
+  manifest: SnapshotManifest,
+  source: SnapshotSource,
+): Promise<EnsureTextLayerResult> {
+  const raw = latestSnapshot(manifest, source.id);
+  if (raw === undefined) {
+    throw new Error(
+      `Source '${source.id}' was never snapshotted. Run 'npm run snapshot:programmes' first.`,
+    );
+  }
+  const layer = await materializeHtmlChapterLayer(repoRoot, manifest, source.id);
+  if (layer === null) {
+    throw new Error(
+      `HTML source '${source.id}' has no materializable text layer: its chapter snapshots are ` +
+        'missing, incomplete, or corrupt. Run ' +
+        `'npm run snapshot:programme-chapters -- --source ${source.id}' to crawl and snapshot ` +
+        'the chapters (bounded, same-domain), then retry.',
+    );
+  }
+  const input = { layer, raw_snapshot_id: raw.snapshot_id, url_source: source.originUrl };
+  return { manifest, layer: { input, entry: raw, created: false } };
 }

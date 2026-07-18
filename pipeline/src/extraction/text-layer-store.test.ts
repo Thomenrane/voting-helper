@@ -124,11 +124,14 @@ describe('ensureTextLayer', () => {
     expect(second.layer.entry.snapshot_id).toBe(first.layer.entry.snapshot_id);
   });
 
-  it('refuses non-PDF sources with the documented limitation', async () => {
+  it('for an HTML source without crawled chapters, points to snapshot:programme-chapters (#51)', async () => {
+    // #51: HTML web-chapter sources ARE supported now — their layer is
+    // materialized from per-chapter snapshots. With none crawled yet, the
+    // error names the crawl command rather than declaring HTML unsupported.
     const manifest = await seedRawSnapshot(['x']);
     await expect(
       ensureTextLayer(repoRoot, manifest, { ...SOURCE, mediaType: 'text/html' }, NOW),
-    ).rejects.toThrow(/only covers PDF/);
+    ).rejects.toThrow(/snapshot:programme-chapters/);
   });
 
   it('demands a prior raw snapshot', async () => {

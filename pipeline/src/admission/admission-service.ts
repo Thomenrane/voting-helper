@@ -19,6 +19,10 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import {
+  chapterInventory,
+  materializeHtmlChapterLayer,
+} from '../extraction/chapter-layer-store.ts';
 import { buildTextLayer, type ProgrammeTextLayer } from '../extraction/text-layer.ts';
 import {
   latestSnapshot,
@@ -27,6 +31,7 @@ import {
   type SnapshotManifest,
 } from '../snapshot/manifest.ts';
 import { sha256Hex } from '../snapshot/snapshot-store.ts';
+import type { ChapterInventory } from './completeness.ts';
 import { buildPartyAdmissionInput, type DocumentSignals } from './evidence.ts';
 import type { ExpectedIdentity } from './expected-identity.ts';
 import { admitParty, type PartyAdmissionVerdict } from './verdict.ts';
@@ -38,17 +43,28 @@ import { admitParty, type PartyAdmissionVerdict } from './verdict.ts';
  */
 export type LayerLoader = (entry: SnapshotEntry) => Promise<ProgrammeTextLayer | null>;
 
+/**
+ * Établit l'inventaire des chapitres d'un snapshot d'index HTML (#51), ou `null`
+ * (non applicable / non évaluable). Injecté pour garder la logique
+ * manifeste→signaux testable hors système de fichiers.
+ */
+export type ChapterInventoryLoader = (entry: SnapshotEntry) => Promise<ChapterInventory | null>;
+
 export interface PartySignals {
   signals: DocumentSignals[];
   /** `source_id` bruts réellement attestés — l'inventaire des parties. */
   presentSourceIds: string[];
 }
 
+/** Inventaire de chapitres neutre par défaut — sources paginées / tests sans HTML. */
+const NO_INVENTORY: ChapterInventoryLoader = async () => null;
+
 /** Rassemble les signaux d'admission d'un parti depuis le manifeste. */
 export async function collectPartySignals(
   manifest: SnapshotManifest,
   expected: ExpectedIdentity,
   loadLayer: LayerLoader,
+  loadInventory: ChapterInventoryLoader = NO_INVENTORY,
 ): Promise<PartySignals> {
   const signals: DocumentSignals[] = [];
   const presentSourceIds: string[] = [];
@@ -65,6 +81,9 @@ export async function collectPartySignals(
     // Matérialise la couche depuis le snapshot BRUT épinglé quand il est
     // présent localement (intégrité #21 vérifiée dans le loader).
     const layer = raw !== undefined ? await loadLayer(raw) : null;
+    // Inventaire des chapitres (#51) : complétude attendu-vs-snapshoté d'une
+    // source web-chapitres, `null` pour un PDF ou un index non évaluable.
+    const inventory = raw !== undefined ? await loadInventory(raw) : null;
     signals.push({
       source_id: part.source_id,
       layer,
@@ -73,6 +92,7 @@ export async function collectPartySignals(
       // verdict n'honore une attestation que si son empreinte égale celle-ci.
       snapshotSha256: raw?.sha256 ?? null,
       attestations: raw?.criteria_attestations ?? [],
+      chapterInventory: inventory,
     });
   }
   return { signals, presentSourceIds };
@@ -83,38 +103,68 @@ export async function admitPartyFromManifest(
   manifest: SnapshotManifest,
   expected: ExpectedIdentity,
   loadLayer: LayerLoader,
+  loadInventory: ChapterInventoryLoader = NO_INVENTORY,
 ): Promise<PartyAdmissionVerdict> {
-  const { signals, presentSourceIds } = await collectPartySignals(manifest, expected, loadLayer);
+  const { signals, presentSourceIds } = await collectPartySignals(
+    manifest,
+    expected,
+    loadLayer,
+    loadInventory,
+  );
   return admitParty(buildPartyAdmissionInput(expected, signals, presentSourceIds));
 }
 
-/** Seuls les PDF portent une couche texte matérialisable par `buildTextLayer`. */
-const MATERIALIZABLE_MEDIA_TYPE = 'application/pdf';
+/**
+ * Fabrique de `LayerLoader` qui MATÉRIALISE la couche texte du snapshot épinglé
+ * sur disque (#46), jamais le réseau, jamais de clé. Deux sources matérialisées
+ * dans la MÊME structure `ProgrammeTextLayer`, l'admission restant agnostique :
+ * - PDF (#22) : lit les octets bruts, vérifie l'intégrité #21, re-dérive via
+ *   `buildTextLayer` (unpdf) ;
+ * - HTML des chapitres web (#51) : assemble la couche par chapitre depuis les
+ *   snapshots de chapitres du manifeste (un chapitre = une page), chaque page
+ *   ancrée au SHA-256 de son snapshot — d'où le `manifest` en fermeture.
+ *
+ * Retourne `null` — couche NON matérialisée, verdict conservateur, jamais
+ * faussement PASS — quand le binaire est absent (gitignoré / clone frais / crawl
+ * partiel), corrompu (empreinte #21 non concordante → HTML falsifié), ou d'un
+ * type sans couche. Sans `manifest`, les sources HTML restent non matérialisées
+ * (aucun inventaire de chapitres disponible) — le chemin PDF est inchangé.
+ */
+export function fileLayerLoader(repoRoot: string, manifest?: SnapshotManifest): LayerLoader {
+  return async (entry: SnapshotEntry): Promise<ProgrammeTextLayer | null> => {
+    if (entry.media_type === 'application/pdf') {
+      const absPath = join(repoRoot, entry.file);
+      if (!existsSync(absPath)) return null;
+      const bytes = await readFile(absPath);
+      try {
+        verifySnapshotIntegrity(entry, sha256Hex(bytes));
+      } catch {
+        return null;
+      }
+      return buildTextLayer(entry.source_id, entry.sha256, bytes);
+    }
+    if (entry.media_type === 'text/html') {
+      if (manifest === undefined) return null;
+      return materializeHtmlChapterLayer(repoRoot, manifest, entry.source_id);
+    }
+    return null;
+  };
+}
 
 /**
- * Fabrique de `LayerLoader` qui MATÉRIALISE la couche texte depuis le binaire
- * BRUT épinglé sur disque (#46) : lit les octets, vérifie leur intégrité contre
- * l'empreinte committée (#21), puis re-dérive la couche via `buildTextLayer`
- * (unpdf) — jamais le réseau, jamais de clé.
- *
- * Retourne `null` — la couche reste NON matérialisée, verdict conservateur,
- * jamais faussement PASS — quand :
- * - le binaire est absent (binaires gitignorés, clone frais) ;
- * - il est corrompu (empreinte #21 non concordante) ;
- * - il n'est pas un PDF (HTML des chapitres web : non matérialisable ici).
+ * Fabrique de `ChapterInventoryLoader` : pour un snapshot d'index HTML (#51),
+ * établit l'inventaire des chapitres (attendus ré-extraits de l'index committé,
+ * intégrité #21 vérifiée, vs. snapshotés) — la référence de complétude qui
+ * alimente le contrôle `chapters-inventory`. `null` pour un PDF ou un index non
+ * évaluable localement (binaire absent / corrompu).
  */
-export function fileLayerLoader(repoRoot: string): LayerLoader {
-  return async (entry: SnapshotEntry): Promise<ProgrammeTextLayer | null> => {
-    if (entry.media_type !== MATERIALIZABLE_MEDIA_TYPE) return null;
-    const absPath = join(repoRoot, entry.file);
-    if (!existsSync(absPath)) return null;
-    const bytes = await readFile(absPath);
-    try {
-      verifySnapshotIntegrity(entry, sha256Hex(bytes));
-    } catch {
-      return null;
-    }
-    return buildTextLayer(entry.source_id, entry.sha256, bytes);
+export function fileChapterInventoryLoader(
+  repoRoot: string,
+  manifest: SnapshotManifest,
+): ChapterInventoryLoader {
+  return async (entry: SnapshotEntry): Promise<ChapterInventory | null> => {
+    if (entry.media_type !== 'text/html') return null;
+    return chapterInventory(repoRoot, manifest, entry.source_id);
   };
 }
 

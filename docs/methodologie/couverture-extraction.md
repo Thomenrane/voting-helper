@@ -51,6 +51,28 @@ La réponse du modèle est parsée défensivement (leçons des reviews #32/#34) 
 est une **erreur dure**, jamais un silence éditorial. La « non documentée » est
 une décision explicite (`position: null`), jamais l'absence d'une réponse.
 
+## Source de la couche texte : PDF ou chapitres web (#51)
+
+Le balayage opère sur une couche texte `ProgrammeTextLayer` — **la même
+structure quelle que soit la source**, de sorte que l'admission et l'extraction
+sont **agnostiques au format** :
+
+- **PDF (#22)** — une « page » = une page physique du PDF, extraite via unpdf.
+- **Chapitres web HTML (#51)** — pour un parti sans PDF national (PTB-PVDA),
+  une « page » = **un chapitre** du programme web. Les chapitres sont crawlés de
+  façon **bornée** (`snapshot:programme-chapters`) et snapshotés par la
+  machinerie #21 ; l'extraction HTML→texte retire le boilerplate (nav, menus,
+  pied de page, bannière cookie) et conserve le `<main>`. Chaque page-chapitre
+  est **ancrée au SHA-256 de son snapshot** ; un chapitre falsifié ou un crawl
+  partiel ⇒ **aucune couche** (fail-closed), donc jamais d'extraction sur un
+  contenu non authentique. Voir `docs/methodologie/admission-sources.md` §
+  « Sources web-chapitres ».
+
+`extract:positions` prépare ces couches via `ensureTextLayer` (PDF dérivé et
+attesté ; HTML assemblé depuis les snapshots de chapitres). Tant que le crawl
+des chapitres n'a pas tourné, l'extraction d'un parti web-chapitres échoue avec
+un message actionnable pointant vers `snapshot:programme-chapters`.
+
 ## Fusion inter-chunks
 
 Chaque citation proposée par un chunk est **vérifiée mécaniquement** contre

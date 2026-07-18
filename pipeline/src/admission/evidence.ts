@@ -14,7 +14,7 @@
  *   NOT_MATERIALIZED (distinct d'un doute réel, #46), jamais faussement PASS.
  */
 import { checkLayerAutoIdentification, firstPagesText } from './auto-identification.ts';
-import { detectTocLastPage } from './completeness.ts';
+import { detectTocLastPage, type ChapterInventory } from './completeness.ts';
 import type { ExpectedIdentity } from './expected-identity.ts';
 import type { ProgrammeTextLayer } from '../extraction/text-layer.ts';
 import type { CriterionAttestation } from '../snapshot/manifest.ts';
@@ -37,6 +37,12 @@ export interface DocumentSignals {
   snapshotSha256?: string | null;
   /** Attestations de critère portées par le snapshot épinglé (#50). */
   attestations?: readonly CriterionAttestation[];
+  /**
+   * Inventaire des chapitres pour une source web-chapitres (#51), ou `null`/
+   * absent quand non applicable (source paginée) ou non évaluable (index brut
+   * absent localement). Alimente le contrôle `chapters-inventory`.
+   */
+  chapterInventory?: ChapterInventory | null;
 }
 
 /** Dérive l'évidence d'admission d'un document depuis ses signaux. */
@@ -47,6 +53,7 @@ export function documentEvidence(
   const attested = {
     snapshotSha256: signals.snapshotSha256 ?? null,
     attestations: signals.attestations ?? [],
+    chapterInventory: signals.chapterInventory ?? null,
   };
   if (signals.layer !== null) {
     const layer = signals.layer;

@@ -67,6 +67,7 @@ import { renderPositionsYaml, toPartyPositions } from '../extraction/positions-y
 import { countOutcomes, renderReviewSummary } from '../extraction/report.ts';
 import { formatSweepPlan, planSweep } from '../extraction/sweep-plan.ts';
 import { ensureTextLayer } from '../extraction/text-layer-store.ts';
+import { supportsTextLayer } from '../extraction/text-layer.ts';
 import { emptyManifest, latestSnapshot } from '../snapshot/manifest.ts';
 import { loadManifest, saveManifest } from '../snapshot/snapshot-store.ts';
 import { getPartyProgramme, getPartyProgrammeSources } from '../sources/party-programmes.ts';
@@ -124,22 +125,27 @@ export async function runExtractPositions(deps: ExtractPositionsDeps = {}): Prom
   }
 
   const sources = getPartyProgrammeSources(party.party_id);
-  const pdfSources = sources.filter((source) => source.mediaType === 'application/pdf');
-  for (const skipped of sources.filter((source) => source.mediaType !== 'application/pdf')) {
+  // #51 : la couche texte couvre le PDF (#22) ET les chapitres web HTML — même
+  // structure `ProgrammeTextLayer`, l'extraction reste agnostique à la source.
+  // `ensureTextLayer` matérialise les chapitres HTML depuis leurs snapshots
+  // (échoue avec un message actionnable si le crawl n'a pas tourné, ou si
+  // l'inventaire des chapitres est incomplet — fail-closed #51). La liste des
+  // types supportés est centralisée dans `supportsTextLayer`.
+  const supportedSources = sources.filter((source) => supportsTextLayer(source.mediaType));
+  for (const skipped of sources.filter((source) => !supportsTextLayer(source.mediaType))) {
     console.warn(
-      `! Skipping '${skipped.id}' (${skipped.mediaType}) — the text layer only covers PDF ` +
-        'programmes for now (spike doc, known limitation).',
+      `! Skipping '${skipped.id}' (${skipped.mediaType}) — no text-layer support for this media type.`,
     );
   }
-  if (pdfSources.length === 0) {
+  if (supportedSources.length === 0) {
     throw new Error(
-      `Party '${party.party_id}' has no PDF programme source — extraction not supported yet.`,
+      `Party '${party.party_id}' has no text-layer-capable programme source — extraction not supported.`,
     );
   }
 
-  console.log(`Preparing text layers for ${party.name} (${pdfSources.length} document(s))…`);
+  console.log(`Preparing text layers for ${party.name} (${supportedSources.length} document(s))…`);
   const layers: LayerInput[] = [];
-  for (const source of pdfSources) {
+  for (const source of supportedSources) {
     // Keyless planning modes (--dry-run, --emit) mutate nothing: missing layers
     // are derived in memory only, never attested.
     const { layer, manifest: next } = await ensureTextLayer(

@@ -31,9 +31,11 @@
  */
 import type { AutoIdResult } from './auto-identification.ts';
 import {
+  checkChaptersInventory,
   checkPageTolerance,
   checkPartsInventory,
   checkTocWithinBounds,
+  type ChapterInventory,
 } from './completeness.ts';
 import type { ExpectedIdentity } from './expected-identity.ts';
 import type { CriterionAttestation } from '../snapshot/manifest.ts';
@@ -51,6 +53,7 @@ export type AdmissionCheck =
   | 'auto-id-year'
   | 'auto-id-level'
   | 'parts-inventory'
+  | 'chapters-inventory'
   | 'toc-bounds'
   | 'page-tolerance';
 
@@ -126,6 +129,12 @@ export interface DocumentEvidence {
   snapshotSha256?: string | null;
   /** Attestations de critère portées par le snapshot épinglé de ce document (#50). */
   attestations?: readonly CriterionAttestation[];
+  /**
+   * Inventaire des chapitres d'une source web-chapitres (#51) : slugs attendus
+   * (ré-extraits de l'index committé) vs. snapshotés. `null`/absent pour un
+   * document paginé (PDF) ou quand l'inventaire n'est pas évaluable localement.
+   */
+  chapterInventory?: ChapterInventory | null;
 }
 
 export interface PartyAdmissionInput {
@@ -226,6 +235,50 @@ function partsReason(input: PartyAdmissionInput): AdmissionReason {
     severity: 'FAIL',
     code: 'parts.incomplete',
     human: `Partie(s) manquante(s) — programme incomplet : ${inventory.missing.join(', ')}.`,
+  };
+}
+
+/**
+ * Complétude de l'inventaire des chapitres web (#51) — miroir de `parts-inventory`
+ * pour les `web-chapters`. Un crawl partiel (sous-ensemble strict des chapitres
+ * attendus) est une incomplétude PROUVÉE → FAIL listant les slugs manquants,
+ * jamais un PASS silencieux sur un programme tronqué. Aucun chapitre snapshoté →
+ * NOT_MATERIALIZED (honnête). Pas de chapitres attendus (source paginée) → neutre.
+ */
+function chaptersReason(input: PartyAdmissionInput): AdmissionReason {
+  const inventories = input.documents
+    .map((doc) => doc.chapterInventory)
+    .filter((inventory): inventory is ChapterInventory => inventory != null);
+  const result = checkChaptersInventory(inventories);
+  if (result.status === 'not-applicable') {
+    return {
+      check: 'chapters-inventory',
+      severity: 'PASS',
+      code: 'chapters.not-applicable',
+      human: 'Pas de chapitres web attendus (source paginée ou inventaire non évalué) — contrôle non applicable (neutre).',
+    };
+  }
+  if (result.status === 'complete') {
+    return {
+      check: 'chapters-inventory',
+      severity: 'PASS',
+      code: 'chapters.complete',
+      human: `Les ${result.expectedTotal} chapitre(s) web attendu(s) sont tous snapshotés.`,
+    };
+  }
+  if (result.status === 'not-materialized') {
+    return {
+      check: 'chapters-inventory',
+      severity: 'NOT_MATERIALIZED',
+      code: 'chapters.not-materialized',
+      human: `Aucun des ${result.expectedTotal} chapitre(s) web attendu(s) n'est snapshoté (crawl non exécuté) : inventaire non matérialisé.`,
+    };
+  }
+  return {
+    check: 'chapters-inventory',
+    severity: 'FAIL',
+    code: 'chapters.incomplete',
+    human: `Chapitre(s) web manquant(s) — programme incomplet (crawl partiel) : ${result.missing.join(', ')}.`,
   };
 }
 
@@ -378,6 +431,7 @@ export function admitParty(input: PartyAdmissionInput): PartyAdmissionVerdict {
     yearReason(input),
     levelReason(input),
     partsReason(input),
+    chaptersReason(input),
     tocReason(input, pages.code === 'pages.within'),
     pages,
   ];

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  checkChaptersInventory,
   checkPageTolerance,
   checkPartsInventory,
   checkTocWithinBounds,
   detectTocLastPage,
   pageTolerance,
+  type ChapterInventory,
 } from './completeness.ts';
 import { getExpectedIdentity } from './expected-identity.ts';
 
@@ -42,6 +44,41 @@ describe('checkPartsInventory — inventaire des parties multiples', () => {
     ]);
     expect(r.status).toBe('complete');
     expect(r.present).toEqual(['ps-programme-2024']);
+  });
+});
+
+describe('checkChaptersInventory — inventaire des chapitres web (#51)', () => {
+  const inv = (expected: string[], present: string[]): ChapterInventory => ({
+    expected,
+    present,
+    missing: expected.filter((s) => !present.includes(s)),
+  });
+
+  it('aucun inventaire (source paginée) → not-applicable (neutre)', () => {
+    expect(checkChaptersInventory([]).status).toBe('not-applicable');
+  });
+
+  it('des attendus mais aucun snapshoté (crawl non lancé) → not-materialized', () => {
+    const r = checkChaptersInventory([inv(['a', 'b', 'c'], [])]);
+    expect(r.status).toBe('not-materialized');
+  });
+
+  it('sous-ensemble strict (crawl partiel 2/3) → incomplete, nomme le manquant', () => {
+    const r = checkChaptersInventory([inv(['a', 'b', 'c'], ['a', 'b'])]);
+    expect(r.status).toBe('incomplete');
+    expect(r.missing).toEqual(['c']);
+  });
+
+  it('tous les attendus présents → complete', () => {
+    const r = checkChaptersInventory([inv(['a', 'b'], ['a', 'b'])]);
+    expect(r.status).toBe('complete');
+    expect(r.expectedTotal).toBe(2);
+  });
+
+  it('agrège plusieurs documents : un miroir incomplet suffit à incomplete', () => {
+    const r = checkChaptersInventory([inv(['a'], ['a']), inv(['x', 'y'], ['x'])]);
+    expect(r.status).toBe('incomplete');
+    expect(r.missing).toEqual(['y']);
   });
 });
 

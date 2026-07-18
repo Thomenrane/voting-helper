@@ -39,6 +39,8 @@ describe('admitParty — PASS exige que TOUT soit nettement satisfait', () => {
       'year.present',
       'level.present',
       'parts.complete',
+      // #51 : nouveau contrôle, neutre pour un PDF (pas de chapitres web attendus).
+      'chapters.not-applicable',
       'toc.within',
       'pages.within',
     ]);
