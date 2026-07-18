@@ -186,6 +186,125 @@ describe('admitParty — NOT_MATERIALIZED : couche absente, distinct d\'un doute
   });
 });
 
+describe('admitParty — attestation humaine d\'un critère UNCERTAIN (#50)', () => {
+  const SHA = 'f'.repeat(64);
+
+  /** N-VA « Voor Vlaamse Welvaart » : année là, niveau non affirmé → level.absent. */
+  function levelUncertainInput(): PartyAdmissionInput {
+    const input = fullPassInput();
+    return {
+      ...input,
+      documents: [
+        {
+          ...input.documents[0]!,
+          autoId: { ...PASS_AUTO_ID, levelPresent: false, matchedLevelTerms: [] },
+          snapshotSha256: SHA,
+        },
+      ],
+    };
+  }
+
+  function attestLevel(sha: string): readonly [{ criteria: string[]; by: string; at: string; note: string; snapshot_sha256: string }] {
+    return [
+      {
+        criteria: ['auto-id-level'],
+        by: 'Thomas',
+        at: '2026-07-18T10:00:00.000Z',
+        note: 'Couverture « Élections du 9 juin 2024 » vérifiée à la main.',
+        snapshot_sha256: sha,
+      },
+    ];
+  }
+
+  it('UNCERTAIN nommé + attestation valide (empreinte concordante) → PASS attesté', () => {
+    const input = levelUncertainInput();
+    const verdict = admitParty({
+      ...input,
+      documents: [{ ...input.documents[0]!, attestations: attestLevel(SHA) }],
+    });
+    expect(verdict.status).toBe('PASS');
+    const level = verdict.reasons.find((r) => r.check === 'auto-id-level');
+    expect(level?.severity).toBe('PASS');
+    expect(level?.code).toBe('level.attested');
+    expect(level?.attestation?.by).toBe('Thomas');
+    expect(level?.human).toContain('Thomas');
+    expect(level?.human).toContain('2026-07-18');
+  });
+
+  it('empreinte divergente (document remplacé) → attestation ignorée → UNCERTAIN', () => {
+    const input = levelUncertainInput();
+    const verdict = admitParty({
+      ...input,
+      // Attestation faite sur un ancien SHA ; le snapshot courant a changé.
+      documents: [{ ...input.documents[0]!, attestations: attestLevel('a'.repeat(64)) }],
+    });
+    expect(verdict.status).toBe('UNCERTAIN');
+    expect(verdict.reasons.find((r) => r.check === 'auto-id-level')?.code).toBe('level.absent');
+  });
+
+  it('UNCERTAIN non attesté laisse le parti UNCERTAIN (fail-closed intact)', () => {
+    const verdict = admitParty(levelUncertainInput());
+    expect(verdict.status).toBe('UNCERTAIN');
+    expect(verdict.reasons.find((r) => r.check === 'auto-id-level')?.code).toBe('level.absent');
+  });
+
+  it('NOT_MATERIALIZED nommé par une attestation n\'est JAMAIS converti en PASS', () => {
+    const input = fullPassInput();
+    const verdict = admitParty({
+      ...input,
+      documents: [
+        { ...input.documents[0]!, autoId: null, snapshotSha256: SHA, attestations: attestLevel(SHA) },
+      ],
+    });
+    // auto-ID non matérialisée : le critère reste NOT_MATERIALIZED, pas attesté.
+    const level = verdict.reasons.find((r) => r.check === 'auto-id-level');
+    expect(level?.severity).toBe('NOT_MATERIALIZED');
+    expect(level?.code).toBe('level.not-materialized');
+    expect(level?.attestation).toBeUndefined();
+  });
+
+  it('FAIL réel + level attesté → le parti ne sort PAS PASS (agrégation préservée)', () => {
+    const mr = getExpectedIdentity('mr');
+    const verdict = admitParty({
+      expected: mr,
+      documents: [
+        {
+          source_id: 'mr-programme-2024',
+          autoId: { ...PASS_AUTO_ID, levelPresent: false, matchedLevelTerms: [] },
+          actualPages: 100,
+          tocLastPage: 311, // TOC déborde → FAIL réel
+          snapshotSha256: SHA,
+          attestations: attestLevel(SHA),
+        },
+      ],
+      presentSourceIds: ['mr-programme-2024'],
+    });
+    // level est attesté (PASS) mais la troncature reste FAIL → pire-cas FAIL.
+    expect(verdict.reasons.find((r) => r.check === 'auto-id-level')?.code).toBe('level.attested');
+    expect(verdict.reasons.find((r) => r.check === 'toc-bounds')?.code).toBe('toc.exceeds');
+    expect(verdict.status).toBe('FAIL');
+  });
+
+  it('une attestation ne ratifie que le critère nommé (autre UNCERTAIN préservé)', () => {
+    const input = fullPassInput();
+    const verdict = admitParty({
+      ...input,
+      documents: [
+        {
+          ...input.documents[0]!,
+          // année ET niveau absents ; seul le niveau est attesté.
+          autoId: { ...PASS_AUTO_ID, yearPresent: false, levelPresent: false, matchedLevelTerms: [] },
+          snapshotSha256: SHA,
+          attestations: attestLevel(SHA),
+        },
+      ],
+    });
+    expect(verdict.reasons.find((r) => r.check === 'auto-id-level')?.code).toBe('level.attested');
+    expect(verdict.reasons.find((r) => r.check === 'auto-id-year')?.code).toBe('year.absent');
+    expect(verdict.status).toBe('UNCERTAIN');
+  });
+});
+
 describe('admitParty — web-chapters (PTB-PVDA)', () => {
   it('couche texte HTML non matérialisée → NOT_MATERIALIZED (pas un doute réel)', () => {
     const ptb = getExpectedIdentity('ptb-pvda');

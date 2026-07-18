@@ -17,6 +17,7 @@ import { checkLayerAutoIdentification, firstPagesText } from './auto-identificat
 import { detectTocLastPage } from './completeness.ts';
 import type { ExpectedIdentity } from './expected-identity.ts';
 import type { ProgrammeTextLayer } from '../extraction/text-layer.ts';
+import type { CriterionAttestation } from '../snapshot/manifest.ts';
 import type { DocumentEvidence, PartyAdmissionInput } from './verdict.ts';
 
 /** Fenêtre de pages (front) balayée pour détecter une table des matières. */
@@ -32,6 +33,10 @@ export interface DocumentSignals {
    * #22). Ignoré quand `layer` est présent (la couche fait autorité).
    */
   knownPages: number | null;
+  /** SHA-256 du snapshot brut épinglé de ce document (#50), ou `null`. */
+  snapshotSha256?: string | null;
+  /** Attestations de critère portées par le snapshot épinglé (#50). */
+  attestations?: readonly CriterionAttestation[];
 }
 
 /** Dérive l'évidence d'admission d'un document depuis ses signaux. */
@@ -39,6 +44,10 @@ export function documentEvidence(
   signals: DocumentSignals,
   expected: ExpectedIdentity,
 ): DocumentEvidence {
+  const attested = {
+    snapshotSha256: signals.snapshotSha256 ?? null,
+    attestations: signals.attestations ?? [],
+  };
   if (signals.layer !== null) {
     const layer = signals.layer;
     return {
@@ -46,6 +55,7 @@ export function documentEvidence(
       autoId: checkLayerAutoIdentification(layer, expected),
       actualPages: layer.page_count,
       tocLastPage: detectTocLastPage(firstPagesText(layer, ADMISSION_TOC_PAGES)),
+      ...attested,
     };
   }
   return {
@@ -53,6 +63,7 @@ export function documentEvidence(
     autoId: null,
     actualPages: signals.knownPages,
     tocLastPage: null,
+    ...attested,
   };
 }
 
