@@ -9,7 +9,7 @@
  *
  * Pur : ni I/O ni horloge (le `generated_at` est injecté).
  */
-import type { AdmissionStatus, PartyAdmissionVerdict } from './verdict.ts';
+import type { AdmissionReason, AdmissionStatus, PartyAdmissionVerdict } from './verdict.ts';
 
 export interface StatusReport {
   /** Date de génération (ISO, injectée). */
@@ -66,9 +66,44 @@ const BADGE: Record<AdmissionStatus, string> = {
   NOT_MATERIALIZED: '⚪ NON MATÉRIALISÉ',
 };
 
+/** Raisons portant une attestation humaine (#50) — critères ratifiés. */
+function attestedReasons(verdict: PartyAdmissionVerdict): AdmissionReason[] {
+  return verdict.reasons.filter((reason) => reason.attestation !== undefined);
+}
+
+/**
+ * Badge publié. Un PASS obtenu (en partie) par ratification humaine est marqué
+ * `✅ PASS (attesté)`, distinct d'un `✅ PASS` automatique : le lecteur voit ce
+ * qui est machine vs humain (#50).
+ */
+function badgeFor(verdict: PartyAdmissionVerdict): string {
+  if (verdict.status === 'PASS' && attestedReasons(verdict).length > 0) {
+    return '✅ PASS (attesté)';
+  }
+  return BADGE[verdict.status];
+}
+
+/** Ligne « Résumé » du tableau : critères bloquants + critères ratifiés (#50). */
+function summaryFor(verdict: PartyAdmissionVerdict): string {
+  const blocking = verdict.reasons
+    .filter((reason) => reason.severity !== 'PASS')
+    .map((reason) => reason.code);
+  const ratified = attestedReasons(verdict).map(
+    (reason) => `${reason.code} (par ${reason.attestation?.by ?? '?'})`,
+  );
+  const parts = [...blocking];
+  if (ratified.length > 0) parts.push(`attesté : ${ratified.join(', ')}`);
+  return parts.length === 0 ? 'tous critères satisfaits' : parts.join(' · ');
+}
+
 /** Statut publié, en markdown lisible par un humain. */
 export function renderStatusMarkdown(report: StatusReport): string {
   const counts = countStatuses(report.parties);
+  const attestedCount = report.parties.filter((v) => attestedReasons(v).length > 0).length;
+  const passLabel =
+    attestedCount > 0
+      ? `${counts.PASS} PASS (dont ${attestedCount} attesté${attestedCount > 1 ? 's' : ''})`
+      : `${counts.PASS} PASS`;
   const lines: string[] = [
     '# Statut de vérification des sources — programmes fédéraux 2024',
     '',
@@ -89,29 +124,43 @@ export function renderStatusMarkdown(report: StatusReport): string {
     'binaire est présent, `admit:report` re-dérive la couche depuis le snapshot',
     'épinglé (intégrité SHA-256 #21) et publie le VRAI PASS/UNCERTAIN/FAIL.',
     '',
-    `**Bilan :** ${counts.PASS} PASS · ${counts.UNCERTAIN} UNCERTAIN · ${counts.FAIL} FAIL · ` +
+    '**PASS (attesté)** (#50) distingue un PASS obtenu par **ratification humaine**',
+    'd\'un critère UNCERTAIN — un humain a vérifié le document et l\'a ratifié via',
+    '`npm run admit:attest`, l\'attestation étant liée à l\'empreinte SHA-256 du',
+    'snapshot épinglé. Une attestation ne ratifie que le critère nommé et ne peut',
+    'PAS transformer un FAIL (prouvé-faux) ni un NON MATÉRIALISÉ en PASS ; remplacer',
+    'le document l\'invalide. Chaque ratification est publiée ci-dessous (qui, quand,',
+    'pourquoi).',
+    '',
+    `**Bilan :** ${passLabel} · ${counts.UNCERTAIN} UNCERTAIN · ${counts.FAIL} FAIL · ` +
       `${counts.NOT_MATERIALIZED} NON MATÉRIALISÉ (${report.parties.length} partis).`,
     '',
     '| Parti | Verdict | Résumé |',
     '|---|---|---|',
   ];
   for (const verdict of report.parties) {
-    const summary = verdict.reasons
-      .filter((reason) => reason.severity !== 'PASS')
-      .map((reason) => reason.code)
-      .join(', ');
-    lines.push(
-      `| ${verdict.party_id} | ${BADGE[verdict.status]} | ${summary === '' ? 'tous critères satisfaits' : summary} |`,
-    );
+    lines.push(`| ${verdict.party_id} | ${badgeFor(verdict)} | ${summaryFor(verdict)} |`);
   }
   lines.push('');
   lines.push('## Détail par parti');
   for (const verdict of report.parties) {
     lines.push('');
-    lines.push(`### ${verdict.party_id} — ${BADGE[verdict.status]}`);
+    lines.push(`### ${verdict.party_id} — ${badgeFor(verdict)}`);
     lines.push('');
     for (const reason of verdict.reasons) {
       lines.push(`- **${reason.severity}** \`${reason.code}\` (${reason.check}) — ${reason.human}`);
+    }
+    const ratified = attestedReasons(verdict);
+    if (ratified.length > 0) {
+      lines.push('');
+      lines.push('  Critère(s) ratifié(s) par attestation humaine (#50) :');
+      for (const reason of ratified) {
+        const att = reason.attestation;
+        if (att === undefined) continue;
+        lines.push(
+          `  - \`${reason.code}\` — ratifié par **${att.by}** le ${att.at.slice(0, 10)} : ${att.note}`,
+        );
+      }
     }
   }
   return `${lines.join('\n')}\n`;
