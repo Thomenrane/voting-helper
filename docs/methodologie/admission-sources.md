@@ -254,11 +254,13 @@ format. #51 lève ce blocage sans dégrader aucune garantie :
    403), le crawl **résout par chapitre** la capture la plus proche du scrutin
    via l'**API availability** (`archive.org/wayback/available`), cible primaire
    `20240609` avec replis `20240701`/`20240601`/`20240515` (l'API est capricieuse
-   à une date exacte). **Garde-fou millésime** : une capture n'est acceptée que
-   si `closest.status === '200'` ET son timestamp est dans l'année **2024** ;
-   sinon (hors-2024, ou introuvable après replis) le chapitre est **indisponible**
-   — non snapshoté, donc compté **manquant** par `chapters-inventory` → FAIL,
-   jamais de timestamp fabriqué. L'inventaire attendu (§ « Inventaire des
+   à une date exacte). **Garde-fou fenêtre du scrutin** : une capture n'est
+   acceptée que si `closest.status === '200'` ET son jour tombe dans la fenêtre
+   **`[20240201, 20240731]`** (publication de campagne → peu après le vote) —
+   une simple capture 2024 ne suffit pas, une capture de fin 2024 post-date le
+   scrutin et peut déjà porter le programme dérivé. Hors fenêtre, ou introuvable
+   après replis, le chapitre est **indisponible** — non snapshoté, donc compté
+   **manquant** par `chapters-inventory` → FAIL, jamais de timestamp fabriqué. L'inventaire attendu (§ « Inventaire des
    chapitres web ») reste l'index Wayback 2024, et le garde-fou crawl-partiel →
    FAIL est intégralement préservé. La résolution availability est une étape
    **réseau du crawl** ; l'admission lit les snapshots committés, sans I/O.

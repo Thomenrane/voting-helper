@@ -12,12 +12,14 @@
  * returns `archived_snapshots.closest`.
  *
  * FAIL-CLOSED, never fabricated:
- * - a capture is accepted ONLY when `closest.status === '200'` AND its timestamp
- *   is within the 2024 ballot year (`startsWith('2024')`);
+ * - a capture is accepted ONLY when `closest.status === '200'` AND its capture
+ *   day falls within the BALLOT WINDOW around 9 June 2024 (`[20240201,
+ *   20240731]`) — a mere 2024 capture is not enough: a late-2024 snapshot post-
+ *   dates the ballot and may already show the drifted programme;
  * - the availability API is capricious at an exact date (a chapter can report NO
  *   capture at `20240609` yet resolve at `20240701`), so several target dates
  *   near the ballot are tried before concluding absence;
- * - a chapter with no in-2024 capture after all targets is left UNRESOLVED — it
+ * - a chapter with no in-window capture after all targets is left UNRESOLVED — it
  *   is simply not snapshotted, so the committed index still expects it and the
  *   `chapters-inventory` check (#51) counts it missing → FAIL, never a silent
  *   PASS over a truncated programme.
@@ -29,13 +31,23 @@ import { buildWaybackUrl } from './wayback.ts';
 /**
  * Target capture dates tried in order, nearest the 9 June 2024 federal ballot
  * first. Fallbacks absorb the availability API's caprice at an exact date — they
- * are alternative probe dates, NOT a widening of the accepted year (the 2024
- * millésime guard below is applied to every candidate regardless of target).
+ * are alternative probe dates, NOT a widening of acceptance (the ballot-window
+ * guard below is applied to every candidate regardless of the target used).
  */
 export const CHAPTER_CAPTURE_TARGETS = ['20240609', '20240701', '20240601', '20240515'] as const;
 
-/** Ballot year — a capture is only accepted when its timestamp falls in it. */
-export const CAPTURE_YEAR_PREFIX = '2024';
+/**
+ * Ballot window (inclusive, `YYYYMMDD`) around the 9 June 2024 federal vote:
+ * campaign publication (Feb) → shortly after the ballot (Jul). A capture whose
+ * DAY falls outside it is rejected — including a late-2024 snapshot, which post-
+ * dates the vote and may already carry the drifted programme. This is the
+ * fidelity boundary: the goal is the ballot-time programme, not any 2024 capture.
+ */
+export const BALLOT_WINDOW_START = '20240201';
+export const BALLOT_WINDOW_END = '20240731';
+
+/** A Wayback timestamp is 4–14 digits (`YYYY` … `YYYYMMDDhhmmss`), digits only. */
+const TIMESTAMP_PATTERN = /^\d{4,14}$/u;
 
 /** The `archived_snapshots.closest` shape we consume from the availability API. */
 export interface AvailabilityClosest {
@@ -56,7 +68,12 @@ export function buildAvailabilityUrl(originUrl: string, timestamp: string): stri
   return `https://archive.org/wayback/available?url=${encodeURIComponent(originUrl)}&timestamp=${timestamp}`;
 }
 
-/** Extracts `archived_snapshots.closest`, or `null` when absent/malformed. */
+/**
+ * Extracts `archived_snapshots.closest`, or `null` when absent/malformed. The
+ * `timestamp` must be digits-only (`4–14`); it is interpolated raw into the
+ * fetch URL (`web/<ts>id_/…`), so a non-numeric value is rejected here (defense
+ * in depth — fail-closed and the host is always web.archive.org anyway).
+ */
 export function parseAvailabilityClosest(json: unknown): AvailabilityClosest | null {
   if (typeof json !== 'object' || json === null) return null;
   const snapshots = (json as { archived_snapshots?: unknown }).archived_snapshots;
@@ -65,22 +82,30 @@ export function parseAvailabilityClosest(json: unknown): AvailabilityClosest | n
   if (typeof closest !== 'object' || closest === null) return null;
   const { status, timestamp } = closest as { status?: unknown; timestamp?: unknown };
   if (typeof status !== 'string' || typeof timestamp !== 'string') return null;
+  if (!TIMESTAMP_PATTERN.test(timestamp)) return null;
   return { status, timestamp };
 }
 
-/** A closest capture is usable iff it is HTTP 200 AND within the 2024 ballot year. */
-export function isCaptureInBallotYear(closest: AvailabilityClosest | null): boolean {
-  return (
-    closest !== null && closest.status === '200' && closest.timestamp.startsWith(CAPTURE_YEAR_PREFIX)
-  );
+/**
+ * A closest capture is usable iff it is HTTP 200 AND its capture day falls inside
+ * the ballot window `[BALLOT_WINDOW_START, BALLOT_WINDOW_END]`. The comparison is
+ * a numeric prefix on the 8-digit day (`YYYYMMDD`) — a shorter/absent day is
+ * out of window (fail-closed).
+ */
+export function isCaptureInBallotWindow(closest: AvailabilityClosest | null): boolean {
+  if (closest === null || closest.status !== '200') return false;
+  const day = closest.timestamp.slice(0, 8);
+  if (!/^\d{8}$/u.test(day)) return false;
+  const date = Number(day);
+  return date >= Number(BALLOT_WINDOW_START) && date <= Number(BALLOT_WINDOW_END);
 }
 
 /**
- * Resolves the nearest in-2024 Wayback capture timestamp for a canonical URL, or
- * `null` when none is findable after every target fallback (fail-closed — never
- * fabricated). Tries `targets` in order; a target that yields no `closest`, a
- * non-200 `closest`, or an out-of-2024 `closest` falls through to the next; a
- * network error on one target likewise falls through.
+ * Resolves the nearest in-window Wayback capture timestamp for a canonical URL,
+ * or `null` when none is findable after every target fallback (fail-closed —
+ * never fabricated). Tries `targets` in order; a target that yields no `closest`,
+ * a non-200 `closest`, or a `closest` outside the ballot window falls through to
+ * the next; a network error on one target likewise falls through.
  */
 export async function resolveChapterCapture(
   originUrl: string,
@@ -95,7 +120,7 @@ export async function resolveChapterCapture(
       continue; // transient availability hiccup on this target — try the next
     }
     const closest = parseAvailabilityClosest(json);
-    if (isCaptureInBallotYear(closest) && closest !== null) return closest.timestamp;
+    if (isCaptureInBallotWindow(closest) && closest !== null) return closest.timestamp;
   }
   return null;
 }
@@ -103,12 +128,12 @@ export async function resolveChapterCapture(
 /** Outcome of resolving one index's chapters against the Wayback availability API. */
 export interface WaybackChapterCrawl {
   /**
-   * Snapshot sources for the chapters WITH an in-2024 capture — each `fetchUrl`
+   * Snapshot sources for the chapters WITH an in-window capture — each `fetchUrl`
    * is the per-chapter dated `id_` capture, the `originUrl` the canonical page.
    */
   sources: SnapshotSource[];
   /**
-   * Slugs with NO in-2024 capture after all target fallbacks — deliberately not
+   * Slugs with NO in-window capture after all target fallbacks — deliberately not
    * snapshotted, so the committed index still expects them and `chapters-inventory`
    * (#51) counts them missing → FAIL (fail-closed, never a silent PASS).
    */

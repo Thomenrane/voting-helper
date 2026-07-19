@@ -77,7 +77,8 @@ sont **agnostiques au format** :
   sa capture confirmée, mais **chaque chapitre a une capture à un autre instant**
   (les datant depuis l'index → 403) : le crawl résout **par chapitre** la capture
   la plus proche du scrutin via l'API availability, n'acceptant qu'une capture
-  **2024** (sinon le chapitre est traité comme manquant → FAIL de complétude).
+  dans la **fenêtre du scrutin `[20240201, 20240731]`** (sinon — hors fenêtre,
+  ex. fin 2024 post-vote — le chapitre est traité comme manquant → FAIL).
   Les bornes de crawl s'appliquent sur l'URL **d'origine décodée** de l'enveloppe
   Wayback, jamais sur `web.archive.org`.
 

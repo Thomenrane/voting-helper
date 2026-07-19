@@ -6,7 +6,7 @@ import { chapterSourceId, type ChapterLink } from './html-chapters.ts';
 import {
   buildAvailabilityUrl,
   CHAPTER_CAPTURE_TARGETS,
-  isCaptureInBallotYear,
+  isCaptureInBallotWindow,
   parseAvailabilityClosest,
   resolveChapterCapture,
   resolveWaybackChapterSources,
@@ -68,15 +68,28 @@ describe('parseAvailabilityClosest', () => {
     expect(parseAvailabilityClosest(null)).toBeNull();
     expect(parseAvailabilityClosest({ archived_snapshots: { closest: { status: 200 } } })).toBeNull();
   });
+
+  it('rejects a non-numeric timestamp (never interpolated into a fetch URL)', () => {
+    expect(parseAvailabilityClosest(closest('200', '2024../../etc'))).toBeNull();
+    expect(parseAvailabilityClosest(closest('200', 'abcd'))).toBeNull();
+    expect(parseAvailabilityClosest(closest('200', ''))).toBeNull();
+  });
 });
 
-describe('isCaptureInBallotYear', () => {
-  it('accepts a 2024, HTTP-200 capture only', () => {
-    expect(isCaptureInBallotYear({ status: '200', timestamp: '20240602182158' })).toBe(true);
-    expect(isCaptureInBallotYear({ status: '404', timestamp: '20240602182158' })).toBe(false);
-    expect(isCaptureInBallotYear({ status: '200', timestamp: '20231201000000' })).toBe(false);
-    expect(isCaptureInBallotYear({ status: '200', timestamp: '20250101000000' })).toBe(false);
-    expect(isCaptureInBallotYear(null)).toBe(false);
+describe('isCaptureInBallotWindow', () => {
+  it('accepts only an HTTP-200 capture whose day is within [20240201, 20240731]', () => {
+    expect(isCaptureInBallotWindow({ status: '200', timestamp: '20240602182158' })).toBe(true);
+    // Window boundaries are inclusive.
+    expect(isCaptureInBallotWindow({ status: '200', timestamp: '20240201000000' })).toBe(true);
+    expect(isCaptureInBallotWindow({ status: '200', timestamp: '20240731235959' })).toBe(true);
+    // A 2024 capture OUTSIDE the ballot window (post-vote drift) is rejected.
+    expect(isCaptureInBallotWindow({ status: '200', timestamp: '20241115000000' })).toBe(false);
+    expect(isCaptureInBallotWindow({ status: '200', timestamp: '20240115000000' })).toBe(false);
+    // Non-2024 and non-200 rejected.
+    expect(isCaptureInBallotWindow({ status: '200', timestamp: '20231201000000' })).toBe(false);
+    expect(isCaptureInBallotWindow({ status: '200', timestamp: '20250101000000' })).toBe(false);
+    expect(isCaptureInBallotWindow({ status: '404', timestamp: '20240602182158' })).toBe(false);
+    expect(isCaptureInBallotWindow(null)).toBe(false);
   });
 });
 
@@ -113,6 +126,18 @@ describe('resolveChapterCapture', () => {
         '20240701': closest('200', '20250101000000'),
         '20240601': noCapture,
         '20240515': closest('200', '20230601000000'),
+      },
+    });
+    expect(await resolveChapterCapture(url, fetchJson)).toBeNull();
+  });
+
+  it('rejects a 2024 capture that falls OUTSIDE the ballot window (post-vote drift)', async () => {
+    const fetchJson = scriptedFetcher({
+      [url]: {
+        '20240609': closest('200', '20241115000000'), // nov 2024 — post-scrutin
+        '20240701': closest('200', '20240115000000'), // jan 2024 — pré-fenêtre
+        '20240601': noCapture,
+        '20240515': closest('200', '20241231000000'),
       },
     });
     expect(await resolveChapterCapture(url, fetchJson)).toBeNull();
