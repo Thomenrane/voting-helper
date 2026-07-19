@@ -240,6 +240,20 @@ format. #51 lève ce blocage sans dégrader aucune garantie :
    path-safe, dédupliqués, ordonnés, **plafonnés** (`MAX_CHAPTERS_PER_INDEX`).
    Aucune découverte libre, aucune récursion. Chaque chapitre est snapshoté par
    la **même** machinerie #21 (entrée datée immuable, empreinte SHA-256).
+
+   **Sourcing Wayback mi-2024 (#58).** Le programme web PTB-PVDA est *évolutif* :
+   le site live 2026 a dérivé du programme figé du scrutin du 9 juin 2024. Les
+   deux miroirs sont donc en canal `wayback`, `fetchUrl` ciblant une capture
+   datée proche du scrutin (`web/20240609id_/<origine>`, le préfixe `id_`
+   redirigeant vers la capture réelle la plus proche — même mécanisme que
+   Ecolo/N-VA), l'`originUrl` canonique restant la provenance. En mode Wayback :
+   (a) les hrefs de l'index capturé, éventuellement **encapsulés** dans
+   l'enveloppe de replay (`/web/<ts>id_/<origine>`), sont **décodés** vers leur
+   URL d'origine **avant** l'allowlist — les bornes s'appliquent sur l'origine
+   canonique décodée, jamais sur `web.archive.org` ; (b) chaque chapitre est
+   fetché depuis la **même** capture datée que son index. L'inventaire attendu
+   (§ « Inventaire des chapitres web ») reste donc l'index Wayback 2024, et le
+   garde-fou crawl-partiel → FAIL est intégralement préservé.
 2. **Couche texte par chapitre.** Chaque chapitre = une « page » de la même
    structure `ProgrammeTextLayer` que le PDF — l'admission et l'extraction
    restent **agnostiques à la source**. L'extraction HTML→texte retire le
