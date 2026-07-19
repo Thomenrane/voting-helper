@@ -29,7 +29,11 @@
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { admitPartyFromManifest, fileLayerLoader } from '../admission/admission-service.ts';
+import {
+  admitPartyFromManifest,
+  fileChapterInventoryLoader,
+  fileLayerLoader,
+} from '../admission/admission-service.ts';
 import { getExpectedIdentity } from '../admission/expected-identity.ts';
 import { ATTESTABLE_CHECKS, isAttestableCheck } from '../admission/verdict.ts';
 import {
@@ -86,10 +90,13 @@ async function main(): Promise<void> {
   const repoRoot = resolveRepoRoot();
   const manifestPath = join(repoRoot, MANIFEST_RELATIVE_PATH);
   let manifest = await loadManifest(manifestPath, emptyManifest('', ''));
-  const loadLayer = fileLayerLoader(repoRoot);
+  // Loaders alignés sur admit:report : le manifeste est requis pour matérialiser
+  // une couche par chapitre (sources web #51/#58), l'inventaire pour la complétude.
+  const loadLayer = fileLayerLoader(repoRoot, manifest);
+  const loadInventory = fileChapterInventoryLoader(repoRoot, manifest);
 
   // Verdict courant : seul un critère UNCERTAIN est ratifiable (fail-closed).
-  const before = await admitPartyFromManifest(manifest, expected, loadLayer);
+  const before = await admitPartyFromManifest(manifest, expected, loadLayer, loadInventory);
   for (const criterion of criteria) {
     const reason = before.reasons.find((r) => r.check === criterion);
     if (reason === undefined) {
@@ -139,7 +146,7 @@ async function main(): Promise<void> {
   );
 
   // Re-passe la porte d'admission.
-  const after = await admitPartyFromManifest(manifest, expected, loadLayer);
+  const after = await admitPartyFromManifest(manifest, expected, loadLayer, loadInventory);
   console.log(`\nNouveau verdict d'admission pour '${partyId}' : ${after.status}`);
   for (const reason of after.reasons) {
     console.log(`  - [${reason.severity}] ${reason.code} — ${reason.human}`);
