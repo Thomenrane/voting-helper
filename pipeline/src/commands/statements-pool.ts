@@ -330,11 +330,21 @@ function admitProgramme(
 ): PartyAdmissionVerdict {
   const expected = getExpectedIdentity(partyId);
   const layerBySource = new Map(layers.map((input) => [input.layer.source_id, input.layer]));
-  const admissionSignals: DocumentSignals[] = expected.parts.map((part) => ({
-    source_id: part.source_id,
-    layer: layerBySource.get(part.source_id) ?? null,
-    knownPages: null,
-  }));
+  const admissionSignals: DocumentSignals[] = expected.parts.map((part) => {
+    // Attestations de critère (#50) du snapshot épinglé : sans elles, un parti
+    // attesté PASS apparaîtrait UNCERTAIN et la moisson le refuserait à tort
+    // (même câblage que admission-service.ts / admit:report).
+    const raw = latestSnapshot(manifest, part.source_id);
+    return {
+      source_id: part.source_id,
+      layer: layerBySource.get(part.source_id) ?? null,
+      knownPages: null,
+      // Empreinte + attestations du snapshot épinglé : le verdict n'honore une
+      // attestation que si son `snapshot_sha256` égale cette empreinte (#50).
+      snapshotSha256: raw?.sha256 ?? null,
+      attestations: raw?.criteria_attestations ?? [],
+    };
+  });
   const presentSourceIds = expected.parts
     .filter((part) => latestSnapshot(manifest, part.source_id) !== undefined)
     .map((part) => part.source_id);
