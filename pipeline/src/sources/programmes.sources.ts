@@ -5,12 +5,16 @@
  * `docs/research/programmes-partis.md` (branch `research/programmes-partis`,
  * verification date 16/07/2026). Channels follow the note's findings:
  * - `live`: origin serves automated clients (NationBuilder CDN, party CMS);
- * - `wayback`: origin is dead (Open Vld → « Anders. » rebranding) or behind
- *   an anti-bot WAF (Ecolo, N-VA) — fetched from the Wayback Machine while
- *   keeping the canonical origin URL as provenance.
- * PTB/PVDA publish no PDF: their web programme index pages are snapshotted
- * (one unitary party, two language mirrors — both kept because citations
- * must stay verifiable in their original language).
+ * - `wayback`: origin is dead (Open Vld → « Anders. » rebranding), behind an
+ *   anti-bot WAF (Ecolo, N-VA), or an EVOLVING web programme whose live version
+ *   has drifted past the frozen 2024 ballot (PTB/PVDA, #58) — fetched from the
+ *   Wayback Machine while keeping the canonical origin URL as provenance.
+ * PTB/PVDA publish no PDF: their programme is a web index of per-chapter pages
+ * (one unitary party, two language mirrors — both kept because citations must
+ * stay verifiable in their original language). The live site crawled in 2026
+ * has drifted from the 9 June 2024 programme (footer « © 2023-2026 », some
+ * chapters cite 2025), so both are sourced from a mid-2024 Wayback capture near
+ * the ballot — the frozen version the other 12 parties are all dated to (#58).
  */
 import type { SnapshotSource } from '../snapshot/manifest.ts';
 
@@ -62,10 +66,13 @@ export const PROGRAMME_SOURCES: SnapshotSource[] = [
     id: 'ptb-programme-2024',
     label: 'PTB — Programme (index des chapitres web, pas de PDF national)',
     originUrl: 'https://www.ptb.be/programme',
-    fetchUrl: 'https://www.ptb.be/programme',
-    channel: 'live',
+    // Confirmed mid-2024 index capture near the 9 June 2024 ballot (#58). The
+    // chapter pages are captured at OTHER instants — each is resolved per chapter
+    // at crawl time (see wayback-availability.ts), not from this timestamp.
+    fetchUrl: 'https://web.archive.org/web/20240618091111id_/https://www.ptb.be/programme',
+    channel: 'wayback',
     mediaType: 'text/html',
-    provenance: `${NOTE} — § PTB`,
+    provenance: `${NOTE} — § PTB (programme web évolutif, gelé au scrutin via Wayback mi-2024, #58)`,
   },
   {
     id: 'defi-axe-1-2024',
@@ -192,9 +199,12 @@ export const PROGRAMME_SOURCES: SnapshotSource[] = [
     id: 'pvda-programme-2024',
     label: 'PVDA — Programma (index des chapitres web, miroir NL du PTB)',
     originUrl: 'https://www.pvda.be/programma',
-    fetchUrl: 'https://www.pvda.be/programma',
-    channel: 'live',
+    // Confirmed mid-2024 index capture near the 9 June 2024 ballot (#58). The
+    // chapter pages are captured at OTHER instants — each is resolved per chapter
+    // at crawl time (see wayback-availability.ts), not from this timestamp.
+    fetchUrl: 'https://web.archive.org/web/20240528161524id_/https://www.pvda.be/programma',
+    channel: 'wayback',
     mediaType: 'text/html',
-    provenance: `${NOTE} — § PVDA (parti unitaire PTB-PVDA, miroir de langue)`,
+    provenance: `${NOTE} — § PVDA (parti unitaire PTB-PVDA, miroir NL, gelé au scrutin via Wayback mi-2024, #58)`,
   },
 ];

@@ -58,6 +58,45 @@ export function reportRun(result: SnapshotRunResult, manifestPath: string): void
   }
 }
 
+/** One index's chapters that had no in-window Wayback capture at crawl time (#58). */
+export interface UnavailableChapters {
+  indexId: string;
+  slugs: string[];
+}
+
+/**
+ * Raised by the chapter crawl when at least one chapter has no in-window Wayback
+ * capture. Successful chapters are already snapshotted (never lost) — but the
+ * operator must SEE the incompleteness immediately, at crawl time, via a
+ * non-zero exit, not only later at the admission gate.
+ */
+export class IncompleteChaptersError extends Error {
+  readonly unavailable: UnavailableChapters[];
+
+  constructor(unavailable: UnavailableChapters[]) {
+    const total = unavailable.reduce((sum, u) => sum + u.slugs.length, 0);
+    const lines = unavailable.map(
+      (u) => `  - ${u.indexId}: ${u.slugs.length} sans capture — ${u.slugs.join(', ')}`,
+    );
+    super(
+      `Crawl incomplet : ${total} chapitre(s) sans capture Wayback dans la fenêtre du scrutin ` +
+        `(snapshots réussis conservés ; 'chapters-inventory' échouera tant qu'ils manquent) :\n${lines.join('\n')}`,
+    );
+    this.name = 'IncompleteChaptersError';
+    this.unavailable = unavailable;
+  }
+}
+
+/**
+ * Fails the command (non-zero exit via the thrown error) when any index has
+ * chapters with no in-window capture. No-op when everything resolved. MUST be
+ * called AFTER snapshots are persisted so successful work is never lost.
+ */
+export function assertChaptersComplete(unavailable: readonly UnavailableChapters[]): void {
+  const withGaps = unavailable.filter((u) => u.slugs.length > 0);
+  if (withGaps.length > 0) throw new IncompleteChaptersError(withGaps);
+}
+
 /** Uniform fatal-error exit for command entry points. */
 export function fail(error: unknown): never {
   console.error(error instanceof Error ? `\n${error.message}` : `\n${String(error)}`);

@@ -67,6 +67,20 @@ sont **agnostiques au format** :
   partiel ⇒ **aucune couche** (fail-closed), donc jamais d'extraction sur un
   contenu non authentique. Voir `docs/methodologie/admission-sources.md` §
   « Sources web-chapitres ».
+  **Sourcing Wayback mi-2024 (#58).** Contrairement aux 12 autres partis (tous
+  datés 2024), le programme web PTB-PVDA est **évolutif** : le site live crawlé
+  en 2026 a dérivé du programme figé du scrutin du 9 juin 2024 (pied de page
+  « © 2023-2026 », des chapitres citant 2025). PTB-PVDA sont donc sourcés depuis
+  une capture **Wayback Machine mi-2024** (canal `wayback`, `originUrl`
+  canonique conservée en provenance) — la version gelée de la page désignée,
+  comme les PDF Ecolo/N-VA/Open Vld. En mode Wayback, l'index est fetché depuis
+  sa capture confirmée, mais **chaque chapitre a une capture à un autre instant**
+  (les datant depuis l'index → 403) : le crawl résout **par chapitre** la capture
+  la plus proche du scrutin via l'API availability, n'acceptant qu'une capture
+  dans la **fenêtre du scrutin `[20240201, 20240731]`** (sinon — hors fenêtre,
+  ex. fin 2024 post-vote — le chapitre est traité comme manquant → FAIL).
+  Les bornes de crawl s'appliquent sur l'URL **d'origine décodée** de l'enveloppe
+  Wayback, jamais sur `web.archive.org`.
 
 `extract:positions` prépare ces couches via `ensureTextLayer` (PDF dérivé et
 attesté ; HTML assemblé depuis les snapshots de chapitres). Tant que le crawl

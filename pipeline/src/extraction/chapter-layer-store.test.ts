@@ -19,7 +19,11 @@ import {
 } from '../snapshot/manifest.ts';
 import { sha256Hex } from '../snapshot/snapshot-store.ts';
 import { chapterSourceId } from '../sources/html-chapters.ts';
-import { chapterEntries, materializeHtmlChapterLayer } from './chapter-layer-store.ts';
+import {
+  chapterEntries,
+  chapterInventory,
+  materializeHtmlChapterLayer,
+} from './chapter-layer-store.ts';
 
 let repoRoot: string;
 
@@ -294,5 +298,83 @@ describe('admission of PTB-PVDA once chapters are crawled (#51)', () => {
       fileChapterInventoryLoader(repoRoot, tampered),
     );
     expect(verdict.status).toBe('NOT_MATERIALIZED');
+  });
+});
+
+describe('materialization over a WAYBACK index (#58) — encapsulated hrefs', () => {
+  const ORIGIN = 'https://www.ptb.be';
+  const PATH = '/programme';
+  /** Wayback capture of the index whose chapter hrefs are wrapped in the replay
+   * envelope — absolute web.archive.org for even slugs, host-relative for odd. */
+  const WAYBACK_INDEX_HTML = (slugs: string[], ts = '20240609id_'): string =>
+    `<html><body>${slugs
+      .map((s, i) =>
+        i % 2 === 0
+          ? `<a href="https://web.archive.org/web/${ts}/${ORIGIN}${PATH}/${s}">${s}</a>`
+          : `<a href="/web/${ts}/${ORIGIN}${PATH}/${s}">${s}</a>`,
+      )
+      .join('')}</body></html>`;
+
+  /** Seeds a Wayback index (encapsulated hrefs) and its snapshotted chapters. */
+  async function seedWaybackIndex(
+    chapters: { slug: string; heading: string; body: string }[],
+    expectedSlugs?: string[],
+  ): Promise<SnapshotManifest> {
+    let manifest = emptyManifest('t', 'n');
+    manifest = await seedHtml(
+      manifest,
+      htmlSource('ptb-programme-2024', `${ORIGIN}${PATH}`),
+      WAYBACK_INDEX_HTML(expectedSlugs ?? chapters.map((c) => c.slug)),
+      '2026-07-16T13:00:00.000Z',
+    );
+    for (const chapter of chapters) {
+      manifest = await seedHtml(
+        manifest,
+        htmlSource(chapterSourceId('ptb-programme-2024', chapter.slug), `${ORIGIN}${PATH}/${chapter.slug}`),
+        CHAPTER(chapter.heading, chapter.body),
+        '2026-07-16T13:10:00.000Z',
+      );
+    }
+    return manifest;
+  }
+
+  it('derives the expected inventory from a Wayback index and materializes the layer', async () => {
+    const manifest = await seedWaybackIndex([
+      { slug: 'justice-fiscale', heading: 'Justice fiscale', body: 'Taxe des riches.' },
+      { slug: 'agriculture', heading: 'Agriculture', body: 'Soutien aux paysans.' },
+    ]);
+    // The expected inventory is re-derived from the encapsulated index hrefs.
+    const inventory = await chapterInventory(repoRoot, manifest, 'ptb-programme-2024');
+    expect(inventory?.expected).toEqual(['agriculture', 'justice-fiscale']);
+    expect(inventory?.missing).toEqual([]);
+    const layer = await materializeHtmlChapterLayer(repoRoot, manifest, 'ptb-programme-2024');
+    expect(layer?.page_count).toBe(2);
+    expect(layer?.pages[1]?.text).toContain('Taxe des riches');
+  });
+
+  it('a partial crawl over a Wayback index → null and lists the missing slug (guardrail #51 preserved)', async () => {
+    const manifest = await seedWaybackIndex(
+      [
+        { slug: 'agriculture', heading: 'Agriculture', body: 'a' },
+        { slug: 'justice-fiscale', heading: 'Justice', body: 'b' },
+      ],
+      ['agriculture', 'justice-fiscale', 'securite-sociale'], // 3 attendus, 1 non crawlé
+    );
+    const inventory = await chapterInventory(repoRoot, manifest, 'ptb-programme-2024');
+    expect(inventory?.missing).toEqual(['securite-sociale']);
+    expect(await materializeHtmlChapterLayer(repoRoot, manifest, 'ptb-programme-2024')).toBeNull();
+  });
+
+  it('a falsified chapter under a Wayback index → null (fail-closed)', async () => {
+    const manifest = await seedWaybackIndex([
+      { slug: 'agriculture', heading: 'Agriculture', body: 'x' },
+    ]);
+    const tampered: SnapshotManifest = {
+      ...manifest,
+      snapshots: manifest.snapshots.map((s) =>
+        s.source_id.includes('-chapitre-') ? { ...s, sha256: 'deadbeef'.padEnd(64, '0') } : s,
+      ),
+    };
+    expect(await materializeHtmlChapterLayer(repoRoot, tampered, 'ptb-programme-2024')).toBeNull();
   });
 });
