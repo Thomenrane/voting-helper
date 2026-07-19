@@ -54,6 +54,24 @@ describe('extractChapterLinks', () => {
     expect(links.map((l) => l.slug)).toEqual(['ok']);
   });
 
+  it('decodes Wayback-encapsulated hrefs and bounds on the canonical origin (#58)', () => {
+    // A mid-2024 Wayback capture whose links are wrapped in the replay envelope
+    // (both absolute web.archive.org and host-relative forms), plus an off-domain
+    // and a too-deep link that must still be rejected AFTER decoding.
+    const html = `
+      <a href="https://web.archive.org/web/20240609id_/https://www.ptb.be/programme/justice-fiscale">JF</a>
+      <a href="/web/20240609000000/https://www.ptb.be/programme/agriculture">Agri</a>
+      <a href="https://web.archive.org/web/20240609id_/https://www.ptb.be/programme">index itself</a>
+      <a href="https://web.archive.org/web/20240609id_/https://twitter.com/ptb">off-domain</a>
+      <a href="https://web.archive.org/web/20240609id_/https://www.ptb.be/programme/justice/detail">too deep</a>
+    `;
+    const links = extractChapterLinks(html, INDEX.originUrl);
+    expect(links.map((l) => l.slug)).toEqual(['agriculture', 'justice-fiscale']);
+    // The chapter URL is the CANONICAL origin, never the web.archive.org envelope.
+    expect(links[0]?.url).toBe('https://www.ptb.be/programme/agriculture');
+    expect(links[1]?.url).toBe('https://www.ptb.be/programme/justice-fiscale');
+  });
+
   it('refuses an index that exceeds the crawl bound', () => {
     const many = Array.from(
       { length: MAX_CHAPTERS_PER_INDEX + 1 },
@@ -86,5 +104,37 @@ describe('buildChapterSources', () => {
       mediaType: 'text/html',
     });
     expect(sources[0]?.provenance).toContain('note');
+  });
+
+  it('dates each chapter fetchUrl from the index capture in wayback mode (#58)', () => {
+    const waybackIndex: SnapshotSource = {
+      ...INDEX,
+      channel: 'wayback',
+      fetchUrl: 'https://web.archive.org/web/20240609id_/https://www.ptb.be/programme',
+    };
+    const sources = buildChapterSources(waybackIndex, [
+      { slug: 'agriculture', url: 'https://www.ptb.be/programme/agriculture' },
+    ]);
+    expect(sources[0]).toMatchObject({
+      id: 'ptb-programme-2024-chapitre-agriculture',
+      // Provenance stays canonical…
+      originUrl: 'https://www.ptb.be/programme/agriculture',
+      // …fetch goes through the SAME dated capture as the index.
+      fetchUrl:
+        'https://web.archive.org/web/20240609id_/https://www.ptb.be/programme/agriculture',
+      channel: 'wayback',
+      mediaType: 'text/html',
+    });
+  });
+
+  it('refuses a wayback index whose fetchUrl is not a Wayback replay URL (#58)', () => {
+    const broken: SnapshotSource = {
+      ...INDEX,
+      channel: 'wayback',
+      fetchUrl: 'https://www.ptb.be/programme',
+    };
+    expect(() =>
+      buildChapterSources(broken, [{ slug: 'x', url: 'https://www.ptb.be/programme/x' }]),
+    ).toThrow(/not a Wayback replay URL/);
   });
 });
