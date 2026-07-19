@@ -397,7 +397,19 @@
       "bytes": 240442,
       "file": "data/snapshots/programmes/ptb-programme-2024/20260716T132520Z.html",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § PTB",
-      "content_unchanged_from": "ptb-programme-2024@20260716T132520Z"
+      "content_unchanged_from": "ptb-programme-2024@20260716T132520Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-19T10:15:26.515Z",
+          "note": "Programme PTB-PVDA du scrutin du 9 juin 2024, source web archivée sur la Wayback Machine en période électorale : 95 chapitres (ptb.be/programme + pvda.be/programma) résolus chacun à leur capture la plus proche du scrutin, toutes dans [13/04-23/07 2024]. Complet (chapters.complete). Pas de PDF national ; format web sans date/fédéral en tête de chapitre.",
+          "snapshot_sha256": "27e9bf13c5a161ce7efa05719a2d9acb4bf2971cc9c094d8016799f3c69a7b5a"
+        }
+      ]
     },
     {
       "snapshot_id": "defi-axe-1-2024@20260716T212922802Z",
@@ -734,7 +746,19 @@
       "bytes": 243755,
       "file": "data/snapshots/programmes/pvda-programme-2024/20260716T132545Z.html",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § PVDA (parti unitaire PTB-PVDA, miroir de langue)",
-      "content_unchanged_from": "pvda-programme-2024@20260716T132545Z"
+      "content_unchanged_from": "pvda-programme-2024@20260716T132545Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-19T10:15:26.515Z",
+          "note": "Programme PTB-PVDA du scrutin du 9 juin 2024, source web archivée sur la Wayback Machine en période électorale : 95 chapitres (ptb.be/programme + pvda.be/programma) résolus chacun à leur capture la plus proche du scrutin, toutes dans [13/04-23/07 2024]. Complet (chapters.complete). Pas de PDF national ; format web sans date/fédéral en tête de chapitre.",
+          "snapshot_sha256": "b1d295355bc3dba78aabc0c1172fb93b9611328d1821b84b44321a018306434c"
+        }
+      ]
     },
     {
       "snapshot_id": "ps-programme-2024-text@20260716T215306146Z",
