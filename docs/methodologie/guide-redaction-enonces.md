@@ -192,18 +192,37 @@ suit est le mode d'emploi de cette session.
 
 ### Prérequis
 
-- **Clé API** : `ANTHROPIC_API_KEY` dans l'environnement (jamais dans un
-  fichier, jamais committée). Sans clé, chaque commande fonctionne en
-  `--dry-run` et montre son plan exact (chunks, lots, estimation de
-  tokens) sans rien inventer.
+- **Moisson du pool — trois façons, aucune obligatoire** :
+  - **Clé API** : `ANTHROPIC_API_KEY` dans l'environnement (jamais dans un
+    fichier, jamais committée) pour un run *live*.
+  - **Keyless (`--emit`/`--ingest`)** : sans clé, `statements:pool` moissonne
+    en deux temps, exactement comme `extract:positions`. `--emit <fichier>`
+    écrit le plan et un prompt par unité (chunk de programme ou lot de
+    dossiers), avec une ancre de contenu `text_sha256` + une ancre de taille
+    (`chunk_chars`/`batch_size`) ; un agent (ou un humain, ou l'API) remplit
+    une réponse par unité ; `--ingest <fichier>` relit ces réponses,
+    **re-valide** chaque ancre (rejet si le chunk a changé) et assemble le pool.
+    Le round-trip est **déterministe, byte-identique** au run live.
+  - **`--dry-run`** : montre le plan exact (chunks, lots, estimation de tokens)
+    sans rien inventer ni écrire.
+- **Sources PDF *et* HTML** : le pool moissonne toute source dotée d'une couche
+  texte — les programmes PDF **et** les programmes en chapitres web (PTB-PVDA,
+  un chapitre = une page). Plus d'erreur « no PDF » : un parti sans PDF est
+  moissonnable comme les autres.
+- **Porte d'admission (#42)** : la moisson d'un programme applique le MÊME
+  garde-fou fail-closed que `extract:positions` — un parti non admis (verdict
+  ≠ PASS) est refusé en live comme en `--ingest`. `--dry-run` et `--emit`
+  restent keyless et ne produisent aucun candidat, donc n'imposent pas la porte.
+  La moisson `--votes` (indépendante d'un parti) n'a pas cette contrainte.
 - **Corpus matérialisé** : les snapshots sont des binaires non versionnés —
-  les re-matérialiser localement avec `npm run snapshot:programmes` et
+  les re-matérialiser localement avec `npm run snapshot:programmes`,
+  `npm run snapshot:programme-chapters` (sources HTML) et
   `npm run snapshot:votes` (l'intégrité est vérifiée contre les manifestes
   committés). L'extraction du corpus (#25), même partielle, améliore
   l'étape de codage mais n'est pas bloquante pour générer le pool.
 - Ordre de grandeur du coût : le run complet du corpus se chiffre en
   dizaines d'euros maximum (spec #15) ; chaque commande affiche le coût
-  réel de son run.
+  réel de son run (zéro en `--ingest`).
 
 ### Commandes, dans l'ordre
 
@@ -213,12 +232,19 @@ npm run statements:pool -- --party ps --dry-run
 npm run statements:pool -- --votes --dry-run
 
 # 1. Générer le pool depuis les programmes (répéter par parti)
+#    PDF (ps, mr…) ET chapitres web (ptb-pvda) — même commande.
 npm run statements:pool -- --party ps
-npm run statements:pool -- --party mr
-# … idem pour chaque parti à programme PDF snapshoté
+npm run statements:pool -- --party ptb-pvda        # source HTML, chapitre = chunk
 
-# 2. Générer le pool depuis les dossiers votés
+# 1bis. Variante keyless (agent-as-LLM, sans clé) — par parti :
+npm run statements:pool -- --party ps --emit ps.pool.emit.json
+#   → remplir une réponse par unité, puis :
+npm run statements:pool -- --party ps --ingest ps.pool.responses.json
+
+# 2. Générer le pool depuis les dossiers votés (live, ou keyless)
 npm run statements:pool -- --votes
+npm run statements:pool -- --votes --emit votes.pool.emit.json
+npm run statements:pool -- --votes --ingest votes.pool.responses.json
 
 # 3. Coder les positions des candidats pressentis
 #    (éditer le champ `positions` dans data/statements/pool/*.candidates.yaml)
@@ -228,6 +254,12 @@ npm run statements:select
 
 # 5. Sélectionner, réécrire, traduire — humain, hors outillage
 ```
+
+Les modes `--dry-run`, `--emit` et `--ingest` sont mutuellement exclusifs.
+`--emit`/`--ingest` sont keyless : l'ingest re-valide l'ancre `text_sha256`
+(le contenu du chunk/lot n'a pas bougé depuis l'emit) et l'ancre de taille,
+puis assemble le pool par la même règle de fusion — un run keyless produit
+le même pool byte-pour-byte qu'un run live.
 
 Les étapes 3-4 bouclent : coder quelques candidats, re-classer, resserrer.
 Le rapport signale les thèmes en trou de couverture ; y répondre en
