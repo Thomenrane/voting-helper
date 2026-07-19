@@ -17,7 +17,7 @@
  * network; the crawl itself is the injected fetcher of the snapshot runner.
  */
 import type { SnapshotSource } from '../snapshot/manifest.ts';
-import { buildWaybackUrl, decodeWaybackUrl, parseWaybackUrl } from './wayback.ts';
+import { decodeWaybackUrl } from './wayback.ts';
 
 /** Path-safe slug — chapter slugs end up in snapshot file paths (#21). */
 const SAFE_SLUG = /^[a-z0-9-]+$/;
@@ -112,40 +112,42 @@ export function chapterSourceIdPrefix(indexSourceId: string): string {
 }
 
 /**
+ * Builds one chapter `SnapshotSource` from a resolved (originUrl, fetchUrl) pair.
+ * Channel and provenance are inherited from the index source; the media type is
+ * `text/html`. The single place the chapter snapshot shape is assembled — shared
+ * by the live path (`buildChapterSources`, fetchUrl = canonical) and the Wayback
+ * path (`resolveWaybackChapterSources`, fetchUrl = per-chapter dated capture, #58).
+ */
+export function chapterSnapshotSource(
+  indexSource: SnapshotSource,
+  slug: string,
+  originUrl: string,
+  fetchUrl: string,
+): SnapshotSource {
+  return {
+    id: chapterSourceId(indexSource.id, slug),
+    label: `${indexSource.label} — chapitre « ${slug} »`,
+    originUrl,
+    fetchUrl,
+    channel: indexSource.channel,
+    mediaType: 'text/html',
+    provenance: `${indexSource.provenance} — chapitre crawlé (borné) depuis l'index #51`,
+  };
+}
+
+/**
  * Builds the `SnapshotSource`s for one index's chapters — snapshotted through
- * the ordinary #21 machinery (dated, fingerprinted, immutable). Channel and
- * provenance are inherited from the index source; the media type is `text/html`.
- *
- * The `originUrl` is always the canonical chapter URL (provenance). In `wayback`
- * mode (#58) the `fetchUrl` wraps that canonical URL in the SAME dated capture
- * envelope as the index (`web/<ts>id_/<origin-url>`), so every chapter is
- * fetched from the same mid-2024 capture window as its index — never the drifted
- * live site. In `live`/`manual` mode `fetchUrl` is the canonical URL itself.
- *
- * Throws when the index is `wayback` but its `fetchUrl` is not a parseable
- * Wayback replay URL — the chapter captures cannot be dated (fail-closed).
+ * the ordinary #21 machinery (dated, fingerprinted, immutable). The `fetchUrl`
+ * is the canonical chapter URL itself (live/manual channels). The Wayback path
+ * (#58) instead resolves a dated capture PER CHAPTER — see
+ * `resolveWaybackChapterSources` — because chapter pages are NOT captured at the
+ * same instant as the index (a per-chapter capture must be looked up).
  */
 export function buildChapterSources(
   indexSource: SnapshotSource,
   chapters: readonly ChapterLink[],
 ): SnapshotSource[] {
-  const wayback = indexSource.channel === 'wayback' ? parseWaybackUrl(indexSource.fetchUrl) : null;
-  if (indexSource.channel === 'wayback' && wayback === null) {
-    throw new Error(
-      `Index '${indexSource.id}' is channel 'wayback' but its fetchUrl ` +
-        `'${indexSource.fetchUrl}' is not a Wayback replay URL — cannot date the chapter captures.`,
-    );
-  }
-  return chapters.map((chapter) => ({
-    id: chapterSourceId(indexSource.id, chapter.slug),
-    label: `${indexSource.label} — chapitre « ${chapter.slug} »`,
-    originUrl: chapter.url,
-    fetchUrl:
-      wayback === null
-        ? chapter.url
-        : buildWaybackUrl(wayback.timestamp, chapter.url, wayback.modifier),
-    channel: indexSource.channel,
-    mediaType: 'text/html',
-    provenance: `${indexSource.provenance} — chapitre crawlé (borné) depuis l'index #51`,
-  }));
+  return chapters.map((chapter) =>
+    chapterSnapshotSource(indexSource, chapter.slug, chapter.url, chapter.url),
+  );
 }

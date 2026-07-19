@@ -105,36 +105,4 @@ describe('buildChapterSources', () => {
     });
     expect(sources[0]?.provenance).toContain('note');
   });
-
-  it('dates each chapter fetchUrl from the index capture in wayback mode (#58)', () => {
-    const waybackIndex: SnapshotSource = {
-      ...INDEX,
-      channel: 'wayback',
-      fetchUrl: 'https://web.archive.org/web/20240609id_/https://www.ptb.be/programme',
-    };
-    const sources = buildChapterSources(waybackIndex, [
-      { slug: 'agriculture', url: 'https://www.ptb.be/programme/agriculture' },
-    ]);
-    expect(sources[0]).toMatchObject({
-      id: 'ptb-programme-2024-chapitre-agriculture',
-      // Provenance stays canonical…
-      originUrl: 'https://www.ptb.be/programme/agriculture',
-      // …fetch goes through the SAME dated capture as the index.
-      fetchUrl:
-        'https://web.archive.org/web/20240609id_/https://www.ptb.be/programme/agriculture',
-      channel: 'wayback',
-      mediaType: 'text/html',
-    });
-  });
-
-  it('refuses a wayback index whose fetchUrl is not a Wayback replay URL (#58)', () => {
-    const broken: SnapshotSource = {
-      ...INDEX,
-      channel: 'wayback',
-      fetchUrl: 'https://www.ptb.be/programme',
-    };
-    expect(() =>
-      buildChapterSources(broken, [{ slug: 'x', url: 'https://www.ptb.be/programme/x' }]),
-    ).toThrow(/not a Wayback replay URL/);
-  });
 });

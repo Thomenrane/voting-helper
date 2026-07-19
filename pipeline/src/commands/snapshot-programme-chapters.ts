@@ -35,10 +35,56 @@ import {
 } from '../snapshot/snapshot-store.ts';
 import { buildChapterSources, extractChapterLinks } from '../sources/html-chapters.ts';
 import { PROGRAMME_SOURCES } from '../sources/programmes.sources.ts';
+import {
+  resolveWaybackChapterSources,
+  type AvailabilityFetcher,
+} from '../sources/wayback-availability.ts';
 import { fail, reportRun, resolveRepoRoot } from './command-support.ts';
 
 const MANIFEST_RELATIVE_PATH = 'data/manifests/programmes.manifest.json';
 const SNAPSHOTS_DIR = 'data/snapshots/programmes';
+
+/** Wayback availability API timeout — small JSON, but the API can be slow. */
+const AVAILABILITY_TIMEOUT_MS = 60_000;
+
+/**
+ * The app's network path for the availability API (#58): fetch the JSON via the
+ * same `fetchBytes` as every other snapshot fetch, then parse. Any failure
+ * propagates as a thrown error, which `resolveChapterCapture` treats as "this
+ * target unavailable" and falls through to the next target date.
+ */
+const fetchAvailabilityJson: AvailabilityFetcher = async (url) => {
+  const bytes = await fetchBytes(url, AVAILABILITY_TIMEOUT_MS);
+  return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+};
+
+/**
+ * Resolves the chapter snapshot sources for one index. Wayback indexes (#58)
+ * resolve a dated capture PER CHAPTER through the availability API (chapters are
+ * not captured at the index's instant); a chapter with no in-2024 capture is
+ * skipped (fail-closed → `chapters-inventory` counts it missing → FAIL). Live
+ * indexes fetch each chapter from its canonical URL.
+ */
+async function crawlChapterSources(
+  indexSource: SnapshotSource,
+  links: ReturnType<typeof extractChapterLinks>,
+): Promise<SnapshotSource[]> {
+  if (indexSource.channel !== 'wayback') {
+    return buildChapterSources(indexSource, links);
+  }
+  const { sources, unavailable } = await resolveWaybackChapterSources(
+    indexSource,
+    links,
+    fetchAvailabilityJson,
+  );
+  if (unavailable.length > 0) {
+    console.warn(
+      `⚠︎ ${unavailable.length}/${links.length} chapter(s) of '${indexSource.id}' have no in-2024 ` +
+        `Wayback capture — skipped (chapters-inventory will FAIL until resolved): ${unavailable.join(', ')}`,
+    );
+  }
+  return sources;
+}
 
 /** The committed index HTML bytes, integrity-verified against the manifest. */
 async function readIndexHtml(
@@ -85,7 +131,7 @@ async function main(): Promise<void> {
   for (const indexSource of targets) {
     const indexHtml = await readIndexHtml(repoRoot, manifest, indexSource);
     const links = extractChapterLinks(indexHtml, indexSource.originUrl);
-    const chapterSources = buildChapterSources(indexSource, links);
+    const chapterSources = await crawlChapterSources(indexSource, links);
     console.log(`Crawling ${chapterSources.length} chapter(s) of '${indexSource.id}'…`);
     const result = await snapshotSources({
       sources: chapterSources,
