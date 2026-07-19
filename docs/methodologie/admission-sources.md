@@ -243,17 +243,25 @@ format. #51 lève ce blocage sans dégrader aucune garantie :
 
    **Sourcing Wayback mi-2024 (#58).** Le programme web PTB-PVDA est *évolutif* :
    le site live 2026 a dérivé du programme figé du scrutin du 9 juin 2024. Les
-   deux miroirs sont donc en canal `wayback`, `fetchUrl` ciblant une capture
-   datée proche du scrutin (`web/20240609id_/<origine>`, le préfixe `id_`
-   redirigeant vers la capture réelle la plus proche — même mécanisme que
-   Ecolo/N-VA), l'`originUrl` canonique restant la provenance. En mode Wayback :
+   deux miroirs sont donc en canal `wayback`, `fetchUrl` d'index pointant la
+   **capture d'index confirmée** (PTB `20240618091111`, PVDA `20240528161524`),
+   l'`originUrl` canonique restant la provenance. En mode Wayback :
    (a) les hrefs de l'index capturé, éventuellement **encapsulés** dans
    l'enveloppe de replay (`/web/<ts>id_/<origine>`), sont **décodés** vers leur
    URL d'origine **avant** l'allowlist — les bornes s'appliquent sur l'origine
-   canonique décodée, jamais sur `web.archive.org` ; (b) chaque chapitre est
-   fetché depuis la **même** capture datée que son index. L'inventaire attendu
-   (§ « Inventaire des chapitres web ») reste donc l'index Wayback 2024, et le
-   garde-fou crawl-partiel → FAIL est intégralement préservé.
+   canonique décodée, jamais sur `web.archive.org` ; (b) les pages-chapitres
+   n'étant **pas** capturées à l'instant de l'index (les dater depuis l'index →
+   403), le crawl **résout par chapitre** la capture la plus proche du scrutin
+   via l'**API availability** (`archive.org/wayback/available`), cible primaire
+   `20240609` avec replis `20240701`/`20240601`/`20240515` (l'API est capricieuse
+   à une date exacte). **Garde-fou millésime** : une capture n'est acceptée que
+   si `closest.status === '200'` ET son timestamp est dans l'année **2024** ;
+   sinon (hors-2024, ou introuvable après replis) le chapitre est **indisponible**
+   — non snapshoté, donc compté **manquant** par `chapters-inventory` → FAIL,
+   jamais de timestamp fabriqué. L'inventaire attendu (§ « Inventaire des
+   chapitres web ») reste l'index Wayback 2024, et le garde-fou crawl-partiel →
+   FAIL est intégralement préservé. La résolution availability est une étape
+   **réseau du crawl** ; l'admission lit les snapshots committés, sans I/O.
 2. **Couche texte par chapitre.** Chaque chapitre = une « page » de la même
    structure `ProgrammeTextLayer` que le PDF — l'admission et l'extraction
    restent **agnostiques à la source**. L'extraction HTML→texte retire le

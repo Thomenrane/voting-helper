@@ -73,9 +73,12 @@ sont **agnostiques au format** :
   « © 2023-2026 », des chapitres citant 2025). PTB-PVDA sont donc sourcés depuis
   une capture **Wayback Machine mi-2024** (canal `wayback`, `originUrl`
   canonique conservée en provenance) — la version gelée de la page désignée,
-  comme les PDF Ecolo/N-VA/Open Vld. En mode Wayback, l'index **et** chaque
-  chapitre sont fetchés depuis la capture datée (`web/<ts>id_/<origine>`) ; les
-  bornes de crawl s'appliquent sur l'URL **d'origine décodée** de l'enveloppe
+  comme les PDF Ecolo/N-VA/Open Vld. En mode Wayback, l'index est fetché depuis
+  sa capture confirmée, mais **chaque chapitre a une capture à un autre instant**
+  (les datant depuis l'index → 403) : le crawl résout **par chapitre** la capture
+  la plus proche du scrutin via l'API availability, n'acceptant qu'une capture
+  **2024** (sinon le chapitre est traité comme manquant → FAIL de complétude).
+  Les bornes de crawl s'appliquent sur l'URL **d'origine décodée** de l'enveloppe
   Wayback, jamais sur `web.archive.org`.
 
 `extract:positions` prépare ces couches via `ensureTextLayer` (PDF dérivé et
