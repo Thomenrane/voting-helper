@@ -341,7 +341,20 @@
       "bytes": 10144996,
       "file": "data/snapshots/programmes/les-engages-programme-2024/20260716T132515Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § Les Engagés",
-      "content_unchanged_from": "les-engages-programme-2024@20260716T132515Z"
+      "content_unchanged_from": "les-engages-programme-2024@20260716T132515Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-year",
+            "auto-id-level",
+            "toc-bounds"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-19T06:12:45.467Z",
+          "note": "Programme Les Engagés « PROGRAMME ÉLECTIONS 2024 » (355 p.), source lesengages.be confirmée par le PO ; scrutin fédéral du 9 juin 2024. Document COMPLET : la TDM référençant la page 701 est un artefact d'extraction d'une TDM multi-colonnes (prouvé #49), pas une troncature — les 355 pages sont conformes à l'attendu.",
+          "snapshot_sha256": "b65115970ede1724c349875832aab78ee069a5ab95c403fd6cbe8238674668ce"
+        }
+      ]
     },
     {
       "snapshot_id": "ecolo-programme-2024@20260716T212919921Z",
@@ -610,7 +623,18 @@
       "bytes": 4945779,
       "file": "data/snapshots/programmes/cdv-programme-2024/20260716T132537Z.pdf",
       "provenance": "docs/research/programmes-partis.md (branch research/programmes-partis, 16/07/2026) — § CD&V",
-      "content_unchanged_from": "cdv-programme-2024@20260716T132537Z"
+      "content_unchanged_from": "cdv-programme-2024@20260716T132537Z",
+      "criteria_attestations": [
+        {
+          "criteria": [
+            "auto-id-level"
+          ],
+          "by": "Florian (thomenrane)",
+          "at": "2026-07-19T06:12:32.781Z",
+          "note": "Programme CD&V « Kies zekerheid » (congrès 21/04/2024), source nationbuilder confirmée par le PO ; couverture « Versie: 21 april 2024 » ; scrutin fédéral du 9 juin 2024 (combiné féd./rég./eur.).",
+          "snapshot_sha256": "e272bd5889bb6ef47860091a84b5f1eef990ea4c034a591836b68021d203de5a"
+        }
+      ]
     },
     {
       "snapshot_id": "open-vld-partijprogramma-2024@20260716T212943055Z",
