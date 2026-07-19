@@ -66,9 +66,10 @@ export const PROGRAMME_SOURCES: SnapshotSource[] = [
     id: 'ptb-programme-2024',
     label: 'PTB — Programme (index des chapitres web, pas de PDF national)',
     originUrl: 'https://www.ptb.be/programme',
-    // Date target near the 9 June 2024 ballot; the `id_` prefix redirects to the
-    // nearest real capture (same mechanism as Ecolo/N-VA `2024id_`). #58.
-    fetchUrl: 'https://web.archive.org/web/20240609id_/https://www.ptb.be/programme',
+    // Confirmed mid-2024 index capture near the 9 June 2024 ballot (#58). The
+    // chapter pages are captured at OTHER instants — each is resolved per chapter
+    // at crawl time (see wayback-availability.ts), not from this timestamp.
+    fetchUrl: 'https://web.archive.org/web/20240618091111id_/https://www.ptb.be/programme',
     channel: 'wayback',
     mediaType: 'text/html',
     provenance: `${NOTE} — § PTB (programme web évolutif, gelé au scrutin via Wayback mi-2024, #58)`,
@@ -198,9 +199,10 @@ export const PROGRAMME_SOURCES: SnapshotSource[] = [
     id: 'pvda-programme-2024',
     label: 'PVDA — Programma (index des chapitres web, miroir NL du PTB)',
     originUrl: 'https://www.pvda.be/programma',
-    // Date target near the 9 June 2024 ballot; the `id_` prefix redirects to the
-    // nearest real capture (same mechanism as Ecolo/N-VA `2024id_`). #58.
-    fetchUrl: 'https://web.archive.org/web/20240609id_/https://www.pvda.be/programma',
+    // Confirmed mid-2024 index capture near the 9 June 2024 ballot (#58). The
+    // chapter pages are captured at OTHER instants — each is resolved per chapter
+    // at crawl time (see wayback-availability.ts), not from this timestamp.
+    fetchUrl: 'https://web.archive.org/web/20240528161524id_/https://www.pvda.be/programma',
     channel: 'wayback',
     mediaType: 'text/html',
     provenance: `${NOTE} — § PVDA (parti unitaire PTB-PVDA, miroir NL, gelé au scrutin via Wayback mi-2024, #58)`,
